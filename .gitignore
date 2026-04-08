@@ -1,0 +1,16 @@
+# Develop
+.pnpm-store/
+node_modules/
+pnpm-lock.yaml
+out/
+dist/
+/src/core.lib/common/
+devconfig/*
+.devcontainer/
+
+# Editor
+.vscode/
+.idea/*
+
+# macOS
+.DS_Store
