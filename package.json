@@ -3,6 +3,8 @@
   "private": true,
   "packageManager": "pnpm@10.8.0",
   "scripts": {
+    "dev:reactuse": "tsc -p packages/reactuse/tsconfig.json --watch",
+    "build:reactuse": "tsc -b packages/reactuse/tsconfig.json",
     "lint": "pnpm -r lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
