@@ -1,0 +1,31 @@
+{
+  "name": "@webtools/webpaper",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@webtools/reactuse": "workspace:*",
+    "@heroui/react": "^2.1.7",
+    "antd": "^6.3.5",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "autoprefixer": "^10.4.20",
+    "babel-plugin-import": "^1.13.8",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.17"
+  }
+}
