@@ -1,10 +1,33 @@
 import { Alert, Space, Tag } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 
+export type ImageHeroMode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync';
+
+function resolvePreviewUrl(previewUrl: string | null | undefined, imageUrl: string): string {
+    if (!previewUrl) {
+        return imageUrl;
+    }
+
+    const candidate = previewUrl.trim();
+    if (!candidate) {
+        return imageUrl;
+    }
+
+    try {
+        const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost/';
+        // Use URL parsing to guard against malformed preview urls.
+        // Relative urls are allowed and resolved against current location.
+        void new URL(candidate, base);
+        return candidate;
+    } catch {
+        return imageUrl;
+    }
+}
 
 type ImageHeroProps = {
     imageUrl: string;
     previewUrl?: string | null;
+    mode: ImageHeroMode;
     id: number | string;
     provider: string;
     objectFit: 'contain' | 'cover';
@@ -15,9 +38,18 @@ type ImageHeroProps = {
     onImageError: () => void;
 };
 
+// 将 previewUrl 和 imageUrl 和展示效果分离，单独传入 mode 参数 作为情形处理，需要考虑下面情形的处理：
+// mode === 'imageOnly'. 立即刷新前台和背景 img 将二者都设置为 imageUrl，等待浏览器自然加载。
+// mode === 'imageAsync'. 异步加载前台 img, 加载成功后 将前台和背景 img 都设置为 imageUrl.
+// mode === 'allAsync'. 异步加载前台和背景 img, 每个 img onload 成功后再刷新对应的 img.
+// mode === 'previewAsync'. 异步加载 背景和前台 img, 等待背景 img 加载完成后，再刷新背景和前台的 img, 无论 前台 img 是否加载成功。
+// mode === 'allSync'. 立即刷新 背景 img 设置为 previewUrl. 清空前台 img 并异步加载 imageUrl, 等待背景 img onLoad 成功后，无论imageUrl加载成功与否，立即刷新前台 img 为 imageUrl.
+// mode 会发生切换，切换时立即生效
+
 export function ImageHero({
     imageUrl,
     previewUrl,
+    mode,
     id,
     provider,
     objectFit,
@@ -29,9 +61,15 @@ export function ImageHero({
 }: ImageHeroProps) {
     const [mouseRatio, setMouseRatio] = useState({ x: 0, y: 0 });
     const [backgroundSrc, setBackgroundSrc] = useState<string>('');
-    const [foregroundSrc, setForegroundSrc] = useState<string>('');
+    const [foregroundSrc, setForegroundSrc] = useState<string | null>(null);
     const [foregroundVisible, setForegroundVisible] = useState(false);
     const loadTokenRef = useRef(0);
+    const allSyncPendingTokenRef = useRef<number | null>(null);
+    const onImageErrorRef = useRef(onImageError);
+
+    useEffect(() => {
+        onImageErrorRef.current = onImageError;
+    }, [onImageError]);
 
     useEffect(() => {
         if (!enableMouseTracking) {
@@ -57,13 +95,23 @@ export function ImageHero({
     useEffect(() => {
         if (!imageUrl) {
             setBackgroundSrc('');
-            setForegroundSrc('');
+            setForegroundSrc(null);
             setForegroundVisible(false);
+            allSyncPendingTokenRef.current = null;
             return;
         }
 
         loadTokenRef.current += 1;
         const token = loadTokenRef.current;
+        allSyncPendingTokenRef.current = null;
+        const backgroundUrl = resolvePreviewUrl(previewUrl, imageUrl);
+
+        // Keep background during previewAsync to avoid flash, clear in other modes.
+        if (mode !== 'previewAsync') {
+            setBackgroundSrc('');
+        }
+        setForegroundSrc(null);
+        setForegroundVisible(false);
 
         const loadImage = (url: string): Promise<boolean> => {
             return new Promise((resolve) => {
@@ -76,7 +124,20 @@ export function ImageHero({
             });
         };
 
-        if (!previewUrl) {
+        if (mode === 'imageOnly') {
+            void Promise.resolve().then(() => {
+                if (loadTokenRef.current !== token) {
+                    return;
+                }
+
+                setBackgroundSrc(imageUrl);
+                setForegroundSrc(imageUrl);
+                setForegroundVisible(true);
+            });
+            return;
+        }
+
+        if (mode === 'imageAsync') {
             setForegroundVisible(false);
 
             void loadImage(imageUrl).then((loaded) => {
@@ -85,7 +146,7 @@ export function ImageHero({
                 }
 
                 if (!loaded) {
-                    onImageError();
+                    onImageErrorRef.current();
                     return;
                 }
 
@@ -97,33 +158,62 @@ export function ImageHero({
             return;
         }
 
-        const previewLoad = loadImage(previewUrl);
-        const mainLoad = loadImage(imageUrl);
+        if (mode === 'allAsync') {
+            void loadImage(backgroundUrl).then((loaded) => {
+                if (loadTokenRef.current !== token || !loaded) {
+                    return;
+                }
 
-        void previewLoad.then((loaded) => {
-            if (loadTokenRef.current !== token || !loaded) {
-                return;
-            }
+                setBackgroundSrc(backgroundUrl);
+            });
 
-            // Preview is ready first: refresh background immediately and hide previous foreground.
-            setBackgroundSrc(previewUrl);
-            setForegroundVisible(false);
-        });
+            void loadImage(imageUrl).then((loaded) => {
+                if (loadTokenRef.current !== token) {
+                    return;
+                }
 
-        void mainLoad.then((loaded) => {
+                if (!loaded) {
+                    onImageErrorRef.current();
+                    return;
+                }
+
+                setForegroundSrc(imageUrl);
+                setForegroundVisible(true);
+            });
+            return;
+        }
+
+        if (mode === 'previewAsync') {
+            void loadImage(imageUrl);
+            void loadImage(backgroundUrl).then((loaded) => {
+                if (loadTokenRef.current !== token) {
+                    return;
+                }
+
+                if (!loaded) {
+                    onImageErrorRef.current();
+                    return;
+                }
+
+                setBackgroundSrc(backgroundUrl);
+                setForegroundSrc(imageUrl);
+                setForegroundVisible(true);
+            });
+            return;
+        }
+
+        // mode === 'allSync'
+        void Promise.resolve().then(() => {
             if (loadTokenRef.current !== token) {
                 return;
             }
 
-            if (!loaded) {
-                onImageError();
-                return;
-            }
-
-            setForegroundSrc(imageUrl);
-            setForegroundVisible(true);
+            setBackgroundSrc(backgroundUrl);
+            allSyncPendingTokenRef.current = token;
         });
-    }, [imageUrl, onImageError, previewUrl]);
+
+        void loadImage(imageUrl);
+    }, [imageUrl, mode, previewUrl]);
 
     if (!imageUrl) {
         return (
@@ -145,18 +235,45 @@ export function ImageHero({
                 className='absolute inset-0 z-0 h-full w-full object-cover'
                 alt='preview'
                 referrerPolicy='no-referrer'
+                onLoad={() => {
+                    if (mode !== 'allSync') {
+                        return;
+                    }
+
+                    const pendingToken = allSyncPendingTokenRef.current;
+                    if (pendingToken === null || pendingToken !== loadTokenRef.current) {
+                        return;
+                    }
+
+                    allSyncPendingTokenRef.current = null;
+                    setForegroundSrc(imageUrl);
+                    setForegroundVisible(true);
+                }}
+                onError={() => {
+                    if (mode !== 'allSync') {
+                        return;
+                    }
+
+                    const pendingToken = allSyncPendingTokenRef.current;
+                    if (pendingToken === null || pendingToken !== loadTokenRef.current) {
+                        return;
+                    }
+
+                    allSyncPendingTokenRef.current = null;
+                    onImageErrorRef.current();
+                }}
             />
             <div className='absolute inset-0 z-[1] backdrop-blur-[18px]' />
             <img
-                src={foregroundSrc || undefined}
-                className={`absolute inset-0 z-[2] h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)] transition-all duration-150 ease-out ${foregroundVisible ? 'opacity-100' : 'opacity-0'}`}
+                src={foregroundSrc ?? undefined}
+                className={`absolute inset-0 z-[2] h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)] transition-opacity duration-150 ease-out ${foregroundVisible ? 'opacity-100' : 'opacity-0'}`}
                 style={{
                     objectFit,
                     transform: `scale(${trackScale / 100}) translate(${offsetX}%, ${offsetY}%)`,
                 }}
                 alt={`konachan-${id}`}
                 referrerPolicy='no-referrer'
-                onError={onImageError}
+                onError={() => onImageErrorRef.current()}
             />
 
             <div className='absolute bottom-[6.5rem] left-4 z-[4] flex flex-col gap-[0.1rem] text-white md:left-[clamp(1rem,12vw,10rem)] md:bottom-[clamp(4.5rem,12vh,7rem)] [text-shadow:0_0_14px_rgba(0,0,0,0.8)]'>
