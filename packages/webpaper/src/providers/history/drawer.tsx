@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from 'react';
 
 import type { HistoryRecord } from '../../types';
-import { HistoryDetailModal } from './detail';
+import { HistoryDetailModal } from '../../components/history/detail';
 import { ImageCard } from './card';
 
 type HistoryDrawerProps = {
@@ -38,7 +38,7 @@ export function HistoryDrawer({ open, items, search, onSearchChange, onSetCurren
             .filter((item) => {
                 return (
                     item.tags.join(' ').toLowerCase().includes(keyword) ||
-                    (item.providerLabel ?? item.provider).toLowerCase().includes(keyword) ||
+                    (item.provider ?? item.provider).toLowerCase().includes(keyword) ||
                     String(item.id).includes(keyword)
                 );
             });
@@ -46,7 +46,7 @@ export function HistoryDrawer({ open, items, search, onSearchChange, onSetCurren
 
     const masonryItems = useMemo(() => {
         return visibleItems.map((item) => ({
-            key: `${item.providerId}-${item.id}-${item.sequence}`,
+            key: `${item.provider}-${item.id}-${item.sequence}`,
             data: item,
             height: Math.max(220, Math.round((item.height / Math.max(item.width, 1)) * 240) + 128),
         }));
@@ -107,7 +107,7 @@ export function HistoryDrawer({ open, items, search, onSearchChange, onSetCurren
                 >
                     {visibleItems.map((item) => (
                         <Image
-                            key={`${item.providerId}-${item.id}-${item.sequence}`}
+                            key={`${item.provider}-${item.id}-${item.sequence}`}
                             src={item.displayUrl || item.previewUrl}
                             alt={`preview-${item.id}`}
                         />

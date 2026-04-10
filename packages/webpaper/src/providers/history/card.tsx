@@ -50,7 +50,7 @@ export function ImageCard({ item, onDetail, onPreview, onSetCurrent }: ImageCard
                     </div>
                     <Space orientation='vertical' size={6} style={{ width: '100%' }}>
                         <Space wrap size={4}>
-                            <Tag color='blue'>{item.providerLabel}</Tag>
+                            <Tag color='blue'>{item.provider}</Tag>
                             <Tag>ID {item.id}</Tag>
                         </Space>
                     </Space>

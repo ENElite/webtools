@@ -41,7 +41,7 @@ function formatDateTime(value: number): string {
 
 function buildDescriptionItems(item: HistoryRecord): DescriptionsProps['items'] {
     return [
-        { key: 'provider', label: 'Provider', children: item.providerLabel },
+        { key: 'provider', label: 'Provider', children: item.provider },
         {
             key: 'id',
             label: 'ID',
@@ -100,7 +100,7 @@ function buildDescriptionItems(item: HistoryRecord): DescriptionsProps['items'] 
 export function HistoryDetailModal({ item, open, onClose, showImage = true }: HistoryDetailModalProps) {
     return (
         <Modal
-            title={item ? `#${item.id} - ${item.providerLabel}` : '图片详情'}
+            title={item ? `#${item.id} - ${item.provider}` : '图片详情'}
             open={open}
             onCancel={onClose}
             footer={null}
