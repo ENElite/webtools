@@ -1,7 +1,13 @@
 import { Alert, Space, Tag } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 export type ImageHeroMode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync';
+
+type AllSyncPending = {
+    token: number;
+    backgroundUrl: string;
+    foregroundUrl: string;
+};
 
 function resolvePreviewUrl(previewUrl: string | null | undefined, imageUrl: string): string {
     if (!previewUrl) {
@@ -21,6 +27,15 @@ function resolvePreviewUrl(previewUrl: string | null | undefined, imageUrl: stri
         return candidate;
     } catch {
         return imageUrl;
+    }
+}
+
+function normalizeUrl(url: string): string {
+    try {
+        const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost/';
+        return new URL(url, base).href;
+    } catch {
+        return url;
     }
 }
 
@@ -51,20 +66,17 @@ export function ImageHero({
     previewUrl,
     mode,
     id,
-    provider,
     objectFit,
     trackScale,
     trackIntensity,
     enableMouseTracking,
-    now,
     onImageError,
 }: ImageHeroProps) {
     const [mouseRatio, setMouseRatio] = useState({ x: 0, y: 0 });
     const [backgroundSrc, setBackgroundSrc] = useState<string>('');
-    const [foregroundSrc, setForegroundSrc] = useState<string | null>(null);
-    const [foregroundVisible, setForegroundVisible] = useState(false);
+    const [foregroundSrc, setForegroundSrc] = useState<string>('');
     const loadTokenRef = useRef(0);
-    const allSyncPendingTokenRef = useRef<number | null>(null);
+    const allSyncPendingRef = useRef<AllSyncPending | null>(null);
     const onImageErrorRef = useRef(onImageError);
 
     useEffect(() => {
@@ -95,23 +107,21 @@ export function ImageHero({
     useEffect(() => {
         if (!imageUrl) {
             setBackgroundSrc('');
-            setForegroundSrc(null);
-            setForegroundVisible(false);
-            allSyncPendingTokenRef.current = null;
+            setForegroundSrc('');
+            allSyncPendingRef.current = null;
             return;
         }
 
         loadTokenRef.current += 1;
         const token = loadTokenRef.current;
-        allSyncPendingTokenRef.current = null;
+        allSyncPendingRef.current = null;
         const backgroundUrl = resolvePreviewUrl(previewUrl, imageUrl);
 
         // Keep background during previewAsync to avoid flash, clear in other modes.
         if (mode !== 'previewAsync') {
             setBackgroundSrc('');
         }
-        setForegroundSrc(null);
-        setForegroundVisible(false);
+        setForegroundSrc('');
 
         const loadImage = (url: string): Promise<boolean> => {
             return new Promise((resolve) => {
@@ -132,13 +142,12 @@ export function ImageHero({
 
                 setBackgroundSrc(imageUrl);
                 setForegroundSrc(imageUrl);
-                setForegroundVisible(true);
             });
             return;
         }
 
         if (mode === 'imageAsync') {
-            setForegroundVisible(false);
+            setForegroundSrc('');
 
             void loadImage(imageUrl).then((loaded) => {
                 if (loadTokenRef.current !== token) {
@@ -152,7 +161,6 @@ export function ImageHero({
 
                 setBackgroundSrc(imageUrl);
                 setForegroundSrc(imageUrl);
-                setForegroundVisible(true);
             });
 
             return;
@@ -178,7 +186,6 @@ export function ImageHero({
                 }
 
                 setForegroundSrc(imageUrl);
-                setForegroundVisible(true);
             });
             return;
         }
@@ -197,7 +204,6 @@ export function ImageHero({
 
                 setBackgroundSrc(backgroundUrl);
                 setForegroundSrc(imageUrl);
-                setForegroundVisible(true);
             });
             return;
         }
@@ -209,7 +215,11 @@ export function ImageHero({
             }
 
             setBackgroundSrc(backgroundUrl);
-            allSyncPendingTokenRef.current = token;
+            allSyncPendingRef.current = {
+                token,
+                backgroundUrl,
+                foregroundUrl: imageUrl,
+            };
         });
 
         void loadImage(imageUrl);
@@ -217,7 +227,7 @@ export function ImageHero({
 
     if (!imageUrl) {
         return (
-            <section className='absolute left-4 top-4 z-[6]' style={{ width: 'min(720px, calc(100% - 2rem))' }}>
+            <section className='absolute left-4 top-4' style={{ width: 'min(720px, calc(100% - 2rem))' }}>
                 <Alert
                     title='正在拉取图片'
                     description='如果请求失败，请在设置里切换 API 地址，或者调整 provider 的筛选条件。'
@@ -232,60 +242,58 @@ export function ImageHero({
         <>
             <img
                 src={backgroundSrc || undefined}
-                className='absolute inset-0 z-0 h-full w-full object-cover'
+                className='absolute inset-0 h-full w-full object-cover'
                 alt='preview'
                 referrerPolicy='no-referrer'
-                onLoad={() => {
+                onLoad={(event: SyntheticEvent<HTMLImageElement>) => {
                     if (mode !== 'allSync') {
                         return;
                     }
 
-                    const pendingToken = allSyncPendingTokenRef.current;
-                    if (pendingToken === null || pendingToken !== loadTokenRef.current) {
+                    const pending = allSyncPendingRef.current;
+                    if (!pending || pending.token !== loadTokenRef.current) {
                         return;
                     }
 
-                    allSyncPendingTokenRef.current = null;
-                    setForegroundSrc(imageUrl);
-                    setForegroundVisible(true);
+                    const loadedUrl = normalizeUrl(event.currentTarget.currentSrc || event.currentTarget.src || '');
+                    const expectedUrl = normalizeUrl(pending.backgroundUrl);
+                    if (loadedUrl !== expectedUrl) {
+                        return;
+                    }
+
+                    allSyncPendingRef.current = null;
+                    setForegroundSrc(pending.foregroundUrl);
                 }}
                 onError={() => {
                     if (mode !== 'allSync') {
                         return;
                     }
 
-                    const pendingToken = allSyncPendingTokenRef.current;
-                    if (pendingToken === null || pendingToken !== loadTokenRef.current) {
+                    const pending = allSyncPendingRef.current;
+                    if (!pending || pending.token !== loadTokenRef.current) {
                         return;
                     }
 
-                    allSyncPendingTokenRef.current = null;
+                    allSyncPendingRef.current = null;
                     onImageErrorRef.current();
                 }}
             />
-            <div className='absolute inset-0 z-[1] backdrop-blur-[18px]' />
-            <img
-                src={foregroundSrc ?? undefined}
-                className={`absolute inset-0 z-[2] h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)] transition-opacity duration-150 ease-out ${foregroundVisible ? 'opacity-100' : 'opacity-0'}`}
-                style={{
-                    objectFit,
-                    transform: `scale(${trackScale / 100}) translate(${offsetX}%, ${offsetY}%)`,
-                }}
-                alt={`konachan-${id}`}
-                referrerPolicy='no-referrer'
-                onError={() => onImageErrorRef.current()}
-            />
-
-            <div className='absolute bottom-[6.5rem] left-4 z-[4] flex flex-col gap-[0.1rem] text-white md:left-[clamp(1rem,12vw,10rem)] md:bottom-[clamp(4.5rem,12vh,7rem)] [text-shadow:0_0_14px_rgba(0,0,0,0.8)]'>
-                <span className='text-[clamp(2.1rem,7vw,4rem)] font-bold tracking-[0.04em]'>{now.time}</span>
-                <span className='text-[clamp(1rem,2.2vw,1.35rem)] font-semibold'>
-                    {now.date} {now.day}
-                </span>
-                <Space size={8} wrap>
-                    <Tag color='blue'>{provider}</Tag>
-                    <Tag>ID {id}</Tag>
-                </Space>
-            </div>
+            <div className='absolute inset-0 backdrop-blur-[18px]' />
+            {foregroundSrc
+                ? (
+                    <img
+                        src={foregroundSrc}
+                        className={`absolute inset-0 h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)] transition-opacity duration-150 ease-out`}
+                        style={{
+                            objectFit,
+                            transform: `scale(${trackScale / 100}) translate(${offsetX}%, ${offsetY}%)`,
+                        }}
+                        alt={`konachan-${id}`}
+                        referrerPolicy='no-referrer'
+                        onError={() => onImageErrorRef.current()}
+                    />
+                )
+                : null}
         </>
     );
 }
