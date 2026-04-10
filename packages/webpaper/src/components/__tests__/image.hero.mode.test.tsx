@@ -19,6 +19,11 @@ function getImageElement(container: HTMLElement, selector: string): HTMLImageEle
     return element;
 }
 
+function getOptionalImageElement(container: HTMLElement, selector: string): HTMLImageElement | null {
+    const element = container.querySelector(selector);
+    return element instanceof HTMLImageElement ? element : null;
+}
+
 function createMockImageController() {
     const pending = new Map<string, MockImageInstance[]>();
 
@@ -138,15 +143,16 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('imageOnly', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         expect(background.getAttribute('src')).toBeNull();
-        expect(foreground.getAttribute('src')).toBeNull();
+        expect(foreground).toBeNull();
 
         await act(async () => {
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.className).toContain('opacity-100');
@@ -165,16 +171,17 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('imageAsync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         expect(background.getAttribute('src')).toBeNull();
-        expect(foreground.getAttribute('src')).toBeNull();
+        expect(foreground).toBeNull();
 
         await act(async () => {
             controller.trigger('https://image.example/full.jpg', 'load');
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.className).toContain('opacity-100');
@@ -193,10 +200,10 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('allAsync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         expect(background.getAttribute('src')).toBeNull();
-        expect(foreground.getAttribute('src')).toBeNull();
+        expect(foreground).toBeNull();
 
         await act(async () => {
             controller.trigger('https://image.example/preview.jpg', 'load');
@@ -204,13 +211,15 @@ describe('ImageHero mode strategies', () => {
         });
 
         expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
-        expect(foreground.getAttribute('src')).toBeNull();
+        foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        expect(foreground).toBeNull();
 
         await act(async () => {
             controller.trigger('https://image.example/full.jpg', 'load');
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
@@ -228,16 +237,17 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('previewAsync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         expect(background.getAttribute('src')).toBeNull();
-        expect(foreground.getAttribute('src')).toBeNull();
+        expect(foreground).toBeNull();
 
         await act(async () => {
             controller.trigger('https://image.example/preview.jpg', 'load');
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.className).toContain('opacity-100');
@@ -259,13 +269,14 @@ describe('ImageHero mode strategies', () => {
         });
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         await act(async () => {
             controller.trigger('https://image.example/old-preview.jpg', 'load');
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(background.getAttribute('src')).toBe('https://image.example/old-preview.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/old-full.jpg');
 
@@ -276,13 +287,15 @@ describe('ImageHero mode strategies', () => {
         });
 
         expect(background.getAttribute('src')).toBe('https://image.example/old-preview.jpg');
-        expect(foreground.getAttribute('src')).toBeNull();
+        foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        expect(foreground).toBeNull();
 
         await act(async () => {
             controller.trigger('https://image.example/new-preview.jpg', 'load');
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(background.getAttribute('src')).toBe('https://image.example/new-preview.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/new-full.jpg');
 
@@ -299,23 +312,25 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('allSync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         expect(background.getAttribute('src')).toBeNull();
-        expect(foreground.getAttribute('src')).toBeNull();
+        expect(foreground).toBeNull();
 
         await act(async () => {
             await Promise.resolve();
         });
 
         expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
-        expect(foreground.getAttribute('src')).toBeNull();
+        foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        expect(foreground).toBeNull();
 
         await act(async () => {
             background.dispatchEvent(new Event('load'));
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
@@ -357,16 +372,17 @@ describe('ImageHero mode strategies', () => {
         });
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        const foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
 
         expect(background.getAttribute('src')).toBeNull();
-        expect(foreground.getAttribute('src')).toBeNull();
+        expect(foreground).toBeNull();
 
         await act(async () => {
             controller.trigger('https://image.example/full.jpg', 'load');
             await Promise.resolve();
         });
 
+        foreground = getImageElement(container, 'img[alt="konachan-123"]');
         expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(onImageError).not.toHaveBeenCalled();
