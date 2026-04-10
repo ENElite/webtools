@@ -1,6 +1,5 @@
 import {
     Button,
-    Form,
     Input,
     InputNumber,
     Select,
@@ -285,47 +284,57 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
 
     return (
         <Space direction='vertical' size='middle' style={{ width: '100%' }}>
-            <Form layout='vertical'>
-                <Form.Item label='API 地址'>
-                    <Input
-                        value={value.baseUrl}
-                        onChange={(event) => update({ baseUrl: event.target.value.trim() })}
-                        placeholder='/post.json'
-                    />
-                </Form.Item>
+            <Typography.Text strong>Konachan 设置</Typography.Text>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>API 地址</Typography.Text>
+                <Input
+                    value={value.baseUrl}
+                    onChange={(event) => update({ baseUrl: event.target.value.trim() })}
+                    placeholder='/post.json'
+                />
+                <span />
+            </div>
 
-                <Form.Item label='起始页码'>
-                    <InputNumber
-                        min={1}
-                        value={value.page}
-                        onChange={(nextValue) => {
-                            if (typeof nextValue === 'number') {
-                                update({ page: nextValue });
-                                notify('info', '页码已切换', `第 ${nextValue} 页`);
-                            }
-                        }}
-                        style={{ width: '100%' }}
-                    />
-                </Form.Item>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>起始页码</Typography.Text>
+                <InputNumber
+                    min={1}
+                    value={value.page}
+                    onChange={(nextValue) => {
+                        if (typeof nextValue === 'number') {
+                            update({ page: nextValue });
+                            notify('info', '页码已切换', `第 ${nextValue} 页`);
+                        }
+                    }}
+                    style={{ width: '100%' }}
+                />
+                <Typography.Text>{value.page} 页</Typography.Text>
+            </div>
 
-                <Form.Item label='图片质量'>
-                    <Select
-                        value={value.quality}
-                        options={qualityOptions}
-                        onChange={(nextValue) => update({ quality: nextValue })}
-                    />
-                </Form.Item>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>图片质量</Typography.Text>
+                <Select
+                    className='justify-self-start'
+                    style={{ width: 220, maxWidth: '100%' }}
+                    value={value.quality}
+                    options={qualityOptions}
+                    onChange={(nextValue) => update({ quality: nextValue })}
+                />
+                <span />
+            </div>
 
-                <Form.Item label='跳过相同 PID 图片'>
-                    <Switch
-                        checked={value.skipPid}
-                        onChange={(checked) => update({ skipPid: checked })}
-                    />
-                </Form.Item>
-            </Form>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>跳过相同 PID</Typography.Text>
+                <Switch
+                    className='justify-self-start'
+                    checked={value.skipPid}
+                    onChange={(checked) => update({ skipPid: checked })}
+                />
+                <span />
+            </div>
 
-            <div className='grid gap-3'>
-                <div className='text-[0.94rem] font-semibold text-slate-900'>宽度</div>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>宽度</Typography.Text>
                 <Space.Compact style={{ width: '100%' }}>
                     <Select
                         style={{ width: 130 }}
@@ -361,7 +370,7 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
                             notify('info', '宽度筛选已启用', nextTag);
                         }}
                     >
-                        启用限制
+                        启用
                     </Button>
                     <Button
                         size='small'
@@ -375,8 +384,8 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
                 </Space>
             </div>
 
-            <div className='grid gap-3'>
-                <div className='text-[0.94rem] font-semibold text-slate-900'>高度</div>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>高度</Typography.Text>
                 <Space.Compact style={{ width: '100%' }}>
                     <Select
                         style={{ width: 130 }}
@@ -412,7 +421,7 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
                             notify('info', '高度筛选已启用', nextTag);
                         }}
                     >
-                        启用限制
+                        启用
                     </Button>
                     <Button
                         size='small'
@@ -426,8 +435,8 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
                 </Space>
             </div>
 
-            <div className='grid gap-3'>
-                <div className='text-[0.94rem] font-semibold text-slate-900'>分级</div>
+            <div className='grid grid-cols-1 items-center gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>分级</Typography.Text>
                 <Tag.CheckableTagGroup
                     multiple
                     options={RATING_OPTIONS}
@@ -447,10 +456,11 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
                         notify('info', '分级已切换', nextRatingTag);
                     }}
                 />
+                <Typography.Text type='secondary'>{value.rating || '全部'}</Typography.Text>
             </div>
 
-            <div className='grid gap-3'>
-                <div className='text-[0.94rem] font-semibold text-slate-900'>标签</div>
+            <div className='grid grid-cols-1 items-start gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>标签</Typography.Text>
                 <Space wrap size={[8, 8]}>
                     {value.tags.map((tag, index) => (
                         <Tag
@@ -476,15 +486,16 @@ export function KonachanSettingsPanel({ value, onChange, notify }: KonachanSetti
                     />
                     <Button onClick={() => appendTag(draftTag)}>添加</Button>
                 </Space>
+                <span />
             </div>
 
-            <Form layout='vertical'>
-                <Form.Item label='查询预览'>
-                    <Typography.Link href={previewUrl} target='_blank' rel='noreferrer'>
-                        {previewUrl}
-                    </Typography.Link>
-                </Form.Item>
-            </Form>
+            <div className='grid grid-cols-1 items-start gap-3 md:grid-cols-[110px_1fr_auto]'>
+                <Typography.Text>查询预览</Typography.Text>
+                <Typography.Link href={previewUrl} target='_blank' rel='noreferrer'>
+                    {previewUrl}
+                </Typography.Link>
+                <span />
+            </div>
         </Space>
     );
 }

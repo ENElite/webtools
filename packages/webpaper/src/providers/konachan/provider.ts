@@ -35,8 +35,6 @@ function toProviderRecord(image: KonachanImageInfo, settings: KonachanProviderSe
 
     return {
         provider: 'Konachan',
-        providerId: 'Konachan',
-        providerLabel: 'Konachan',
         type: 'image',
         sourceUrl: `https://konachan.net/post/show/${image.id}`,
         fileUrl: image.file_url,

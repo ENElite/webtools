@@ -1,13 +1,11 @@
-export type Provider = 'Konachan' | 'Bilibili' | 'Json' | 'History';
+export type Provider = 'Konachan' | 'Bilibili' | 'Json' | 'History' | 'Unknown';
 export type ProviderType = 'image' | 'video';
 
 
 export type HistoryRecord = {
     sequence: number;
-    type: string;
+    type: ProviderType;
     provider: Provider;
-    providerId?: string;
-    providerLabel?: string;
     sourceUrl: string;
     fileUrl: string;
     jpegUrl?: string;
