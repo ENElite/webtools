@@ -21,8 +21,15 @@ export default defineConfig({
             '/post.json': {
                 target: 'https://konachan.net',
                 changeOrigin: true,
-
             },
-        }
-    }
+        },
+    },
+    preview: {
+        proxy: {
+            '/post.json': {
+                target: 'https://konachan.net',
+                changeOrigin: true,
+            },
+        },
+    },
 });
