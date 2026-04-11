@@ -1,27 +1,43 @@
 import type { KonachanProviderSettings } from '../providers/konachan/settings';
+import type { JsonProviderSettings } from '../providers/json/settings';
 
 export type SharedSettings = {
     objectFit: 'contain' | 'cover';
     trackScale: number;
     trackIntensity: number;
-    showDock: boolean;
+    lockDock: boolean;
     interval: number;
     enableWakeLock: boolean;
+    videoAutoSwitchOnEnded: boolean;
 };
 
 type StoredSettingsV1 = {
     version: 1;
-    providerId: 'konachan';
+    provider: 'konachan' | 'json';
     sharedSettings: SharedSettings;
     providers: {
         konachan: KonachanProviderSettings;
+        json?: JsonProviderSettings;
+    };
+};
+
+type LegacySettings = {
+    provider?: 'Konachan' | 'Json';
+    providerId?: 'konachan' | 'json';
+    sharedSettings?: unknown;
+    konachanSettings?: unknown;
+    jsonSettings?: unknown;
+    providers?: {
+        konachan?: unknown;
+        json?: unknown;
     };
 };
 
 export type PersistedSettings = {
-    providerId: 'konachan';
+    provider: 'Konachan' | 'Json';
     sharedSettings: SharedSettings;
     konachanSettings: KonachanProviderSettings;
+    jsonSettings: JsonProviderSettings;
 };
 
 const STORAGE_KEY = 'webpaper:settings';
@@ -45,9 +61,14 @@ function parseSharedSettings(value: unknown, fallback: SharedSettings): SharedSe
         objectFit: isObjectFit(shared['objectFit']) ? shared['objectFit'] : fallback.objectFit,
         trackScale: typeof shared['trackScale'] === 'number' ? shared['trackScale'] : fallback.trackScale,
         trackIntensity: typeof shared['trackIntensity'] === 'number' ? shared['trackIntensity'] : fallback.trackIntensity,
-        showDock: typeof shared['showDock'] === 'boolean' ? shared['showDock'] : fallback.showDock,
+        lockDock: typeof shared['lockDock'] === 'boolean'
+            ? shared['lockDock']
+            : (typeof shared['showDock'] === 'boolean' ? !shared['showDock'] : fallback.lockDock),
         interval: typeof shared['interval'] === 'number' ? shared['interval'] : fallback.interval,
         enableWakeLock: typeof shared['enableWakeLock'] === 'boolean' ? shared['enableWakeLock'] : fallback.enableWakeLock,
+        videoAutoSwitchOnEnded: typeof shared['videoAutoSwitchOnEnded'] === 'boolean'
+            ? shared['videoAutoSwitchOnEnded']
+            : fallback.videoAutoSwitchOnEnded,
     };
 }
 
@@ -72,6 +93,33 @@ function parseKonachanSettings(value: unknown, fallback: KonachanProviderSetting
     };
 }
 
+function parseJsonSettings(value: unknown, fallback: JsonProviderSettings): JsonProviderSettings {
+    if (!isObject(value)) {
+        return fallback;
+    }
+
+    const json = value as Record<string, unknown>;
+    return {
+        jsonText: typeof json['jsonText'] === 'string' ? json['jsonText'] : fallback.jsonText,
+    };
+}
+
+function parseProvider(value: unknown, fallback: PersistedSettings['provider']): PersistedSettings['provider'] {
+    if (value === 'Konachan' || value === 'Json') {
+        return value;
+    }
+
+    if (value === 'konachan') {
+        return 'Konachan';
+    }
+
+    if (value === 'json') {
+        return 'Json';
+    }
+
+    return fallback;
+}
+
 export function loadSettings(defaults: PersistedSettings): PersistedSettings {
     if (typeof window === 'undefined') {
         return defaults;
@@ -84,16 +132,17 @@ export function loadSettings(defaults: PersistedSettings): PersistedSettings {
         }
 
         const parsed = JSON.parse(raw) as unknown;
-        if (!isObject(parsed) || parsed['version'] !== 1) {
+        if (!isObject(parsed)) {
             return defaults;
         }
 
-        const value = parsed as Partial<StoredSettingsV1>;
+        const value = parsed as LegacySettings & Partial<StoredSettingsV1>;
 
         return {
-            providerId: value.providerId === 'konachan' ? value.providerId : defaults.providerId,
+            provider: parseProvider(value.provider ?? value.providerId, defaults.provider),
             sharedSettings: parseSharedSettings(value.sharedSettings, defaults.sharedSettings),
-            konachanSettings: parseKonachanSettings(value.providers?.konachan, defaults.konachanSettings),
+            konachanSettings: parseKonachanSettings(value.konachanSettings ?? value.providers?.konachan, defaults.konachanSettings),
+            jsonSettings: parseJsonSettings(value.jsonSettings ?? value.providers?.json, defaults.jsonSettings),
         };
     } catch {
         return defaults;
@@ -107,10 +156,11 @@ export function saveSettings(value: PersistedSettings): void {
 
     const payload: StoredSettingsV1 = {
         version: 1,
-        providerId: value.providerId,
+        provider: value.provider === 'Json' ? 'json' : 'konachan',
         sharedSettings: value.sharedSettings,
         providers: {
             konachan: value.konachanSettings,
+            json: value.jsonSettings,
         },
     };
 
