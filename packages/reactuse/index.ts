@@ -181,11 +181,12 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 		initialState = false,
 	} = options;
 
-	const [idle, setIdle] = useState(initialState);
+	const [idle, setIdle] = useState(() => initialState || timeout <= 0);
 	const [lastActive, setLastActive] = useState(() => Date.now());
 	const timeoutRef = useRef<number | null>(null);
 	const idleDetectorRef = useRef<IdleDetectorLike | null>(null);
 	const idleAbortRef = useRef<AbortController | null>(null);
+	const fallbackCleanupRef = useRef<(() => void) | null>(null);
 
 	const clearCurrentTimeout = useCallback((): void => {
 		if (timeoutRef.current !== null) {
@@ -227,10 +228,13 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 			return;
 		}
 
-		let fallbackCleanup: (() => void) | null = null;
 		let cancelled = false;
 
 		const setupFallback = (): void => {
+			if (fallbackCleanupRef.current) {
+				return;
+			}
+
 			const onActivity = (): void => {
 				reset();
 			};
@@ -251,7 +255,7 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 
 			schedule();
 
-			fallbackCleanup = () => {
+			fallbackCleanupRef.current = () => {
 				events.forEach((eventName) => {
 					window.removeEventListener(eventName, onActivity);
 				});
@@ -262,6 +266,11 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 
 				clearCurrentTimeout();
 			};
+		};
+
+		const clearFallback = (): void => {
+			fallbackCleanupRef.current?.();
+			fallbackCleanupRef.current = null;
 		};
 
 		const setupIdleDetector = async (): Promise<boolean> => {
@@ -275,6 +284,8 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 				if (permissionStatus.state !== 'granted' || cancelled) {
 					return false;
 				}
+
+				clearFallback();
 
 				const controller = new AbortController();
 				idleAbortRef.current = controller;
@@ -293,7 +304,7 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 				await detector.start({ threshold: Math.max(timeout, 1000), signal: controller.signal });
 				onChange();
 
-				fallbackCleanup = () => {
+				fallbackCleanupRef.current = () => {
 					detector.removeEventListener('change', onChange as EventListener);
 					clearIdleDetector();
 				};
@@ -305,15 +316,18 @@ export function useIdle(timeout = 60_000, options: UseIdleOptions = {}): UseIdle
 			}
 		};
 
+		// Always install the timer/event fallback first to keep behavior deterministic.
+		setupFallback();
+
 		void setupIdleDetector().then((isNativeEnabled) => {
-			if (!isNativeEnabled && !cancelled) {
-				setupFallback();
+			if (!isNativeEnabled || cancelled) {
+				return;
 			}
 		});
 
 		return () => {
 			cancelled = true;
-			fallbackCleanup?.();
+			clearFallback();
 			clearIdleDetector();
 			clearCurrentTimeout();
 		};
