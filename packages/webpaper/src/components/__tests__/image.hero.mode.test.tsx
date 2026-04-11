@@ -89,13 +89,10 @@ function renderHero(
                 mode={currentMode}
                 imageUrl={imageUrl}
                 previewUrl={previewUrl}
-                id={123}
-                provider='TestProvider'
                 objectFit='contain'
                 trackScale={100}
                 trackIntensity={0}
                 enableMouseTracking={false}
-                now={{ time: '12:00:00', date: '2026/04/08', day: '周三' }}
                 onImageError={onImageError}
             />
         );
@@ -143,7 +140,7 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('imageOnly', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         expect(background.getAttribute('src')).toBeNull();
         expect(foreground).toBeNull();
@@ -152,10 +149,9 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
-        expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
 
         act(() => {
@@ -171,7 +167,7 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('imageAsync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         expect(background.getAttribute('src')).toBeNull();
         expect(foreground).toBeNull();
@@ -181,10 +177,9 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
-        expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
 
         act(() => {
@@ -200,7 +195,7 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('allAsync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         expect(background.getAttribute('src')).toBeNull();
         expect(foreground).toBeNull();
@@ -211,7 +206,7 @@ describe('ImageHero mode strategies', () => {
         });
 
         expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
-        foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getOptionalImageElement(container, 'img[alt="image"]');
         expect(foreground).toBeNull();
 
         await act(async () => {
@@ -219,9 +214,8 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
-        expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
 
         act(() => {
@@ -237,7 +231,7 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('previewAsync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         expect(background.getAttribute('src')).toBeNull();
         expect(foreground).toBeNull();
@@ -247,10 +241,9 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
-        expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
 
         act(() => {
@@ -269,14 +262,14 @@ describe('ImageHero mode strategies', () => {
         });
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         await act(async () => {
             controller.trigger('https://image.example/old-preview.jpg', 'load');
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(background.getAttribute('src')).toBe('https://image.example/old-preview.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/old-full.jpg');
 
@@ -287,7 +280,7 @@ describe('ImageHero mode strategies', () => {
         });
 
         expect(background.getAttribute('src')).toBe('https://image.example/old-preview.jpg');
-        foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getOptionalImageElement(container, 'img[alt="image"]');
         expect(foreground).toBeNull();
 
         await act(async () => {
@@ -295,7 +288,7 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(background.getAttribute('src')).toBe('https://image.example/new-preview.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/new-full.jpg');
 
@@ -312,7 +305,7 @@ describe('ImageHero mode strategies', () => {
         const { container, root } = renderHero('allSync', onImageError);
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         expect(background.getAttribute('src')).toBeNull();
         expect(foreground).toBeNull();
@@ -322,7 +315,7 @@ describe('ImageHero mode strategies', () => {
         });
 
         expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
-        foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getOptionalImageElement(container, 'img[alt="image"]');
         expect(foreground).toBeNull();
 
         await act(async () => {
@@ -330,9 +323,8 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
-        expect(foreground.className).toContain('opacity-100');
         expect(onImageError).not.toHaveBeenCalled();
 
         act(() => {
@@ -372,7 +364,7 @@ describe('ImageHero mode strategies', () => {
         });
 
         const background = getImageElement(container, 'img[alt="preview"]');
-        let foreground = getOptionalImageElement(container, 'img[alt="konachan-123"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
 
         expect(background.getAttribute('src')).toBeNull();
         expect(foreground).toBeNull();
@@ -382,7 +374,7 @@ describe('ImageHero mode strategies', () => {
             await Promise.resolve();
         });
 
-        foreground = getImageElement(container, 'img[alt="konachan-123"]');
+        foreground = getImageElement(container, 'img[alt="image"]');
         expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
         expect(onImageError).not.toHaveBeenCalled();

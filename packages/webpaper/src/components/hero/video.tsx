@@ -1,11 +1,10 @@
-import { Alert, Space, Tag } from 'antd';
+import { Alert } from 'antd';
 
 import { useEffect, useRef, useState } from 'react';
 
 type VideoHeroProps = {
     videoUrl: string;
     posterUrl?: string | null;
-    id: number | string;
     objectFit: 'contain' | 'cover';
     onVideoError: () => void;
     onVideoEnded: () => void;
@@ -14,7 +13,6 @@ type VideoHeroProps = {
 export function VideoHero({
     videoUrl,
     posterUrl,
-    id,
     objectFit,
     onVideoError,
     onVideoEnded,

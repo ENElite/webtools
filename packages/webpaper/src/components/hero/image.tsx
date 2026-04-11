@@ -1,4 +1,4 @@
-import { Alert, Space, Tag } from 'antd';
+import { Alert } from 'antd';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 export type ImageHeroMode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync';
@@ -43,13 +43,10 @@ type ImageHeroProps = {
     imageUrl: string;
     previewUrl?: string | null;
     mode: ImageHeroMode;
-    id: number | string;
-    provider: string;
     objectFit: 'contain' | 'cover';
     trackScale: number;
     trackIntensity: number;
     enableMouseTracking: boolean;
-    now: { time: string; date: string; day: string };
     onImageError: () => void;
 };
 
@@ -65,7 +62,6 @@ export function ImageHero({
     imageUrl,
     previewUrl,
     mode,
-    id,
     objectFit,
     trackScale,
     trackIntensity,
@@ -283,12 +279,12 @@ export function ImageHero({
                 ? (
                     <img
                         src={foregroundSrc}
-                        className={`absolute inset-0 h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)] transition-opacity duration-150 ease-out`}
+                        className={`absolute inset-0 h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)]`}
                         style={{
                             objectFit,
                             transform: `scale(${trackScale / 100}) translate(${offsetX}%, ${offsetY}%)`,
                         }}
-                        alt={`konachan-${id}`}
+                        alt='image'
                         referrerPolicy='no-referrer'
                         onError={() => onImageErrorRef.current()}
                     />

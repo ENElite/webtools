@@ -98,7 +98,6 @@ export function Webpaper() {
 
     // Use reactuse hooks
     const { toggle: toggleFullscreen } = useFullscreen();
-    const { timestamp } = useTimestamp({ interval: 1000 });
     const {
         effectiveIntervalSec,
         remainingMs,
@@ -140,15 +139,6 @@ export function Webpaper() {
 
         return `history:${historyRequestKey}`;
     }, [activeProvider, historyRequestKey, jsonRequestKey, konachanRequestKey]);
-
-    // Format datetime from timestamp
-    const now = useMemo(() => {
-        const current = new Date(timestamp);
-        const time = current.toLocaleTimeString('zh-CN', { hour12: false });
-        const date = current.toLocaleDateString('zh-CN');
-        const day = current.toLocaleDateString('zh-CN', { weekday: 'long' });
-        return { time, date, day };
-    }, [timestamp]);
 
     useEffect(() => {
         notifyRef.current = api;
@@ -229,10 +219,6 @@ export function Webpaper() {
 
         return currentImage.displayUrl;
     }, [currentImage]);
-
-    const currentProviderName = useMemo(() => {
-        return currentImage?.provider || getActiveProviderRuntime()?.name || 'Unknown';
-    }, [currentImage, getActiveProviderRuntime]);
 
     const preloadNextImage = useCallback(async () => {
         if (preloadTaskRef.current) {
@@ -488,7 +474,6 @@ export function Webpaper() {
                     <VideoHero
                         videoUrl={currentImageUrl}
                         posterUrl={currentImage?.previewUrl || null}
-                        id={currentImage?.id || ''}
                         objectFit={sharedSettings.objectFit}
                         onVideoError={() => {
                             loadNextImage('error');
@@ -505,13 +490,10 @@ export function Webpaper() {
                     imageUrl={currentImageUrl}
                     previewUrl={currentImage?.previewUrl || null}
                     mode={heroLoadMode}
-                        id={currentImage?.id || ''}
-                        provider={currentProviderName}
                         objectFit={sharedSettings.objectFit}
                         trackScale={sharedSettings.trackScale}
                         trackIntensity={sharedSettings.trackIntensity}
                         enableMouseTracking={sharedSettings.trackIntensity !== 0}
-                        now={now}
                         onImageError={() => {
                             loadNextImage('error');
                         }}
