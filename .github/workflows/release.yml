@@ -42,14 +42,27 @@ jobs:
         with:
           version: 10.8.0
 
-      - name: Setup Node.js
+      - name: Setup Node.js (with pnpm cache)
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Setup Node.js (without cache)
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies (frozen lockfile)
+        if: ${{ hashFiles('pnpm-lock.yaml') != '' }}
         run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies (no lockfile)
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' }}
+        run: pnpm install --no-frozen-lockfile
 
       - name: Typecheck
         run: pnpm -r typecheck
