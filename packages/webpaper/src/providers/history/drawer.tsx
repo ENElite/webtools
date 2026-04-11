@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from 'react';
 
 import type { HistoryRecord } from '../../types';
-import { HistoryDetailModal } from '../../components/history/detail';
+import { HistoryDetailModal } from './detail';
 import { ImageCard } from './card';
 
 type HistoryDrawerProps = {
