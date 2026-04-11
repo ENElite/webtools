@@ -4,6 +4,7 @@ import './tailwind.css';
 import { App as AntApp, ConfigProvider } from 'antd';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Webpaper } from './webpaper';
 
 const rootElement = document.getElementById('root');
 
@@ -22,6 +23,7 @@ ReactDOM.createRoot(rootElement).render(
             }}
         >
             <AntApp>
+                <Webpaper />
             </AntApp>
         </ConfigProvider>
     </React.StrictMode>
