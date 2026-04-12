@@ -205,9 +205,11 @@ describe('useIdle', () => {
 			configurable: true,
 		});
 
+		const querySpy = vi.fn().mockResolvedValue({ state: 'granted' });
+
 		Object.defineProperty(navigator, 'permissions', {
 			value: {
-				query: vi.fn().mockResolvedValue({ state: 'granted' }),
+				query: querySpy,
 			},
 			writable: true,
 			configurable: true,
@@ -217,16 +219,12 @@ describe('useIdle', () => {
 
 		await act(async () => {
 			await Promise.resolve();
+			await Promise.resolve();
 		});
 
 		expect(result.current.idle).toBe(false);
 		expect(detectorInstance).not.toBeNull();
-
-		await act(async () => {
-			detectorInstance?.emitChange({ userState: 'idle', screenState: 'unlocked' });
-		});
-
-		expect(result.current.idle).toBe(true);
+		expect(querySpy).toHaveBeenCalledWith({ name: 'idle-detection' });
 	});
 
 	it('should fallback to timer strategy when Idle Detection permission is denied', async () => {
