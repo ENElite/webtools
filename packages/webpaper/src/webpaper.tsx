@@ -25,6 +25,11 @@ import { DEFAULT_JSON_SETTINGS, JsonSettingsPanel, type JsonProviderSettings } f
 import { JsonProvider } from './providers/json/provider';
 import { HistoryProvider } from './providers/history/provider';
 import {
+    OverlayRoot,
+    createDefaultOverlayRenderers,
+    createTextWidget,
+} from './overlay';
+import {
     clearSettings,
     loadSettings,
     saveSettings,
@@ -128,6 +133,10 @@ export function Webpaper() {
         const last = history.at(-1);
         return `${history.length}:${last?.sequence ?? 0}`;
     }, [history]);
+    const overlayRenderers = useMemo(() => createDefaultOverlayRenderers(), []);
+    const overlayWidgets = useMemo(() => {
+        return [createTextWidget('text-widget-1')];
+    }, []);
     const activeRequestKey = useMemo(() => {
         if (activeProvider === 'Konachan') {
             return `konachan:${konachanRequestKey}`;
@@ -463,10 +472,7 @@ export function Webpaper() {
     const activeProviderRuntime = getActiveProviderRuntime();
 
     return (
-        <div
-            className='relative h-screen min-h-screen w-full overflow-hidden'
-            style={{ background: 'radial-gradient(circle at 15% 15%, #22344f, #09111f 68%)' }}
-        >
+        <div className='relative h-screen min-h-screen w-full overflow-hidden'>
             {contextHolder}
 
             {currentImage?.type === 'video'
@@ -487,9 +493,9 @@ export function Webpaper() {
                 )
                 : (
                     <ImageHero
-                    imageUrl={currentImageUrl}
-                    previewUrl={currentImage?.previewUrl || null}
-                    mode={heroLoadMode}
+                        imageUrl={currentImageUrl}
+                        previewUrl={currentImage?.previewUrl || null}
+                        mode={heroLoadMode}
                         objectFit={sharedSettings.objectFit}
                         trackScale={sharedSettings.trackScale}
                         trackIntensity={sharedSettings.trackIntensity}
@@ -499,6 +505,11 @@ export function Webpaper() {
                         }}
                     />
                 )}
+
+            <OverlayRoot
+                initialWidgets={overlayWidgets}
+                renderers={overlayRenderers}
+            />
 
             <DockBar
                 isRunning={isRunning}
