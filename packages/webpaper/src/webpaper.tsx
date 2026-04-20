@@ -182,7 +182,7 @@ export function Webpaper() {
     const notify = useCallback(
         (type: 'success' | 'info' | 'warning' | 'error', message: string, description?: string) => {
             notifyRef.current[type]({
-                message,
+                title: message,
                 description,
                 duration: 2.5,
             });
@@ -531,16 +531,16 @@ export function Webpaper() {
 
             <Drawer
                 title='Webpaper 设置'
-                width={520}
+                size={520}
                 placement='right'
                 onClose={closeSettings}
                 open={settingsVisible}
-                destroyOnClose
+                destroyOnHidden
             >
-                <Space direction='vertical' size='large' style={{ width: '100%' }}>
+                <Space orientation='vertical' size='large' style={{ width: '100%' }}>
                     <Button danger onClick={resetAllSettings}>重置全部设置</Button>
 
-                    <Space direction='vertical' size={8} style={{ width: '100%' }}>
+                    <Space orientation='vertical' size={8} style={{ width: '100%' }}>
                         <Typography.Text strong>数据源</Typography.Text>
                         <Select
                             value={provider}
