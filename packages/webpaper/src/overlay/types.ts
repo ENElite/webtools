@@ -14,7 +14,10 @@ export type WidgetBounds = {
     height: number;
 };
 
-export type WidgetModel<TProps = unknown> = {
+export type WidgetPropPrimitive = string | number | boolean | null;
+export type WidgetFlatProps = Record<string, WidgetPropPrimitive>;
+
+export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     id: WidgetId;
     kind: WidgetKind;
     style: WidgetStyle;
@@ -63,10 +66,10 @@ export type SnapGuideline = {
     source: SnapSource;
 };
 
-export type WidgetRendererProps<TProps = unknown> = {
+export type WidgetRendererProps<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     widget: WidgetModel<TProps>;
     active: boolean;
 };
 
-export type WidgetRenderer<TProps = unknown> = ComponentType<WidgetRendererProps<TProps>>;
+export type WidgetRenderer<TProps extends WidgetFlatProps = WidgetFlatProps> = ComponentType<WidgetRendererProps<TProps>>;
 export type WidgetRendererMap = Partial<Record<WidgetKind, WidgetRenderer<any>>>;

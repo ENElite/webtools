@@ -1,17 +1,24 @@
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
+import { Button, Modal } from 'antd';
+
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { DEFAULT_OVERLAY_Z_INDEX } from './constants';
 import { OverlayMoveable } from './moveable';
 import { overlayReducer } from './reducer';
 import { resolveWidgetRenderer } from './registry';
+import { resolveWidgetSettingsSchema } from './settings/registry';
+import { WidgetDynamicForm } from './settings/widget_dynamic_form';
 import { buildTransformString, parseTransformString } from './transform_utils';
 import type {
+    WidgetPropPrimitive,
     OverlayState,
     WidgetModel,
     WidgetableActionEvent,
     WidgetRendererMap,
 } from './types';
 import { Widget } from './widget';
+
+type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
 
 type OverlayRootProps = {
     initialWidgets: WidgetModel[];
@@ -24,6 +31,10 @@ export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
         activeWidgetId: null, // 初始时不选中任何组件
         bounds: null,
     } satisfies OverlayState);
+    const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
+    const [settingsDraftValues, setSettingsDraftValues] = useState<WidgetSettingsDraft | null>(null);
+    const [settingsInitialValues, setSettingsInitialValues] = useState<WidgetSettingsDraft | null>(null);
+    const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false);
 
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});
@@ -68,6 +79,118 @@ export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
 
         return state.widgets.find((widget) => widget.id === state.activeWidgetId) || null;
     }, [state.activeWidgetId, state.widgets]);
+
+    const settingsWidget = useMemo(() => {
+        if (!settingsWidgetId) {
+            return null;
+        }
+
+        return state.widgets.find((widget) => widget.id === settingsWidgetId) || null;
+    }, [settingsWidgetId, state.widgets]);
+
+    const settingsSchema = useMemo(() => {
+        if (!settingsWidget) {
+            return null;
+        }
+
+        return resolveWidgetSettingsSchema(settingsWidget.kind);
+    }, [settingsWidget]);
+
+    const readDraftNumber = (draft: WidgetSettingsDraft, key: string, fallback: number) => {
+        const nextValue = draft[key];
+        return typeof nextValue === 'number' ? nextValue : fallback;
+    };
+
+    const buildSettingsDraft = (widget: WidgetModel): WidgetSettingsDraft => {
+        const { x, y, rotation } = parseTransformString(widget.style.transform);
+        const width = Number.parseFloat(widget.style.width) || 0;
+        const height = Number.parseFloat(widget.style.height) || 0;
+
+        return {
+            ...widget.props,
+            width,
+            height,
+            x,
+            y,
+            rotation,
+        };
+    };
+
+    const buildWidgetStyleFromDraft = (draft: WidgetSettingsDraft, fallbackStyle: WidgetModel['style']): WidgetModel['style'] => {
+        const fallbackTransform = parseTransformString(fallbackStyle.transform);
+        const width = readDraftNumber(draft, 'width', Number.parseFloat(fallbackStyle.width) || 0);
+        const height = readDraftNumber(draft, 'height', Number.parseFloat(fallbackStyle.height) || 0);
+        const x = readDraftNumber(draft, 'x', fallbackTransform.x);
+        const y = readDraftNumber(draft, 'y', fallbackTransform.y);
+        const rotation = readDraftNumber(draft, 'rotation', fallbackTransform.rotation);
+
+        return {
+            width: `${width}px`,
+            height: `${height}px`,
+            transform: buildTransformString(x, y, rotation),
+        };
+    };
+
+    const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetModel) => {
+        const { width, height, x, y, rotation, ...props } = draft;
+        return {
+            props,
+            style: buildWidgetStyleFromDraft({ width, height, x, y, rotation } as WidgetSettingsDraft, widget.style),
+        };
+    };
+
+    const closeWidgetSettings = () => {
+        setUnsavedConfirmOpen(false);
+        setSettingsWidgetId(null);
+        setSettingsDraftValues(null);
+        setSettingsInitialValues(null);
+    };
+
+    const isSettingsDirty = useMemo(() => {
+        if (!settingsDraftValues || !settingsInitialValues) {
+            return false;
+        }
+
+        const keys = new Set([
+            ...Object.keys(settingsDraftValues),
+            ...Object.keys(settingsInitialValues),
+        ]);
+
+        for (const key of keys) {
+            if (settingsDraftValues[key] !== settingsInitialValues[key]) {
+                return true;
+            }
+        }
+
+        return false;
+    }, [settingsDraftValues, settingsInitialValues]);
+
+    const requestCloseWidgetSettings = () => {
+        if (isSettingsDirty) {
+            setUnsavedConfirmOpen(true);
+            return;
+        }
+
+        closeWidgetSettings();
+    };
+
+    const saveWidgetSettings = () => {
+        if (!settingsWidgetId || !settingsDraftValues || !settingsWidget) {
+            return;
+        }
+
+        const { props, style } = splitSettingsValues(settingsDraftValues, settingsWidget);
+
+        dispatch({
+            type: 'update-widget',
+            widgetId: settingsWidgetId,
+            patch: {
+                props,
+                style,
+            },
+        });
+        closeWidgetSettings();
+    };
 
     const activateWidget = (widgetId: string) => {
         dispatch({ type: 'set-active', widgetId });
@@ -127,7 +250,20 @@ export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
             }
 
             case 'open-widget-settings': {
-                console.log('Open settings for widget:', event.widgetId);
+                const widget = state.widgets.find((item) => item.id === event.widgetId);
+                if (!widget) {
+                    return;
+                }
+
+                const schema = resolveWidgetSettingsSchema(widget.kind);
+                if (!schema) {
+                    return;
+                }
+
+                setSettingsWidgetId(widget.id);
+                setSettingsDraftValues(buildSettingsDraft(widget));
+                setSettingsInitialValues(buildSettingsDraft(widget));
+                setUnsavedConfirmOpen(false);
                 return;
             }
 
@@ -139,7 +275,7 @@ export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
     return (
         <div
             ref={overlayRef}
-            className='absolute inset-0'
+            className='absolute inset-0 select-none'
             style={{ zIndex: DEFAULT_OVERLAY_Z_INDEX }}
             onMouseDown={(event) => {
                 if (event.target !== event.currentTarget) {
@@ -179,6 +315,57 @@ export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
                 onWidgetableAction={handleWidgetableAction}
                 onWidgetTransformChange={handleWidgetTransformChange}
             />
+
+            <Modal
+                title='组件设置'
+                centered
+                open={Boolean(settingsWidget && settingsSchema && settingsDraftValues)}
+                onCancel={requestCloseWidgetSettings}
+                onOk={saveWidgetSettings}
+                okText='保存'
+                cancelText='取消'
+                destroyOnHidden
+                mask={{ blur: true }}
+            >
+                {settingsSchema && settingsDraftValues
+                    ? (
+                        <WidgetDynamicForm
+                            value={settingsDraftValues}
+                            schema={settingsSchema}
+                            onChange={setSettingsDraftValues}
+                        />
+                    )
+                    : null}
+            </Modal>
+
+            <Modal
+                title='设置项未保存'
+                centered
+                open={unsavedConfirmOpen}
+                onCancel={() => setUnsavedConfirmOpen(false)}
+                footer={[
+                    <Button key='continue-edit' onClick={() => setUnsavedConfirmOpen(false)}>
+                        继续编辑
+                    </Button>,
+                    <Button key='discard' onClick={closeWidgetSettings}>
+                        不保存并返回
+                    </Button>,
+                    <Button
+                        key='save'
+                        type='primary'
+                        onClick={() => {
+                            saveWidgetSettings();
+                            setUnsavedConfirmOpen(false);
+                        }}
+                    >
+                        保存并返回
+                    </Button>,
+                ]}
+                mask={{ closable: false }}
+                destroyOnHidden
+            >
+                当前设置项尚未保存，是否保存后返回？
+            </Modal>
         </div>
     );
 }

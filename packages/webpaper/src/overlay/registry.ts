@@ -1,4 +1,5 @@
 import type {
+    WidgetFlatProps,
     WidgetKind,
     WidgetRenderer,
     WidgetRendererMap,
@@ -11,7 +12,7 @@ export function createWidgetRegistry(initial?: WidgetRendererMap): WidgetRendere
 export function registerWidgetRenderer(
     registry: WidgetRendererMap,
     kind: WidgetKind,
-    renderer: WidgetRenderer<unknown>
+    renderer: WidgetRenderer<WidgetFlatProps>
 ): WidgetRendererMap {
     return {
         ...registry,
@@ -22,6 +23,6 @@ export function registerWidgetRenderer(
 export function resolveWidgetRenderer(
     registry: WidgetRendererMap,
     kind: WidgetKind
-): WidgetRenderer<unknown> | null {
+): WidgetRenderer<WidgetFlatProps> | null {
     return registry[kind] || null;
 }

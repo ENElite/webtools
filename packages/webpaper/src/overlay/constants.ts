@@ -7,6 +7,7 @@ export const DEFAULT_MIN_WIDGET_HEIGHT = 72;
 
 export const DEFAULT_TEXT_WIDGET_TRANSFORM: WidgetStyle = {
     transform: 'translate(56px, 56px) rotate(0deg)',
-    width: '320px',
-    height: '120px',
+    width: '520px',
+    height: '128px',
 };
+

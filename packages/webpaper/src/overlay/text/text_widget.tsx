@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import type { WidgetRendererProps } from '../types';
 import type { TextWidgetProps } from './schema';
 
-export function TextWidget({ widget, active }: WidgetRendererProps<TextWidgetProps>) {
+export function TextWidget({ widget }: WidgetRendererProps<TextWidgetProps>) {
     const style: CSSProperties = {
         width: '100%',
         height: '100%',
@@ -16,8 +16,6 @@ export function TextWidget({ widget, active }: WidgetRendererProps<TextWidgetPro
         lineHeight: 1.25,
         padding: '12px 16px',
         textAlign: widget.props.align,
-        background: active ? 'rgba(8, 12, 18, 0.38)' : 'rgba(8, 12, 18, 0.25)',
-        backdropFilter: 'blur(2px)',
     };
 
     return (
