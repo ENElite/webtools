@@ -23,9 +23,10 @@ type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
 type OverlayRootProps = {
     initialWidgets: WidgetModel[];
     renderers: WidgetRendererMap;
+    onWidgetContextMenu?: () => void;
 };
 
-export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
+export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: OverlayRootProps) {
     const [state, dispatch] = useReducer(overlayReducer, {
         widgets: initialWidgets,
         activeWidgetId: null, // 初始时不选中任何组件
@@ -301,6 +302,12 @@ export function OverlayRoot({ initialWidgets, renderers }: OverlayRootProps) {
                             widgetElementRef.current[widget.id] = element;
                         }}
                         onClick={() => activateWidget(widget.id)}
+                        onContextMenu={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            activateWidget(widget.id);
+                            onWidgetContextMenu?.();
+                        }}
                     >
                         <WidgetRenderer widget={widget} active={widget.id === state.activeWidgetId} />
                     </Widget>

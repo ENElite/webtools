@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 
 import type { WidgetModel } from './types';
 import { DEFAULT_WIDGET_COMMON_PROPS } from './settings/common';
@@ -15,6 +15,7 @@ type WidgetProps = {
     style?: CSSProperties;
     rootRef?: (element: HTMLDivElement | null) => void;
     onClick?: () => void;
+    onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
 function mapBorderStyle(value: string): CSSProperties['borderStyle'] {
@@ -87,6 +88,7 @@ export function Widget({
     style,
     rootRef,
     onClick,
+    onContextMenu,
 }: WidgetProps) {
     return (
         <div
@@ -98,6 +100,7 @@ export function Widget({
             )}
             ref={rootRef}
             onClick={onClick}
+            onContextMenu={onContextMenu}
             style={{
                 ...buildWidgetVisualStyle(widget),
                 ...style,

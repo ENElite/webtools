@@ -1,4 +1,5 @@
-import { Button, Drawer, Select, Space, Typography, notification } from 'antd';
+import { Button, Drawer, Dropdown, Select, Space, Typography, notification } from 'antd';
+import type { MenuProps } from 'antd';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -8,7 +9,6 @@ import {
     useWakeLock,
 } from '@webtools/reactuse';
 
-import { DockBar } from './components/dock_bar';
 import { ImageHero } from './components/hero/image';
 import { VideoHero } from './components/hero/video';
 import { HistoryDrawer } from './providers/history/drawer';
@@ -100,13 +100,12 @@ export function Webpaper() {
     const [settingsVisible, setSettingsVisible] = useState(false);
     const [historyVisible, setHistoryVisible] = useState(false);
     const [isRunning, setIsRunning] = useState(false);
+    const [contextMenuOpen, setContextMenuOpen] = useState(false);
 
     // Use reactuse hooks
     const { toggle: toggleFullscreen } = useFullscreen();
     const {
         effectiveIntervalSec,
-        remainingMs,
-        progress,
         markCycleStart,
         markCycleComplete,
     } = usePlaybackScheduler({
@@ -470,132 +469,201 @@ export function Webpaper() {
     }, [notify, provider]);
 
     const activeProviderRuntime = getActiveProviderRuntime();
+    const hasMore = activeProviderRuntime?.hasMore ?? false;
+    const rightClickMenuItems = useMemo<MenuProps['items']>(() => {
+        const makeItemIcon = (iconClass: string) => (
+            <span aria-hidden='true' className={`inline-block h-4 w-4 ${iconClass}`} />
+        );
+
+        return [
+            {
+                key: 'toggle-play',
+                label: isRunning ? '暂停自动切换' : '开始自动切换',
+                icon: makeItemIcon(isRunning ? 'icon-[octicon--pause-16]' : 'icon-[octicon--play-16]'),
+            },
+            {
+                key: 'next-image',
+                label: '下一张',
+                disabled: !hasMore,
+                icon: makeItemIcon('icon-[octicon--arrow-right-16]'),
+            },
+            {
+                key: 'fullscreen',
+                label: '全屏',
+                icon: makeItemIcon('icon-[octicon--screen-full-16]'),
+            },
+            {
+                key: 'open-settings',
+                label: '设置',
+                icon: makeItemIcon('icon-[octicon--gear-16]'),
+            },
+            {
+                key: 'open-history',
+                label: '历史记录',
+                icon: makeItemIcon('icon-[octicon--history-16]'),
+            },
+            ...(activeProvider === 'History'
+                ? [{ key: 'return-from-history', label: '返回原数据源', icon: makeItemIcon('icon-[octicon--arrow-left-16]') }]
+                : []),
+        ];
+    }, [activeProvider, hasMore, isRunning]);
+
+    const onRightClickMenuAction = useCallback<Required<MenuProps>['onClick']>(
+        ({ key }) => {
+            setContextMenuOpen(false);
+
+            switch (key) {
+                case 'toggle-play': {
+                    togglePlay();
+                    break;
+                }
+                case 'next-image': {
+                    void loadNextImage('manual');
+                    break;
+                }
+                case 'fullscreen': {
+                    void fullScreen();
+                    break;
+                }
+                case 'open-settings': {
+                    openSettings();
+                    break;
+                }
+                case 'open-history': {
+                    setHistoryVisible(true);
+                    break;
+                }
+                case 'return-from-history': {
+                    returnFromHistory();
+                    break;
+                }
+                default:
+                    break;
+            }
+        },
+        [fullScreen, loadNextImage, openSettings, returnFromHistory, togglePlay]
+    );
 
     return (
-        <div className='relative h-screen min-h-screen w-full overflow-hidden'>
-            {contextHolder}
+        <Dropdown
+            trigger={['contextMenu']}
+            open={contextMenuOpen}
+            onOpenChange={setContextMenuOpen}
+            menu={{
+                items: rightClickMenuItems,
+                onClick: onRightClickMenuAction,
+            }}
+        >
+            <div className='relative h-screen min-h-screen w-full overflow-hidden'>
+                {contextHolder}
 
-            {currentImage?.type === 'video'
-                ? (
-                    <VideoHero
-                        videoUrl={currentImageUrl}
-                        posterUrl={currentImage?.previewUrl || null}
-                        objectFit={sharedSettings.objectFit}
-                        onVideoError={() => {
-                            loadNextImage('error');
-                        }}
-                        onVideoEnded={() => {
-                            if (isRunning && sharedSettings.videoAutoSwitchOnEnded) {
-                                void loadNextImage('auto');
-                            }
-                        }}
-                    />
-                )
-                : (
-                    <ImageHero
-                        imageUrl={currentImageUrl}
-                        previewUrl={currentImage?.previewUrl || null}
-                        mode={heroLoadMode}
-                        objectFit={sharedSettings.objectFit}
-                        trackScale={sharedSettings.trackScale}
-                        trackIntensity={sharedSettings.trackIntensity}
-                        enableMouseTracking={sharedSettings.trackIntensity !== 0}
-                        onImageError={() => {
-                            loadNextImage('error');
-                        }}
-                    />
-                )}
-
-            <OverlayRoot
-                initialWidgets={overlayWidgets}
-                renderers={overlayRenderers}
-            />
-
-            <DockBar
-                isRunning={isRunning}
-                onTogglePlay={togglePlay}
-                onNextImage={() => loadNextImage('manual')}
-                onFullscreen={() => fullScreen()}
-                onOpenSettings={openSettings}
-                onOpenHistory={() => setHistoryVisible(true)}
-                isHistoryMode={activeProvider === 'History'}
-                onReturnFromHistory={returnFromHistory}
-                remainingMs={remainingMs}
-                progress={progress}
-                lockDock={sharedSettings.lockDock}
-                onLockDockChange={(locked) => {
-                    setSharedSettings((prev) => ({ ...prev, lockDock: locked }));
-                }}
-                hasMore={activeProviderRuntime?.hasMore ?? false}
-            />
-
-            <Drawer
-                title='Webpaper 设置'
-                size={520}
-                placement='right'
-                onClose={closeSettings}
-                open={settingsVisible}
-                destroyOnHidden
-            >
-                <Space orientation='vertical' size='large' style={{ width: '100%' }}>
-                    <Button danger onClick={resetAllSettings}>重置全部设置</Button>
-
-                    <Space orientation='vertical' size={8} style={{ width: '100%' }}>
-                        <Typography.Text strong>数据源</Typography.Text>
-                        <Select
-                            value={provider}
-                            options={[
-                                { value: 'Konachan', label: 'Konachan' },
-                                { value: 'Json', label: 'Json' },
-                            ]}
-                            onChange={(value) => {
-                                const nextProvider = value as NormalProvider;
-                                setProvider(nextProvider);
-                                if (activeProviderRef.current !== 'History') {
-                                    setActiveProvider(nextProvider);
+                {currentImage?.type === 'video'
+                    ? (
+                        <VideoHero
+                            videoUrl={currentImageUrl}
+                            posterUrl={currentImage?.previewUrl || null}
+                            objectFit={sharedSettings.objectFit}
+                            onVideoError={() => {
+                                loadNextImage('error');
+                            }}
+                            onVideoEnded={() => {
+                                if (isRunning && sharedSettings.videoAutoSwitchOnEnded) {
+                                    void loadNextImage('auto');
                                 }
-                                notify('info', '数据源已切换', nextProvider === 'Konachan' ? 'Konachan' : 'Json');
                             }}
                         />
+                    )
+                    : (
+                        <ImageHero
+                            imageUrl={currentImageUrl}
+                            previewUrl={currentImage?.previewUrl || null}
+                            mode={heroLoadMode}
+                            objectFit={sharedSettings.objectFit}
+                            trackScale={sharedSettings.trackScale}
+                            trackIntensity={sharedSettings.trackIntensity}
+                            enableMouseTracking={sharedSettings.trackIntensity !== 0}
+                            onImageError={() => {
+                                loadNextImage('error');
+                            }}
+                        />
+                    )}
+
+                <OverlayRoot
+                    initialWidgets={overlayWidgets}
+                    renderers={overlayRenderers}
+                    onWidgetContextMenu={() => {
+                        setContextMenuOpen(false);
+                    }}
+                />
+
+                <Drawer
+                    title='Webpaper 设置'
+                    size={520}
+                    placement='right'
+                    onClose={closeSettings}
+                    open={settingsVisible}
+                    destroyOnHidden
+                >
+                    <Space orientation='vertical' size='large' style={{ width: '100%' }}>
+                        <Button danger onClick={resetAllSettings}>重置全部设置</Button>
+
+                        <Space orientation='vertical' size={8} style={{ width: '100%' }}>
+                            <Typography.Text strong>数据源</Typography.Text>
+                            <Select
+                                value={provider}
+                                options={[
+                                    { value: 'Konachan', label: 'Konachan' },
+                                    { value: 'Json', label: 'Json' },
+                                ]}
+                                onChange={(value) => {
+                                    const nextProvider = value as NormalProvider;
+                                    setProvider(nextProvider);
+                                    if (activeProviderRef.current !== 'History') {
+                                        setActiveProvider(nextProvider);
+                                    }
+                                    notify('info', '数据源已切换', nextProvider === 'Konachan' ? 'Konachan' : 'Json');
+                                }}
+                            />
+                        </Space>
+
+                        <SharedSettingsPanel
+                            value={sharedSettings}
+                            wakeLockSupported={wakeLockSupported}
+                            onChange={setSharedSettings}
+                            notify={notify}
+                        />
+
+                        {provider === 'Konachan'
+                            ? (
+                                <KonachanSettingsPanel
+                                    value={konachanSettingsDraft}
+                                    onChange={(nextSettings) => {
+                                        setKonachanSettingsDraft(nextSettings);
+                                    }}
+                                    notify={notify}
+                                />
+                            )
+                            : (
+                                <JsonSettingsPanel
+                                    value={jsonSettingsDraft}
+                                    onChange={(nextSettings) => {
+                                        setJsonSettingsDraft(nextSettings);
+                                    }}
+                                    notify={notify}
+                                />
+                            )}
                     </Space>
+                </Drawer>
 
-                    <SharedSettingsPanel
-                        value={sharedSettings}
-                        wakeLockSupported={wakeLockSupported}
-                        onChange={setSharedSettings}
-                        notify={notify}
-                    />
-
-                    {provider === 'Konachan'
-                        ? (
-                            <KonachanSettingsPanel
-                                value={konachanSettingsDraft}
-                                onChange={(nextSettings) => {
-                                    setKonachanSettingsDraft(nextSettings);
-                                }}
-                                notify={notify}
-                            />
-                        )
-                        : (
-                            <JsonSettingsPanel
-                                value={jsonSettingsDraft}
-                                onChange={(nextSettings) => {
-                                    setJsonSettingsDraft(nextSettings);
-                                }}
-                                notify={notify}
-                            />
-                        )}
-                </Space>
-            </Drawer>
-
-            <HistoryDrawer
-                open={historyVisible}
-                items={history}
-                search={historySearch}
-                onSearchChange={setHistorySearch}
-                onSetCurrent={setHistoryCurrent}
-                onClose={() => setHistoryVisible(false)}
-            />
-        </div>
+                <HistoryDrawer
+                    open={historyVisible}
+                    items={history}
+                    search={historySearch}
+                    onSearchChange={setHistorySearch}
+                    onSetCurrent={setHistoryCurrent}
+                    onClose={() => setHistoryVisible(false)}
+                />
+            </div>
+        </Dropdown>
     );
 }
