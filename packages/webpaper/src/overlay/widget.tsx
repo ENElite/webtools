@@ -15,6 +15,7 @@ type WidgetProps = {
     style?: CSSProperties;
     rootRef?: (element: HTMLDivElement | null) => void;
     onClick?: () => void;
+    onDoubleClick?: () => void;
     onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -88,6 +89,7 @@ export function Widget({
     style,
     rootRef,
     onClick,
+    onDoubleClick,
     onContextMenu,
 }: WidgetProps) {
     return (
@@ -100,6 +102,8 @@ export function Widget({
             )}
             ref={rootRef}
             onClick={onClick}
+            onDoubleClick={onDoubleClick}
+            onAuxClick={onClick}
             onContextMenu={onContextMenu}
             style={{
                 ...buildWidgetVisualStyle(widget),

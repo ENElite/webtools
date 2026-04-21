@@ -302,6 +302,7 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
                             widgetElementRef.current[widget.id] = element;
                         }}
                         onClick={() => activateWidget(widget.id)}
+                        onDoubleClick={() => handleWidgetableAction({ type: 'open-widget-settings', widgetId: widget.id })}
                         onContextMenu={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
