@@ -34,6 +34,14 @@ export const TEXT_WIDGET_SETTINGS_SCHEMA = [
         step: 1,
     },
     {
+        key: 'fontWeight',
+        label: '字重',
+        type: 'number',
+        min: 100,
+        max: 900,
+        step: 100,
+    },
+    {
         key: 'color',
         label: '颜色',
         type: 'color',
@@ -47,13 +55,5 @@ export const TEXT_WIDGET_SETTINGS_SCHEMA = [
             { label: '居中', value: 'center' },
             { label: '右对齐', value: 'right' },
         ],
-    },
-    {
-        key: 'fontWeight',
-        label: '字重',
-        type: 'number',
-        min: 100,
-        max: 900,
-        step: 100,
     },
 ] satisfies WidgetSettingsSchema<TextWidgetProps>;

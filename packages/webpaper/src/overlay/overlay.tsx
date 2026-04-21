@@ -9,6 +9,7 @@ import { resolveWidgetRenderer } from './registry';
 import { resolveWidgetSettingsSchema } from './settings/registry';
 import { WidgetDynamicForm } from './settings/widget_dynamic_form';
 import { buildTransformString, parseTransformString } from './transform_utils';
+import type { WidgetSettingsSchema } from './settings/types';
 import type {
     WidgetPropPrimitive,
     OverlayState,
@@ -19,6 +20,10 @@ import type {
 import { Widget } from './widget';
 
 type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
 
 type OverlayRootProps = {
     initialWidgets: WidgetModel[];
@@ -94,8 +99,42 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
             return null;
         }
 
-        return resolveWidgetSettingsSchema(settingsWidget.kind);
-    }, [settingsWidget]);
+        const resolved = resolveWidgetSettingsSchema(settingsWidget.kind);
+        if (!resolved) {
+            return null;
+        }
+
+        const overlayWidth = state.bounds?.width || Infinity;
+        const overlayHeight = state.bounds?.height || Infinity;
+        const draftWidth = typeof settingsDraftValues?.['width'] === 'number' ? settingsDraftValues['width'] : Number.parseFloat(settingsWidget.style.width) || 0;
+        const draftHeight = typeof settingsDraftValues?.['height'] === 'number' ? settingsDraftValues['height'] : Number.parseFloat(settingsWidget.style.height) || 0;
+
+        return resolved.map((field) => {
+            if (field.type !== 'number') {
+                return field;
+            }
+
+            if (field.key === 'width') {
+                return { ...field, max: Number.isFinite(overlayWidth) ? overlayWidth : field.max };
+            }
+
+            if (field.key === 'height') {
+                return { ...field, max: Number.isFinite(overlayHeight) ? overlayHeight : field.max };
+            }
+
+            if (field.key === 'x') {
+                const maxX = Number.isFinite(overlayWidth) ? Math.max(0, overlayWidth - Math.max(0, draftWidth)) : field.max;
+                return { ...field, min: 0, max: maxX };
+            }
+
+            if (field.key === 'y') {
+                const maxY = Number.isFinite(overlayHeight) ? Math.max(0, overlayHeight - Math.max(0, draftHeight)) : field.max;
+                return { ...field, min: 0, max: maxY };
+            }
+
+            return field;
+        }) as WidgetSettingsSchema;
+    }, [settingsDraftValues, settingsWidget, state.bounds]);
 
     const readDraftNumber = (draft: WidgetSettingsDraft, key: string, fallback: number) => {
         const nextValue = draft[key];
@@ -117,13 +156,25 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
         };
     };
 
-    const buildWidgetStyleFromDraft = (draft: WidgetSettingsDraft, fallbackStyle: WidgetModel['style']): WidgetModel['style'] => {
+    const buildWidgetStyleFromDraft = (
+        draft: WidgetSettingsDraft,
+        fallbackStyle: WidgetModel['style'],
+        overlayBounds: OverlayState['bounds']
+    ): WidgetModel['style'] => {
         const fallbackTransform = parseTransformString(fallbackStyle.transform);
-        const width = readDraftNumber(draft, 'width', Number.parseFloat(fallbackStyle.width) || 0);
-        const height = readDraftNumber(draft, 'height', Number.parseFloat(fallbackStyle.height) || 0);
-        const x = readDraftNumber(draft, 'x', fallbackTransform.x);
-        const y = readDraftNumber(draft, 'y', fallbackTransform.y);
-        const rotation = readDraftNumber(draft, 'rotation', fallbackTransform.rotation);
+        const rawWidth = readDraftNumber(draft, 'width', Number.parseFloat(fallbackStyle.width) || 0);
+        const rawHeight = readDraftNumber(draft, 'height', Number.parseFloat(fallbackStyle.height) || 0);
+        const rawX = readDraftNumber(draft, 'x', fallbackTransform.x);
+        const rawY = readDraftNumber(draft, 'y', fallbackTransform.y);
+        const rawRotation = readDraftNumber(draft, 'rotation', fallbackTransform.rotation);
+
+        const maxWidth = overlayBounds?.width ?? Number.POSITIVE_INFINITY;
+        const maxHeight = overlayBounds?.height ?? Number.POSITIVE_INFINITY;
+        const width = clamp(rawWidth, 0, maxWidth);
+        const height = clamp(rawHeight, 0, maxHeight);
+        const x = clamp(rawX, 0, Math.max(0, maxWidth - width));
+        const y = clamp(rawY, 0, Math.max(0, maxHeight - height));
+        const rotation = ((rawRotation % 360) + 360) % 360;
 
         return {
             width: `${width}px`,
@@ -136,7 +187,7 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
         const { width, height, x, y, rotation, ...props } = draft;
         return {
             props,
-            style: buildWidgetStyleFromDraft({ width, height, x, y, rotation } as WidgetSettingsDraft, widget.style),
+            style: buildWidgetStyleFromDraft({ width, height, x, y, rotation } as WidgetSettingsDraft, widget.style, state.bounds),
         };
     };
 

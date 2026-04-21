@@ -48,5 +48,7 @@ export const STYLE_WIDGET_SETTINGS_SCHEMA = [
         min: -360,
         max: 360,
         step: 1,
+        suffix: '°',
+        modulo: 360,
     },
 ] satisfies WidgetSettingsSchema<WidgetStyleSettingsDraft>;

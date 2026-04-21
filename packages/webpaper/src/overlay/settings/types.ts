@@ -22,6 +22,8 @@ export type WidgetFieldSchema<T extends Record<string, WidgetPropPrimitive> = Wi
         min?: number;
         max?: number;
         step?: number;
+        suffix?: string;
+        modulo?: number;
         visibleWhen?: WidgetFieldVisibility<T>;
     }
     | {
@@ -50,6 +52,7 @@ export type WidgetFieldSchema<T extends Record<string, WidgetPropPrimitive> = Wi
     }
     | {
         type: 'divider';
+        label?: string;
     };
 
 export type WidgetSettingsSchema<T extends Record<string, WidgetPropPrimitive> = WidgetFlatProps> = ReadonlyArray<WidgetFieldSchema<T>>;

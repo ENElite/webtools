@@ -15,10 +15,11 @@ export function resolveWidgetSettingsSchema(kind: WidgetKind): WidgetSettingsSch
     }
 
     return [
+        { type: 'divider', label: '属性设置' },
         ...STYLE_WIDGET_SETTINGS_SCHEMA,
-        { type: 'divider' },
+        { type: 'divider', label: '公共设置' },
         ...COMMON_WIDGET_SETTINGS_SCHEMA,
-        { type: 'divider' },
+        { type: 'divider', label: kind === 'text' ? '文本设置' : '组件设置' },
         ...schema,
     ];
 }
