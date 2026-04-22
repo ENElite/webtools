@@ -1,5 +1,5 @@
 import { DEFAULT_WIDGET_COMMON_PROPS, type WidgetCommonProps } from '../settings/common';
-import type { WidgetSettingsSchema } from '../settings/types';
+import type { WidgetSettingsSchema } from '../settings/schema';
 
 export type TextWidgetProps = {
     text: string;
