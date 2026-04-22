@@ -7,6 +7,7 @@ import type {
     WidgetModel,
     WidgetRendererMap,
 } from './types';
+import { SettingWidget } from './settings/setting_widget';
 
 export * from './types';
 
@@ -15,6 +16,7 @@ export { OverlayRoot };
 export function createDefaultOverlayRenderers(): WidgetRendererMap {
     return createWidgetRegistry({
         text: TextWidget,
+        settings: SettingWidget,
     });
 }
 

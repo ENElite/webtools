@@ -1,9 +1,33 @@
 import { Button, Space } from 'antd';
 import type { MoveableManagerInterface, Renderer } from 'react-moveable';
+export type WidgetableButtonType =
+    | 'move-widget-up'
+    | 'move-widget-down'
+    | 'move-widget-to-top'
+    | 'move-widget-to-bottom'
+    | 'reset-widget-rotation'
+    | 'toggle-widget-lock'
+    | 'copy-widget'
+    | 'remove-widget'
+    | 'open-widget-settings';
+
 type WidgetableProps = {
     locked: boolean;
-    onWidgetableClicked?: (type: string) => void;
+    onWidgetableClicked?: (type: WidgetableButtonType) => void;
 };
+
+const WIDGETABLE_BUTTONS: Array<{ type: WidgetableButtonType; title: string; iconClass: string; enabled: boolean }> = [
+    { type: 'move-widget-up', title: '上移一层', iconClass: 'icon-[octicon--chevron-up-16]', enabled: true },
+    { type: 'move-widget-down', title: '下移一层', iconClass: 'icon-[octicon--chevron-down-16]', enabled: true },
+    { type: 'move-widget-to-top', title: '置顶', iconClass: 'icon-[octicon--move-to-top-16]', enabled: true },
+    { type: 'move-widget-to-bottom', title: '置底', iconClass: 'icon-[octicon--move-to-bottom-16]', enabled: true },
+    { type: 'reset-widget-rotation', title: '复位旋转', iconClass: 'icon-[octicon--sync-16]', enabled: true },
+    { type: 'toggle-widget-lock', title: '锁定/解锁', iconClass: 'icon-[octicon--lock-16]', enabled: true },
+    { type: 'copy-widget', title: '复制', iconClass: 'icon-[octicon--duplicate-16]', enabled: true },
+    { type: 'remove-widget', title: '删除', iconClass: 'icon-[octicon--trash-16]', enabled: true },
+    { type: 'open-widget-settings', title: '设置', iconClass: 'icon-[octicon--gear-16]', enabled: true },
+];
+
 export const Widgetable = {
     name: 'widgetable',
     props: ['locked', 'onWidgetableClicked'],
@@ -24,17 +48,17 @@ export const Widgetable = {
                 color: black;
             }
         `);
-        const buttons = [
-            { type: 'move-widget-up', title: '上移一层', iconClass: 'icon-[octicon--chevron-up-16]' },
-            { type: 'move-widget-down', title: '下移一层', iconClass: 'icon-[octicon--chevron-down-16]' },
-            { type: 'move-widget-to-top', title: '置顶', iconClass: 'icon-[octicon--move-to-top-16]' },
-            { type: 'move-widget-to-bottom', title: '置底', iconClass: 'icon-[octicon--move-to-bottom-16]' },
-            { type: 'reset-widget-rotation', title: '复位旋转', iconClass: 'icon-[octicon--sync-16]' },
-            { type: 'toggle-widget-lock', title: locked ? '解锁' : '锁定', iconClass: locked ? 'icon-[octicon--lock-16]' : 'icon-[octicon--unlock-16]' },
-            { type: 'copy-widget', title: '复制', iconClass: 'icon-[octicon--duplicate-16]' },
-            { type: 'remove-widget', title: '删除', iconClass: 'icon-[octicon--trash-16]' },
-            { type: 'open-widget-settings', title: '设置', iconClass: 'icon-[octicon--gear-16]' },
-        ]
+        const buttons = WIDGETABLE_BUTTONS.map((button) => {
+            if (button.type === 'toggle-widget-lock') {
+                return {
+                    ...button,
+                    title: locked ? '解锁' : '锁定',
+                    iconClass: locked ? 'icon-[octicon--lock-16]' : 'icon-[octicon--unlock-16]',
+                };
+            }
+
+            return button;
+        });
 
         const rect = moveable.getRect();
         const { pos3: pos } = moveable.state;

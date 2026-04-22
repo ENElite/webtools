@@ -12,6 +12,11 @@ type OverlayMoveableProps = {
     overlayRef: RefObject<HTMLDivElement | null>;
     widgetElementRef: RefObject<Record<string, HTMLDivElement | null>>;
     widgets: WidgetModel[];
+    widgetableConfig?: {
+        widgetable?: boolean;
+        rotatable?: boolean;
+        resizable?: boolean;
+    };
     onWidgetableAction: (event: WidgetableActionEvent) => void;
     onWidgetTransformChange: (widgetId: string, transform: WidgetModel['style']) => void;
 };
@@ -21,6 +26,7 @@ export function OverlayMoveable({
     overlayRef,
     widgetElementRef,
     widgets,
+    widgetableConfig,
     onWidgetableAction,
     onWidgetTransformChange,
 }: OverlayMoveableProps) {
@@ -49,13 +55,20 @@ export function OverlayMoveable({
         return null;
     }
 
+    const isSettingsWidget = activeWidget.kind === 'settings';
     const locked = activeWidget?.locked ?? false;
-    const onWidgetableClicked = (type: string) => onWidgetableAction({
-        type: type as WidgetableActionEvent['type'],
-        widgetId: activeWidget.id,
-        style: snapshotTransformFromStyle(activeTarget.style),
-        locked: !activeWidget.locked,
-    });
+    const widgetable = widgetableConfig?.widgetable ?? (isSettingsWidget ? false : true);
+    const rotatable = widgetableConfig?.rotatable ?? (isSettingsWidget ? false : !locked);
+    const resizable = widgetableConfig?.resizable ?? !locked;
+    const onWidgetableClicked = (type: string) => {
+        const event: Record<string, unknown> = {
+            type,
+            widgetId: activeWidget.id,
+            style: snapshotTransformFromStyle(activeTarget.style),
+            locked: !activeWidget.locked,
+        };
+        onWidgetableAction(event as WidgetableActionEvent);
+    };
     const commitActiveWidgetTransform = (target: HTMLDivElement) => {
         onWidgetTransformChange(activeWidget.id, snapshotTransformFromStyle(target.style));
     };
@@ -64,29 +77,36 @@ export function OverlayMoveable({
         <Moveable
             ref={moveableRef}
             target={activeTarget}
+            // 内置 ables
             draggable={!locked}
-            resizable={!locked}
-            rotatable={!locked}
+            rotatable={rotatable}
+            // snappable props
             snappable
             snapGap
             elementGuidelines={elementGuidelines}
             snapDirections={{ left: true, top: true, right: true, bottom: true, center: true, middle: true }}
             elementSnapDirections={{ left: true, top: true, right: true, bottom: true, center: true, middle: true }}
-            keepRatio={false}
-            origin={false}
-            edge={false}
             snapContainer={overlayRef.current || undefined}
             snapThreshold={DEFAULT_SNAP_THRESHOLD}
             bounds={{ position: 'css', left: 0, top: 0, right: 0, bottom: 0 }}
+            snapRotationDegrees={[0, 45, 90, 135, 180, 225, 270, 315]}
+            // resizable props
+            resizable={resizable}
+            keepRatio={false}
+            throttleResize={1}
+            // other props
+            origin={false}
+            edge={false}
+
+            // 自定义 ables
             ables={[Widgetable]}
             props={{
-                widgetable: true,
+                widgetable: widgetable,
                 locked,
                 onWidgetableClicked,
             }}
             preventClickEventOnDrag
-            throttleResize={1}
-            // 不做节流，保持 transform 的实时性
+            // 不做节流，保持用户交互的实时性
             onDrag={({ target, transform }) => {
                 target.style.transform = transform;
             }}

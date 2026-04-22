@@ -1,12 +1,13 @@
 import type { ComponentType, Dispatch } from 'react';
 
 export type WidgetId = string;
-export type WidgetKind = 'text' | 'image' | 'canvas' | 'iframe';
+export type WidgetKind = 'text' | 'image' | 'canvas' | 'iframe' | 'settings';
 
 export type WidgetStyle = {
     transform: string;
     width: string;
     height: string;
+    borderRadius: string;
 };
 
 export type WidgetBounds = {
@@ -42,7 +43,8 @@ export type OverlayAction =
     | { type: 'move-widget-down'; widgetId: WidgetId }
     | { type: 'move-widget-to-top'; widgetId: WidgetId }
     | { type: 'move-widget-to-bottom'; widgetId: WidgetId }
-    | { type: 'copy-widget'; widgetId: WidgetId; transform: WidgetStyle };
+    | { type: 'copy-widget'; widgetId: WidgetId; style: WidgetStyle }
+    | { type: 'open-settings'; widgetId: WidgetId; bounds: WidgetBounds | null };
 
 export type OverlayDispatch = Dispatch<OverlayAction>;
 
@@ -55,7 +57,9 @@ export type WidgetableActionEvent =
     | { type: 'reset-widget-rotation'; widgetId: WidgetId; style: WidgetStyle }
     | { type: 'toggle-widget-lock'; widgetId: WidgetId; locked: boolean }
     | { type: 'open-widget-settings'; widgetId: WidgetId }
-    | { type: 'copy-widget'; widgetId: WidgetId; style: WidgetStyle };
+    | { type: 'copy-widget'; widgetId: WidgetId; style: WidgetStyle }
+    | { type: 'commit-settings-field'; widgetId: WidgetId; key: string; value: WidgetPropPrimitive }
+    | { type: 'close-settings'; widgetId: WidgetId };
 
 export type SnapAxis = 'x' | 'y';
 export type SnapSource = 'edge' | 'widget';

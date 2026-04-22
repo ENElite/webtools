@@ -1,15 +1,12 @@
-import { Button, Modal } from 'antd';
-
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
 
 import { DEFAULT_OVERLAY_Z_INDEX } from './constants';
 import { OverlayMoveable } from './moveable';
 import { overlayReducer } from './reducer';
 import { resolveWidgetRenderer } from './registry';
-import { resolveWidgetSettingsSchema } from './settings/registry';
-import { WidgetDynamicForm } from './settings/widget_dynamic_form';
+import { SettingWidget } from './settings/setting_widget';
 import { buildTransformString, parseTransformString } from './transform_utils';
-import type { WidgetSettingsSchema } from './settings/types';
+import { splitSettingsValues } from './settings_utils';
 import type {
     WidgetPropPrimitive,
     OverlayState,
@@ -17,13 +14,8 @@ import type {
     WidgetableActionEvent,
     WidgetRendererMap,
 } from './types';
+import type { SettingsWidgetProps } from './settings/schema';
 import { Widget } from './widget';
-
-type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
-
-function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
-}
 
 type OverlayRootProps = {
     initialWidgets: WidgetModel[];
@@ -34,13 +26,9 @@ type OverlayRootProps = {
 export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: OverlayRootProps) {
     const [state, dispatch] = useReducer(overlayReducer, {
         widgets: initialWidgets,
-        activeWidgetId: null, // 初始时不选中任何组件
+        activeWidgetId: null,
         bounds: null,
     } satisfies OverlayState);
-    const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
-    const [settingsDraftValues, setSettingsDraftValues] = useState<WidgetSettingsDraft | null>(null);
-    const [settingsInitialValues, setSettingsInitialValues] = useState<WidgetSettingsDraft | null>(null);
-    const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false);
 
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});
@@ -86,164 +74,6 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
         return state.widgets.find((widget) => widget.id === state.activeWidgetId) || null;
     }, [state.activeWidgetId, state.widgets]);
 
-    const settingsWidget = useMemo(() => {
-        if (!settingsWidgetId) {
-            return null;
-        }
-
-        return state.widgets.find((widget) => widget.id === settingsWidgetId) || null;
-    }, [settingsWidgetId, state.widgets]);
-
-    const settingsSchema = useMemo(() => {
-        if (!settingsWidget) {
-            return null;
-        }
-
-        const resolved = resolveWidgetSettingsSchema(settingsWidget.kind);
-        if (!resolved) {
-            return null;
-        }
-
-        const overlayWidth = state.bounds?.width || Infinity;
-        const overlayHeight = state.bounds?.height || Infinity;
-        const draftWidth = typeof settingsDraftValues?.['width'] === 'number' ? settingsDraftValues['width'] : Number.parseFloat(settingsWidget.style.width) || 0;
-        const draftHeight = typeof settingsDraftValues?.['height'] === 'number' ? settingsDraftValues['height'] : Number.parseFloat(settingsWidget.style.height) || 0;
-
-        return resolved.map((field) => {
-            if (field.type !== 'number') {
-                return field;
-            }
-
-            if (field.key === 'width') {
-                return { ...field, max: Number.isFinite(overlayWidth) ? overlayWidth : field.max };
-            }
-
-            if (field.key === 'height') {
-                return { ...field, max: Number.isFinite(overlayHeight) ? overlayHeight : field.max };
-            }
-
-            if (field.key === 'x') {
-                const maxX = Number.isFinite(overlayWidth) ? Math.max(0, overlayWidth - Math.max(0, draftWidth)) : field.max;
-                return { ...field, min: 0, max: maxX };
-            }
-
-            if (field.key === 'y') {
-                const maxY = Number.isFinite(overlayHeight) ? Math.max(0, overlayHeight - Math.max(0, draftHeight)) : field.max;
-                return { ...field, min: 0, max: maxY };
-            }
-
-            return field;
-        }) as WidgetSettingsSchema;
-    }, [settingsDraftValues, settingsWidget, state.bounds]);
-
-    const readDraftNumber = (draft: WidgetSettingsDraft, key: string, fallback: number) => {
-        const nextValue = draft[key];
-        return typeof nextValue === 'number' ? nextValue : fallback;
-    };
-
-    const buildSettingsDraft = (widget: WidgetModel): WidgetSettingsDraft => {
-        const { x, y, rotation } = parseTransformString(widget.style.transform);
-        const width = Number.parseFloat(widget.style.width) || 0;
-        const height = Number.parseFloat(widget.style.height) || 0;
-
-        return {
-            ...widget.props,
-            width,
-            height,
-            x,
-            y,
-            rotation,
-        };
-    };
-
-    const buildWidgetStyleFromDraft = (
-        draft: WidgetSettingsDraft,
-        fallbackStyle: WidgetModel['style'],
-        overlayBounds: OverlayState['bounds']
-    ): WidgetModel['style'] => {
-        const fallbackTransform = parseTransformString(fallbackStyle.transform);
-        const rawWidth = readDraftNumber(draft, 'width', Number.parseFloat(fallbackStyle.width) || 0);
-        const rawHeight = readDraftNumber(draft, 'height', Number.parseFloat(fallbackStyle.height) || 0);
-        const rawX = readDraftNumber(draft, 'x', fallbackTransform.x);
-        const rawY = readDraftNumber(draft, 'y', fallbackTransform.y);
-        const rawRotation = readDraftNumber(draft, 'rotation', fallbackTransform.rotation);
-
-        const maxWidth = overlayBounds?.width ?? Number.POSITIVE_INFINITY;
-        const maxHeight = overlayBounds?.height ?? Number.POSITIVE_INFINITY;
-        const width = clamp(rawWidth, 0, maxWidth);
-        const height = clamp(rawHeight, 0, maxHeight);
-        const x = clamp(rawX, 0, Math.max(0, maxWidth - width));
-        const y = clamp(rawY, 0, Math.max(0, maxHeight - height));
-        const rotation = ((rawRotation % 360) + 360) % 360;
-
-        return {
-            width: `${width}px`,
-            height: `${height}px`,
-            transform: buildTransformString(x, y, rotation),
-        };
-    };
-
-    const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetModel) => {
-        const { width, height, x, y, rotation, ...props } = draft;
-        return {
-            props,
-            style: buildWidgetStyleFromDraft({ width, height, x, y, rotation } as WidgetSettingsDraft, widget.style, state.bounds),
-        };
-    };
-
-    const closeWidgetSettings = () => {
-        setUnsavedConfirmOpen(false);
-        setSettingsWidgetId(null);
-        setSettingsDraftValues(null);
-        setSettingsInitialValues(null);
-    };
-
-    const isSettingsDirty = useMemo(() => {
-        if (!settingsDraftValues || !settingsInitialValues) {
-            return false;
-        }
-
-        const keys = new Set([
-            ...Object.keys(settingsDraftValues),
-            ...Object.keys(settingsInitialValues),
-        ]);
-
-        for (const key of keys) {
-            if (settingsDraftValues[key] !== settingsInitialValues[key]) {
-                return true;
-            }
-        }
-
-        return false;
-    }, [settingsDraftValues, settingsInitialValues]);
-
-    const requestCloseWidgetSettings = () => {
-        if (isSettingsDirty) {
-            setUnsavedConfirmOpen(true);
-            return;
-        }
-
-        closeWidgetSettings();
-    };
-
-    const saveWidgetSettings = () => {
-        if (!settingsWidgetId || !settingsDraftValues || !settingsWidget) {
-            return;
-        }
-
-        const { props, style } = splitSettingsValues(settingsDraftValues, settingsWidget);
-
-        dispatch({
-            type: 'update-widget',
-            widgetId: settingsWidgetId,
-            patch: {
-                props,
-                style,
-            },
-        });
-        closeWidgetSettings();
-    };
-
     const activateWidget = (widgetId: string) => {
         dispatch({ type: 'set-active', widgetId });
     };
@@ -253,6 +83,44 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
             type: 'update-widget',
             widgetId,
             patch: { style: style },
+        });
+    };
+
+    const commitSettingsField = (settingsWidgetId: string, key: string, nextValue: WidgetPropPrimitive) => {
+        const settingsWidget = state.widgets.find((w) => w.id === settingsWidgetId);
+        if (!settingsWidget || settingsWidget.kind !== 'settings') {
+            return;
+        }
+
+        const settingsProps = settingsWidget.props as unknown as SettingsWidgetProps;
+        const sourceWidget = state.widgets.find((w) => w.id === settingsProps.sourceWidgetId);
+        if (!sourceWidget) {
+            return;
+        }
+
+        // Build current draft from source widget + the new field value
+        const { x, y, rotation } = parseTransformString(sourceWidget.style.transform);
+        const width = Number.parseFloat(sourceWidget.style.width) || 0;
+        const height = Number.parseFloat(sourceWidget.style.height) || 0;
+        const borderRadius = Number.parseFloat(sourceWidget.style.borderRadius) || 0;
+
+        const currentDraft = {
+            ...sourceWidget.props,
+            width,
+            height,
+            x,
+            y,
+            rotation,
+            borderRadius,
+            [key]: nextValue,
+        };
+
+        const { props, style } = splitSettingsValues(currentDraft, sourceWidget);
+
+        dispatch({
+            type: 'update-widget',
+            widgetId: settingsProps.sourceWidgetId,
+            patch: { props, style },
         });
     };
 
@@ -268,7 +136,6 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
             }
 
             case 'toggle-widget-lock': {
-                console.log('Toggle lock for widget:', event.widgetId, 'Locked:', event.locked);
                 dispatch({
                     type: 'update-widget',
                     widgetId: event.widgetId,
@@ -296,26 +163,30 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
                 dispatch({
                     type: 'copy-widget',
                     widgetId: event.widgetId,
-                    transform: event.style,
+                    style: event.style,
                 });
                 return;
             }
 
             case 'open-widget-settings': {
-                const widget = state.widgets.find((item) => item.id === event.widgetId);
-                if (!widget) {
-                    return;
-                }
+                dispatch({
+                    type: 'open-settings',
+                    widgetId: event.widgetId,
+                    bounds: state.bounds,
+                });
+                return;
+            }
 
-                const schema = resolveWidgetSettingsSchema(widget.kind);
-                if (!schema) {
-                    return;
-                }
+            case 'commit-settings-field': {
+                commitSettingsField(event.widgetId, event.key, event.value);
+                return;
+            }
 
-                setSettingsWidgetId(widget.id);
-                setSettingsDraftValues(buildSettingsDraft(widget));
-                setSettingsInitialValues(buildSettingsDraft(widget));
-                setUnsavedConfirmOpen(false);
+            case 'close-settings': {
+                dispatch({
+                    type: 'remove-widget',
+                    widgetId: event.widgetId,
+                });
                 return;
             }
 
@@ -337,13 +208,19 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
             }}
         >
             {state.widgets.map((widget) => {
-                const renderer = resolveWidgetRenderer(renderers, widget.kind);
-                if (!renderer) {
+                // Settings widget: render with SettingWidget component
+                if (widget.kind === 'settings') {
+                }
+
+
+                // Normal widget: render with registered renderer
+                const WidgetRenderer = resolveWidgetRenderer(renderers, widget.kind);
+                if (!WidgetRenderer) {
                     return null;
                 }
 
-                const WidgetRenderer = renderer;
-
+                const settingsProps = widget.props as unknown as SettingsWidgetProps;
+                const sourceWidget = state.widgets.find((w) => w.id === settingsProps.sourceWidgetId) || null;
                 return (
                     <Widget
                         key={widget.id}
@@ -361,7 +238,20 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
                             onWidgetContextMenu?.();
                         }}
                     >
-                        <WidgetRenderer widget={widget} active={widget.id === state.activeWidgetId} />
+                        {(widget.kind === 'settings') ? (
+                            <SettingWidget
+                                widget={widget}
+                                active={widget.id === state.activeWidgetId}
+                                onWidgetableAction={handleWidgetableAction}
+                                sourceWidget={sourceWidget}
+                                overlayBounds={state.bounds}
+                            />
+                        ) : (
+                            <WidgetRenderer
+                                widget={widget}
+                                active={widget.id === state.activeWidgetId}
+                            />
+                        )}
                     </Widget>
                 );
             })}
@@ -374,57 +264,6 @@ export function OverlayRoot({ initialWidgets, renderers, onWidgetContextMenu }: 
                 onWidgetableAction={handleWidgetableAction}
                 onWidgetTransformChange={handleWidgetTransformChange}
             />
-
-            <Modal
-                title='组件设置'
-                centered
-                open={Boolean(settingsWidget && settingsSchema && settingsDraftValues)}
-                onCancel={requestCloseWidgetSettings}
-                onOk={saveWidgetSettings}
-                okText='保存'
-                cancelText='取消'
-                destroyOnHidden
-                mask={{ blur: true }}
-            >
-                {settingsSchema && settingsDraftValues
-                    ? (
-                        <WidgetDynamicForm
-                            value={settingsDraftValues}
-                            schema={settingsSchema}
-                            onChange={setSettingsDraftValues}
-                        />
-                    )
-                    : null}
-            </Modal>
-
-            <Modal
-                title='设置项未保存'
-                centered
-                open={unsavedConfirmOpen}
-                onCancel={() => setUnsavedConfirmOpen(false)}
-                footer={[
-                    <Button key='continue-edit' onClick={() => setUnsavedConfirmOpen(false)}>
-                        继续编辑
-                    </Button>,
-                    <Button key='discard' onClick={closeWidgetSettings}>
-                        不保存并返回
-                    </Button>,
-                    <Button
-                        key='save'
-                        type='primary'
-                        onClick={() => {
-                            saveWidgetSettings();
-                            setUnsavedConfirmOpen(false);
-                        }}
-                    >
-                        保存并返回
-                    </Button>,
-                ]}
-                mask={{ closable: false }}
-                destroyOnHidden
-            >
-                当前设置项尚未保存，是否保存后返回？
-            </Modal>
         </div>
     );
 }

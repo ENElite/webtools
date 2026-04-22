@@ -5,6 +5,7 @@ import type {
     WidgetModel,
 } from './types';
 import { buildTransformString, normalizeSizeToPx, parseTransformString } from './transform_utils';
+import { type SettingsWidgetProps, DEFAULT_SETTINGS_WIDGET_PROPS, DEFAULT_SETTINGS_WIDGET_STYLE } from './settings/schema';
 
 function findWidgetIndex(widgets: WidgetModel[], widgetId: WidgetId): number {
     return widgets.findIndex((widget) => widget.id === widgetId);
@@ -52,11 +53,22 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
                 };
             }
 
-            const exists = findWidgetIndex(state.widgets, action.widgetId) >= 0;
+            const widget = getWidget(state, action.widgetId);
+            if (!widget) {
+                return state;
+            }
+            if (widget.kind === 'settings') {
+                const index = findWidgetIndex(state.widgets, action.widgetId);
+                return {
+                    ...state,
+                    activeWidgetId: action.widgetId,
+                    widgets: moveWidgetByIndex(state.widgets, index, state.widgets.length - 1),
+                };
+            }
             return {
                 ...state,
-                activeWidgetId: exists ? action.widgetId : state.activeWidgetId,
-            };
+                activeWidgetId: action.widgetId,
+            }
         }
 
         case 'set-bounds': {
@@ -168,16 +180,16 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
                 return state;
             }
 
-            const sourceTransform = action.transform;
-            const { x, y, rotation } = parseTransformString(sourceTransform.transform);
+            const sourceStyle = action.style;
+            const { x, y, rotation } = parseTransformString(sourceStyle.transform);
             const newId = `${sourceWidget.id}-copy-${Date.now()}`;
             const newWidget: WidgetModel = {
                 ...sourceWidget,
                 id: newId,
                 style: {
                     transform: buildTransformString(x + 50, y + 50, rotation),
-                    width: normalizeSizeToPx(sourceTransform.width),
-                    height: normalizeSizeToPx(sourceTransform.height),
+                    width: normalizeSizeToPx(sourceStyle.width),
+                    height: normalizeSizeToPx(sourceStyle.height),
                 },
             };
 
@@ -188,6 +200,67 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
                 ...state,
                 widgets: newWidgets,
                 activeWidgetId: newId,
+            };
+        }
+
+        case 'open-settings': {
+            const sourceWidget = state.widgets.find((w) => w.id === action.widgetId);
+            if (!sourceWidget || sourceWidget.kind === 'settings') {
+                return state;
+            }
+            const settingsWidgetId = `settings-${sourceWidget.id}`;
+
+            // If settings widget already exists, just activate it
+            const existing = state.widgets.find((w) => w.id === settingsWidgetId);
+            if (existing) {
+                return {
+                    ...state,
+                    activeWidgetId: settingsWidgetId,
+                };
+            }
+
+            const { x: srcX, y: srcY, rotation: srcRotation } = parseTransformString(sourceWidget.style.transform);
+            const srcWidth = Number.parseFloat(sourceWidget.style.width) || 0;
+            const srcHeight = Number.parseFloat(sourceWidget.style.height) || 0;
+
+            const { width, height } = DEFAULT_SETTINGS_WIDGET_STYLE;
+            const settingsWidth = Number.parseFloat(width.slice(0, -1)) || 300;
+            const settingsHeight = Number.parseFloat(height.slice(0, -1)) || 200;
+            const overlayWidth = action.bounds?.width ?? settingsWidth;
+            const overlayHeight = action.bounds?.height ?? settingsHeight;
+
+            // Position at screen center
+            const centerX = Math.max(0, (overlayWidth - settingsWidth) / 2);
+            const centerY = Math.max(0, (overlayHeight - settingsHeight) / 2);
+
+            const settingsWidget: WidgetModel<SettingsWidgetProps> = {
+                id: settingsWidgetId,
+                kind: 'settings',
+                style: {
+                    ...DEFAULT_SETTINGS_WIDGET_STYLE,
+                    transform: buildTransformString(centerX, centerY, 0),
+                    width: `${Math.min(settingsWidth, overlayWidth)}px`,
+                    height: `${Math.min(settingsHeight, overlayHeight)}px`,
+                },
+                props: {
+                    ...DEFAULT_SETTINGS_WIDGET_PROPS,
+                    sourceWidgetId: sourceWidget.id,
+                    draftValues: JSON.stringify({
+                        ...sourceWidget.props,
+                        width: srcWidth,
+                        height: srcHeight,
+                        x: srcX,
+                        y: srcY,
+                        rotation: srcRotation,
+                        borderRadius: Number.parseFloat(sourceWidget.style.borderRadius) || 0,
+                    }),
+                },
+            };
+
+            return {
+                ...state,
+                widgets: [...state.widgets, settingsWidget],
+                activeWidgetId: settingsWidgetId,
             };
         }
 
