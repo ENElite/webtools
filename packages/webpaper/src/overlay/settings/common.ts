@@ -1,5 +1,5 @@
 import type { WidgetFlatProps } from '../types';
-import type { WidgetSettingsSchema } from './types';
+import type { WidgetSettingsSchema } from './schema';
 
 export type WidgetBackgroundEffect = 'blur' | 'image' | 'none';
 export type WidgetBorderStyle = 'solid' | 'dot' | 'dash' | 'dotdash';
@@ -11,15 +11,19 @@ export type WidgetCommonProps = {
     borderColor: string;
     borderWidth: number;
     borderStyle: WidgetBorderStyle;
+    shadowRadius: number;
+    shadowColor: string;
 };
 
 export const DEFAULT_WIDGET_COMMON_PROPS: WidgetCommonProps = {
     backgroundColor: 'rgba(255, 255, 255, 0)',
-    backgroundEffect: 'blur',
+    backgroundEffect: 'none',
     backgroundImageUrl: '',
     borderColor: '#38bdf8',
     borderWidth: 0,
     borderStyle: 'solid',
+    shadowRadius: 0,
+    shadowColor: 'rgba(0, 0, 0, 0.5)',
 };
 
 export const COMMON_WIDGET_SETTINGS_SCHEMA = [
@@ -72,5 +76,19 @@ export const COMMON_WIDGET_SETTINGS_SCHEMA = [
             { label: '虚线 (dash)', value: 'dash' },
             { label: '点划线 (dotdash)', value: 'dotdash' },
         ],
+    },
+    {
+        key: 'shadowRadius',
+        label: '阴影半径',
+        type: 'number',
+        min: 0,
+        max: 100,
+        step: 1,
+    },
+    {
+        key: 'shadowColor',
+        label: '阴影颜色',
+        type: 'color',
+        alpha: true,
     },
 ] satisfies WidgetSettingsSchema<WidgetFlatProps>;

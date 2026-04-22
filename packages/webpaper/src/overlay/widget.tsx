@@ -51,6 +51,12 @@ function buildWidgetVisualStyle(widget: WidgetModel): CSSProperties {
     const borderStyle = typeof props['borderStyle'] === 'string'
         ? props['borderStyle']
         : DEFAULT_WIDGET_COMMON_PROPS.borderStyle;
+    const shadowRadius = typeof props['shadowRadius'] === 'number'
+        ? props['shadowRadius']
+        : DEFAULT_WIDGET_COMMON_PROPS.shadowRadius;
+    const shadowColor = typeof props['shadowColor'] === 'string'
+        ? props['shadowColor']
+        : DEFAULT_WIDGET_COMMON_PROPS.shadowColor;
 
     const style: CSSProperties = {
         // Widget attributes
@@ -64,6 +70,7 @@ function buildWidgetVisualStyle(widget: WidgetModel): CSSProperties {
         borderColor,
         borderWidth,
         borderStyle: borderWidth > 0 ? mapBorderStyle(borderStyle) : 'none',
+        boxShadow: shadowRadius > 0 ? `0 0 ${shadowRadius}px ${shadowColor}` : 'none',
         overflow: 'hidden',
     };
 
