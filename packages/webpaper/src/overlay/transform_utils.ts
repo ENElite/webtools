@@ -37,5 +37,6 @@ export function snapshotTransformFromStyle(style: CSSStyleDeclaration): WidgetSt
         transform: style.transform,
         width: style.width,
         height: style.height,
+        borderRadius: style.borderRadius,
     };
 }

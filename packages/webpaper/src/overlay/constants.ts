@@ -9,5 +9,6 @@ export const DEFAULT_TEXT_WIDGET_TRANSFORM: WidgetStyle = {
     transform: 'translate(56px, 56px) rotate(0deg)',
     width: '520px',
     height: '128px',
+    borderRadius: '0px',
 };
 

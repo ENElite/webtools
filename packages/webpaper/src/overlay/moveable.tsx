@@ -15,6 +15,7 @@ type OverlayMoveableProps = {
     widgetableConfig?: {
         widgetable?: boolean;
         rotatable?: boolean;
+        roundable?: boolean;
         resizable?: boolean;
     };
     onWidgetableAction: (event: WidgetableActionEvent) => void;
@@ -59,6 +60,7 @@ export function OverlayMoveable({
     const locked = activeWidget?.locked ?? false;
     const widgetable = widgetableConfig?.widgetable ?? (isSettingsWidget ? false : true);
     const rotatable = widgetableConfig?.rotatable ?? (isSettingsWidget ? false : !locked);
+    const roundable = widgetableConfig?.roundable ?? (isSettingsWidget ? false : !locked);
     const resizable = widgetableConfig?.resizable ?? !locked;
     const onWidgetableClicked = (type: string) => {
         const event: Record<string, unknown> = {
@@ -80,6 +82,11 @@ export function OverlayMoveable({
             // 内置 ables
             draggable={!locked}
             rotatable={rotatable}
+            // roundable
+            roundable={roundable}
+            isDisplayShadowRoundControls={"horizontal"}
+            roundClickable={"control"}
+            roundPadding={15}
             // snappable props
             snappable
             snapGap
@@ -118,10 +125,14 @@ export function OverlayMoveable({
             onRotate={({ target, drag }) => {
                 target.style.transform = drag.transform;
             }}
+            onRound={({ target, borderRadius }) => {
+                target.style.borderRadius = borderRadius;
+            }}
             // 在拖动、缩放、旋转结束时提交最终的 transform 和尺寸
             onDragEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
             onResizeEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
             onRotateEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
+            onRoundEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
         />
     );
 }

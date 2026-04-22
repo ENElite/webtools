@@ -190,6 +190,7 @@ export function overlayReducer(state: OverlayState, action: OverlayAction): Over
                     transform: buildTransformString(x + 50, y + 50, rotation),
                     width: normalizeSizeToPx(sourceStyle.width),
                     height: normalizeSizeToPx(sourceStyle.height),
+                    borderRadius: sourceStyle.borderRadius || sourceWidget.style.borderRadius || '0px',
                 },
             };
 

@@ -65,6 +65,7 @@ function buildWidgetVisualStyle(widget: WidgetModel): CSSProperties {
         height: widget.style.height,
         transform: widget.style.transform,
         transformOrigin: 'center center',
+        borderRadius: widget.style.borderRadius,
         // Widget visual styles
         backgroundColor,
         borderColor,
