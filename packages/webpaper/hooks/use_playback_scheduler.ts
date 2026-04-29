@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useEvent, useInterval } from '@reactuses/core';
+
 type UsePlaybackSchedulerParams = {
     desiredIntervalSec: number;
     isRunning: boolean;
@@ -19,15 +21,23 @@ export function usePlaybackScheduler({ desiredIntervalSec, isRunning }: UsePlayb
     const [timestamp, setTimestamp] = useState(Date.now());
     const pendingIntervalRef = useRef<number | null>(null);
 
-    useEffect(() => {
-        const id = window.setInterval(() => {
-            setTimestamp(Date.now());
-        }, 250);
+    const syncCycleStartedAt = useEvent(() => {
+        setCycleStartedAt(Date.now());
+    });
 
-        return () => {
-            window.clearInterval(id);
-        };
-    }, []);
+    const flushPendingInterval = useEvent(() => {
+        const pending = pendingIntervalRef.current;
+        if (pending === null) {
+            return;
+        }
+
+        setEffectiveIntervalSec(pending);
+        pendingIntervalRef.current = null;
+    });
+
+    useInterval(() => {
+        setTimestamp(Date.now());
+    }, isRunning ? 250 : null);
 
     const normalizeInterval = useCallback((value: number): number => {
         if (!Number.isFinite(value)) {
@@ -50,36 +60,27 @@ export function usePlaybackScheduler({ desiredIntervalSec, isRunning }: UsePlayb
 
         pendingIntervalRef.current = null;
         setEffectiveIntervalSec(normalizedDesired);
-        setCycleStartedAt(Date.now());
-    }, [desiredIntervalSec, effectiveIntervalSec, isRunning, normalizeInterval]);
+        syncCycleStartedAt();
+    }, [desiredIntervalSec, effectiveIntervalSec, isRunning, normalizeInterval, syncCycleStartedAt]);
 
     useEffect(() => {
         if (isRunning) {
             return;
         }
 
-        const pending = pendingIntervalRef.current;
-        if (pending !== null) {
-            setEffectiveIntervalSec(pending);
-            pendingIntervalRef.current = null;
-        }
+        flushPendingInterval();
 
-        setCycleStartedAt(Date.now());
-    }, [isRunning]);
+        syncCycleStartedAt();
+    }, [flushPendingInterval, isRunning, syncCycleStartedAt]);
 
-    const markCycleStart = useCallback(() => {
-        setCycleStartedAt(Date.now());
-    }, []);
+    const markCycleStart = useEvent(() => {
+        syncCycleStartedAt();
+    });
 
-    const markCycleComplete = useCallback(() => {
-        const pending = pendingIntervalRef.current;
-        if (pending !== null) {
-            setEffectiveIntervalSec(pending);
-            pendingIntervalRef.current = null;
-        }
-
-        setCycleStartedAt(Date.now());
-    }, []);
+    const markCycleComplete = useEvent(() => {
+        flushPendingInterval();
+        syncCycleStartedAt();
+    });
 
     const countdown = useMemo(() => {
         if (!isRunning) {
