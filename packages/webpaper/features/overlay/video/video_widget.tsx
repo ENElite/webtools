@@ -1,15 +1,19 @@
-import { VideoHero } from '@/features/display';
 import type { WidgetRendererProps } from '../types';
 import type { VideoWidgetProps } from './schema';
 
 export function VideoWidget({ widget }: WidgetRendererProps<VideoWidgetProps>) {
     return (
-        <VideoHero
-            videoUrl={widget.props.videoUrl}
-            posterUrl={widget.props.posterUrl || null}
-            objectFit={widget.props.objectFit}
-            onVideoError={() => undefined}
-            onVideoEnded={() => undefined}
+        <video
+            src={widget.props.videoUrl}
+            poster={widget.props.posterUrl || undefined}
+            controls
+            preload='metadata'
+            style={{
+                width: '100%',
+                height: '100%',
+                objectFit: widget.props.objectFit,
+                display: 'block',
+            }}
         />
     );
 }
