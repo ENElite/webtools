@@ -11,8 +11,11 @@ import type {
 
 type OverlayStore = {
     overlay: OverlayState;
+    pendingSettingsWidgetId: WidgetId | null;
     setOverlayWidgets: (widgets: WidgetModel[]) => void;
     setOverlayActiveWidget: (widgetId: WidgetId | null) => void;
+    requestOverlayWidgetSettings: (widgetId: WidgetId) => void;
+    clearOverlayWidgetSettingsRequest: () => void;
     addOverlayWidget: (widget: WidgetModel) => void;
     removeOverlayWidget: (widgetId: WidgetId) => void;
     updateOverlayWidget: (widgetId: WidgetId, patch: Partial<Omit<WidgetModel, 'id'>>) => void;
@@ -76,6 +79,7 @@ function replaceWidget(state: OverlayState, widgetId: WidgetId, patch: Partial<O
 
 export const useOverlayStore = create<OverlayStore>((set) => ({
     overlay: createDefaultOverlayState(),
+    pendingSettingsWidgetId: null,
 
     setOverlayWidgets: (widgets) => {
         set((state) => {
@@ -116,6 +120,18 @@ export const useOverlayStore = create<OverlayStore>((set) => ({
                 },
             };
         });
+    },
+
+    requestOverlayWidgetSettings: (widgetId) => {
+        set(() => ({
+            pendingSettingsWidgetId: widgetId,
+        }));
+    },
+
+    clearOverlayWidgetSettingsRequest: () => {
+        set(() => ({
+            pendingSettingsWidgetId: null,
+        }));
     },
 
     addOverlayWidget: (widget) => {
