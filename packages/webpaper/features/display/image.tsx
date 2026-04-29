@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert } from 'antd';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { useMouse } from "@reactuses/core"
+import { useMouse } from '@reactuses/core';
 
 export type ImageHeroMode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync';
 
@@ -60,38 +60,31 @@ export function ImageHero({
     enableMouseTracking,
     onImageError,
 }: ImageHeroProps) {
-    const [mouseRatio, setMouseRatio] = useState({ x: 0, y: 0 });
     const [backgroundSrc, setBackgroundSrc] = useState<string>('');
     const [foregroundSrc, setForegroundSrc] = useState<string>('');
     const loadTokenRef = useRef(0);
     const allSyncPendingRef = useRef<AllSyncPending | null>(null);
     const onImageErrorRef = useRef(onImageError);
+    const mouse = useMouse();
 
     useEffect(() => {
         onImageErrorRef.current = onImageError;
     }, [onImageError]);
 
-
-    useEffect(() => {
-        if (!enableMouseTracking) {
-            setMouseRatio({ x: 0, y: 0 });
-            return;
+    const offsetX = (() => {
+        if (!enableMouseTracking || !Number.isFinite(mouse.clientX) || typeof window === 'undefined') {
+            return 0;
         }
 
-        const onMouseMove = (event: MouseEvent) => {
-            const x = event.clientX / Math.max(window.innerWidth, 1) - 0.5;
-            const y = event.clientY / Math.max(window.innerHeight, 1) - 0.5;
-            setMouseRatio({ x, y });
-        };
+        return (mouse.clientX / Math.max(window.innerWidth, 1) - 0.5) * trackIntensity;
+    })();
+    const offsetY = (() => {
+        if (!enableMouseTracking || !Number.isFinite(mouse.clientY) || typeof window === 'undefined') {
+            return 0;
+        }
 
-        window.addEventListener('mousemove', onMouseMove, { passive: true });
-        return () => {
-            window.removeEventListener('mousemove', onMouseMove);
-        };
-    }, [enableMouseTracking]);
-
-    const offsetX = enableMouseTracking ? mouseRatio.x * trackIntensity : 0;
-    const offsetY = enableMouseTracking ? mouseRatio.y * trackIntensity : 0;
+        return (mouse.clientY / Math.max(window.innerHeight, 1) - 0.5) * trackIntensity;
+    })();
 
     useEffect(() => {
         if (!imageUrl) {
