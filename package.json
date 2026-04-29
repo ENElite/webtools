@@ -3,9 +3,9 @@
   "private": true,
   "packageManager": "pnpm@10.8.0",
   "scripts": {
-    "dev:webpaper": "pnpm --filter @webtools/webpaper dev --host",
+    "dev:webpaper": "pnpm --filter @webtools/webpaper dev",
     "build:webpaper": "pnpm --filter @webtools/webpaper build",
-    "preview:webpaper": "pnpm --filter @webtools/webpaper preview --host",
+    "preview:webpaper": "pnpm --filter @webtools/webpaper start",
     "dev:reactuse": "tsc -p packages/reactuse/tsconfig.json --watch",
     "build:reactuse": "tsc -b packages/reactuse/tsconfig.json",
     "lint": "pnpm -r lint",

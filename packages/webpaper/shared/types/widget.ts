@@ -1,0 +1,18 @@
+export type {
+    WidgetId,
+    WidgetKind,
+    WidgetStyle,
+    WidgetPropPrimitive,
+    WidgetFlatProps,
+    WidgetModel,
+    OverlayState,
+    OverlayAction,
+    OverlayDispatch,
+    WidgetableActionEvent,
+    SnapAxis,
+    SnapSource,
+    SnapGuideline,
+    WidgetRendererProps,
+    WidgetRenderer,
+    WidgetRendererMap,
+} from '@/features/overlay/types';

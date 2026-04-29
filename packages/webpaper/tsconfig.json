@@ -1,4 +1,65 @@
 {
-  "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2022"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "jsx": "preserve",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": false,
+    "isolatedModules": true,
+    "incremental": true,
+    "types": [
+      "node"
+    ],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "hooks/**/*.ts",
+    "hooks/**/*.tsx",
+    "providers/**/*.ts",
+    "providers/**/*.tsx",
+    "store/**/*.ts",
+    "store/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "shared/**/*.ts",
+    "shared/**/*.tsx",
+    "features/**/*.ts",
+    "features/**/*.tsx",
+    "core/**/*.ts",
+    "core/**/*.tsx",
+    "types.ts",
+    ".next/types/**/*.ts",
+    "__test__/registry.test.ts",
+    "__test__/widget_dynamic_form.test.tsx",
+    "__test__/konachan.test.ts",
+    "__test__/history.test.ts",
+    "__test__/overlay.reducer.test.ts",
+    "__test__/image.hero.mode.test.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
