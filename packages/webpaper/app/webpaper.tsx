@@ -16,6 +16,7 @@ import {
     buildTransformString,
     createDefaultOverlayRenderers,
     createHtmlWidget,
+    createImageWidget,
     createIframeWidget,
     createTextWidget,
     useOverlayStore,
@@ -509,6 +510,11 @@ export function Webpaper() {
                         icon: makeItemIcon('icon-[octicon--code-16]'),
                     },
                     {
+                        key: 'create-image-widget',
+                        label: 'Image 组件',
+                        icon: makeItemIcon('icon-[octicon--image-16]'),
+                    },
+                    {
                         key: 'create-iframe-widget',
                         label: 'URL 组件',
                         icon: makeItemIcon('icon-[octicon--code-16]'),
@@ -527,8 +533,14 @@ export function Webpaper() {
                 return nextId ? nextId.trim() : '';
             };
 
-            const tryCreateWidget = (kind: 'text' | 'html' | 'iframe') => {
-                const label = kind === 'text' ? '文本组件' : kind === 'html' ? 'HTML 组件' : 'URL 组件';
+            const tryCreateWidget = (kind: 'text' | 'html' | 'image' | 'iframe') => {
+                const label = kind === 'text'
+                    ? '文本组件'
+                    : kind === 'html'
+                        ? 'HTML 组件'
+                        : kind === 'image'
+                            ? 'Image 组件'
+                            : 'URL 组件';
                 const widgetId = promptWidgetId(label);
                 if (!widgetId) {
                     return;
@@ -545,6 +557,8 @@ export function Webpaper() {
                     ? createTextWidget(widgetId, transform)
                     : kind === 'html'
                         ? createHtmlWidget(widgetId, transform)
+                        : kind === 'image'
+                            ? createImageWidget(widgetId, transform)
                         : createIframeWidget(widgetId, transform);
 
                 addOverlayWidget(nextWidget);
@@ -558,6 +572,10 @@ export function Webpaper() {
                 }
                 case 'create-html-widget': {
                     tryCreateWidget('html');
+                    break;
+                }
+                case 'create-image-widget': {
+                    tryCreateWidget('image');
                     break;
                 }
                 case 'create-iframe-widget': {

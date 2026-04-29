@@ -3,6 +3,7 @@ export {
     createDefaultOverlayRenderers,
     createTextWidget,
     createHtmlWidget,
+    createImageWidget,
     createIframeWidget,
 } from './overlay';
 

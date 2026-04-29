@@ -1,4 +1,5 @@
 import { WIDGET_STYLE_SETTINGS_SCHEMA } from './schema';
+import { IMAGE_WIDGET_SETTINGS_SCHEMA } from '../image';
 import { TEXT_WIDGET_SETTINGS_SCHEMA } from '../text/schema';
 import { HTML_WIDGET_SETTINGS_SCHEMA } from '../html/schema';
 import { IFRAME_WIDGET_SETTINGS_SCHEMA } from '../iframe/schema';
@@ -25,6 +26,7 @@ const MODEL_WIDGET_SETTINGS_SCHEMA = [
 ] satisfies WidgetSettingsSchema;
 
 const WIDGET_SETTINGS_SCHEMAS: Partial<Record<WidgetKind, WidgetSettingsSchema>> = {
+    image: IMAGE_WIDGET_SETTINGS_SCHEMA,
     text: TEXT_WIDGET_SETTINGS_SCHEMA,
     html: HTML_WIDGET_SETTINGS_SCHEMA,
     iframe: IFRAME_WIDGET_SETTINGS_SCHEMA,

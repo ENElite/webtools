@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { DEFAULT_OVERLAY_Z_INDEX } from './constants';
+import { ImageWidget } from './image';
 import { OverlayMoveable } from './moveable';
 import { resolveWidgetRenderer } from './registry';
 import { SettingsPanel } from './settings/settings_panel';
@@ -20,13 +21,14 @@ type OverlayRootProps = {
 
 export function createDefaultOverlayRenderers(): WidgetRendererMap {
     return createWidgetRegistry({
+        image: ImageWidget,
         text: TextWidget,
         html: HtmlWidget,
         iframe: IframeWidget,
     });
 }
 
-export { createTextWidget, createHtmlWidget, createIframeWidget } from '@/store/overlay_defaults';
+export { createTextWidget, createHtmlWidget, createImageWidget, createIframeWidget } from '@/store/overlay_defaults';
 
 export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps) {
     const {

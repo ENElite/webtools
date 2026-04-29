@@ -1,4 +1,5 @@
 import { DEFAULT_HTML_WIDGET_PROPS } from '@/features/overlay/html';
+import { DEFAULT_IMAGE_WIDGET_PROPS } from '@/features/overlay/image';
 import { DEFAULT_IFRAME_WIDGET_PROPS } from '@/features/overlay/iframe';
 import { DEFAULT_TEXT_WIDGET_PROPS } from '@/features/overlay/text';
 import { buildTransformString } from '@/features/overlay/transform_utils';
@@ -50,6 +51,16 @@ export function createHtmlWidget(id: string, transform: Partial<WidgetStyle> = {
         id,
         kind: 'html',
         props: DEFAULT_HTML_WIDGET_PROPS,
+        style: createWidgetStyle(transform),
+        autoHide: false,
+    };
+}
+
+export function createImageWidget(id: string, transform: Partial<WidgetStyle> = {}): WidgetModel {
+    return {
+        id,
+        kind: 'image',
+        props: DEFAULT_IMAGE_WIDGET_PROPS,
         style: createWidgetStyle(transform),
         autoHide: false,
     };
