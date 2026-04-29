@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { DEFAULT_OVERLAY_Z_INDEX, DEFAULT_TEXT_WIDGET_TRANSFORM } from './constants';
+import { DEFAULT_OVERLAY_Z_INDEX } from './constants';
 import { OverlayMoveable } from './moveable';
 import { resolveWidgetRenderer } from './registry';
 import { SettingsPanel } from './settings/settings_panel';
 import { useOverlayStore as useOverlayRootStore, useOverlayWidgetStore } from './store';
-import { DEFAULT_HTML_WIDGET_PROPS, HtmlWidget } from './html';
-import { DEFAULT_IFRAME_WIDGET_PROPS, IframeWidget } from './iframe';
-import { DEFAULT_TEXT_WIDGET_PROPS, TextWidget } from './text';
-import type { WidgetModel, WidgetRendererMap, WidgetableActionEvent } from './types';
+import { HtmlWidget } from './html';
+import { IframeWidget } from './iframe';
+import { TextWidget } from './text';
+import type { WidgetRendererMap, WidgetableActionEvent } from './types';
 import { buildTransformString, parseTransformString } from './transform_utils';
 import { Widget } from './widget';
 import { createWidgetRegistry } from './registry';
@@ -16,17 +16,6 @@ import { createWidgetRegistry } from './registry';
 type OverlayRootProps = {
     renderers: WidgetRendererMap;
     onWidgetContextMenu?: () => void;
-};
-
-const DEFAULT_STYLE_VISUAL = {
-    backgroundColor: 'rgba(255, 255, 255, 0)',
-    backgroundEffect: 'none' as const,
-    backgroundImageUrl: '',
-    borderColor: '#38bdf8',
-    borderWidth: 0,
-    borderStyle: 'solid' as const,
-    shadowRadius: 0,
-    shadowColor: 'rgba(0, 0, 0, 0.5)',
 };
 
 export function createDefaultOverlayRenderers(): WidgetRendererMap {
@@ -37,56 +26,7 @@ export function createDefaultOverlayRenderers(): WidgetRendererMap {
     });
 }
 
-export function createTextWidget(
-    id: string,
-    transform: Partial<WidgetModel['style']> = {}
-): WidgetModel {
-    return {
-        id,
-        kind: 'text',
-        props: DEFAULT_TEXT_WIDGET_PROPS,
-        style: {
-            ...DEFAULT_STYLE_VISUAL,
-            ...DEFAULT_TEXT_WIDGET_TRANSFORM,
-            ...transform,
-        },
-        autoHide: false,
-    };
-}
-
-export function createHtmlWidget(
-    id: string,
-    transform: Partial<WidgetModel['style']> = {}
-): WidgetModel {
-    return {
-        id,
-        kind: 'html',
-        props: DEFAULT_HTML_WIDGET_PROPS,
-        style: {
-            ...DEFAULT_STYLE_VISUAL,
-            ...DEFAULT_TEXT_WIDGET_TRANSFORM,
-            ...transform,
-        },
-        autoHide: false,
-    };
-}
-
-export function createIframeWidget(
-    id: string,
-    transform: Partial<WidgetModel['style']> = {}
-): WidgetModel {
-    return {
-        id,
-        kind: 'iframe',
-        props: DEFAULT_IFRAME_WIDGET_PROPS,
-        style: {
-            ...DEFAULT_STYLE_VISUAL,
-            ...DEFAULT_TEXT_WIDGET_TRANSFORM,
-            ...transform,
-        },
-        autoHide: false,
-    };
-}
+export { createTextWidget, createHtmlWidget, createIframeWidget } from '@/store/overlay_defaults';
 
 export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps) {
     const {

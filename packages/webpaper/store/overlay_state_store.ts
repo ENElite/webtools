@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 
-import { DEFAULT_TEXT_WIDGET_TRANSFORM } from '@/features/overlay/constants';
-import { DEFAULT_IFRAME_WIDGET_PROPS } from '@/features/overlay/iframe';
-import { DEFAULT_TEXT_WIDGET_PROPS } from '@/features/overlay/text';
+import { createDefaultOverlayState } from './overlay_defaults';
 import { buildTransformString, normalizeSizeToPx, parseTransformString } from '@/features/overlay/transform_utils';
 import type {
     OverlayState,
@@ -24,55 +22,6 @@ type OverlayStore = {
     moveOverlayWidgetToBottom: (widgetId: WidgetId) => void;
     copyOverlayWidget: (widgetId: WidgetId, style: WidgetStyle) => void;
 };
-
-const DEFAULT_OVERLAY_STYLE = {
-    backgroundColor: 'rgba(255, 255, 255, 0)',
-    backgroundEffect: 'none' as const,
-    backgroundImageUrl: '',
-    borderColor: '#38bdf8',
-    borderWidth: 0,
-    borderStyle: 'solid' as const,
-    shadowRadius: 0,
-    shadowColor: 'rgba(0, 0, 0, 0.5)',
-};
-
-function createTextWidget(id: string, transform: Partial<WidgetStyle> = {}): WidgetModel {
-    return {
-        id,
-        kind: 'text',
-        props: DEFAULT_TEXT_WIDGET_PROPS,
-        style: {
-            ...DEFAULT_OVERLAY_STYLE,
-            ...DEFAULT_TEXT_WIDGET_TRANSFORM,
-            ...transform,
-        },
-        autoHide: false,
-    };
-}
-
-function createIframeWidget(id: string, transform: Partial<WidgetStyle> = {}): WidgetModel {
-    return {
-        id,
-        kind: 'iframe',
-        props: DEFAULT_IFRAME_WIDGET_PROPS,
-        style: {
-            ...DEFAULT_OVERLAY_STYLE,
-            ...DEFAULT_TEXT_WIDGET_TRANSFORM,
-            ...transform,
-        },
-        autoHide: false,
-    };
-}
-
-function createDefaultOverlayState(): OverlayState {
-    return {
-        widgets: [
-            createTextWidget('text-widget-1'),
-            createIframeWidget('iframe-widget-1', { transform: buildTransformString(200, 150, 0), width: '555px' }),
-        ],
-        activeWidgetId: null,
-    };
-}
 
 function findWidgetIndex(widgets: WidgetModel[], widgetId: WidgetId): number {
     return widgets.findIndex((widget) => widget.id === widgetId);
@@ -295,7 +244,7 @@ export function useAppSelector<T>(selector: (state: OverlayStore) => T): T {
     return useOverlayStore(selector);
 }
 
-export const useOverlayStore = useOverlayStore;
+export const useAppStore = useOverlayStore;
 
 export function useOverlaySelector<T>(selector: (state: OverlayStore) => T): T {
     return useOverlayStore(selector);

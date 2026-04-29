@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useFullscreen,
     useWakeLock,
-    useIdle
 } from '@reactuses/core';
 
 import { usePlaybackScheduler } from '@/features/common';
