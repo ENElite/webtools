@@ -1,3 +1,5 @@
+import React from 'react';
+import { useIdle } from '@reactuses/core';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 
 import type { WidgetModel } from './types';
@@ -80,6 +82,12 @@ export function Widget({
     onDoubleClick,
     onContextMenu,
 }: WidgetProps) {
+    const isIdle = useIdle();
+
+    if (widget.autoHide && isIdle) {
+        return null;
+    }
+
     return (
         <div
             className={combineClassNames(
