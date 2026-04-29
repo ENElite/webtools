@@ -4,6 +4,7 @@ export {
     createTextWidget,
     createHtmlWidget,
     createImageWidget,
+    createVideoWidget,
     createIframeWidget,
 } from './overlay';
 

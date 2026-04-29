@@ -17,6 +17,7 @@ import {
     createDefaultOverlayRenderers,
     createHtmlWidget,
     createImageWidget,
+    createVideoWidget,
     createIframeWidget,
     createTextWidget,
     useOverlayStore,
@@ -515,6 +516,11 @@ export function Webpaper() {
                         icon: makeItemIcon('icon-[octicon--image-16]'),
                     },
                     {
+                        key: 'create-video-widget',
+                        label: 'Video 组件',
+                        icon: makeItemIcon('icon-[octicon--video-16]'),
+                    },
+                    {
                         key: 'create-iframe-widget',
                         label: 'URL 组件',
                         icon: makeItemIcon('icon-[octicon--code-16]'),
@@ -533,14 +539,16 @@ export function Webpaper() {
                 return nextId ? nextId.trim() : '';
             };
 
-            const tryCreateWidget = (kind: 'text' | 'html' | 'image' | 'iframe') => {
+            const tryCreateWidget = (kind: 'text' | 'html' | 'image' | 'video' | 'iframe') => {
                 const label = kind === 'text'
                     ? '文本组件'
                     : kind === 'html'
                         ? 'HTML 组件'
                         : kind === 'image'
                             ? 'Image 组件'
-                            : 'URL 组件';
+                            : kind === 'video'
+                                ? 'Video 组件'
+                                : 'URL 组件';
                 const widgetId = promptWidgetId(label);
                 if (!widgetId) {
                     return;
@@ -559,6 +567,8 @@ export function Webpaper() {
                         ? createHtmlWidget(widgetId, transform)
                         : kind === 'image'
                             ? createImageWidget(widgetId, transform)
+                            : kind === 'video'
+                                ? createVideoWidget(widgetId, transform)
                         : createIframeWidget(widgetId, transform);
 
                 addOverlayWidget(nextWidget);
@@ -576,6 +586,10 @@ export function Webpaper() {
                 }
                 case 'create-image-widget': {
                     tryCreateWidget('image');
+                    break;
+                }
+                case 'create-video-widget': {
+                    tryCreateWidget('video');
                     break;
                 }
                 case 'create-iframe-widget': {

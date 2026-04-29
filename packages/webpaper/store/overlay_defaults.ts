@@ -1,6 +1,7 @@
 import { DEFAULT_HTML_WIDGET_PROPS } from '@/features/overlay/html';
 import { DEFAULT_IMAGE_WIDGET_PROPS } from '@/features/overlay/image';
 import { DEFAULT_IFRAME_WIDGET_PROPS } from '@/features/overlay/iframe';
+import { DEFAULT_VIDEO_WIDGET_PROPS } from '@/features/overlay/video';
 import { DEFAULT_TEXT_WIDGET_PROPS } from '@/features/overlay/text';
 import { buildTransformString } from '@/features/overlay/transform_utils';
 import type { OverlayState, WidgetModel, WidgetStyle } from '@/features/overlay/types';
@@ -61,6 +62,16 @@ export function createImageWidget(id: string, transform: Partial<WidgetStyle> = 
         id,
         kind: 'image',
         props: DEFAULT_IMAGE_WIDGET_PROPS,
+        style: createWidgetStyle(transform),
+        autoHide: false,
+    };
+}
+
+export function createVideoWidget(id: string, transform: Partial<WidgetStyle> = {}): WidgetModel {
+    return {
+        id,
+        kind: 'video',
+        props: DEFAULT_VIDEO_WIDGET_PROPS,
         style: createWidgetStyle(transform),
         autoHide: false,
     };

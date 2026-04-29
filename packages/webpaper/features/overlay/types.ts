@@ -1,7 +1,7 @@
 import type { ComponentType, Dispatch } from 'react';
 
 export type WidgetId = string;
-export type WidgetKind = 'text' | 'image' | 'canvas' | 'html' | 'iframe';
+export type WidgetKind = 'text' | 'image' | 'video' | 'canvas' | 'html' | 'iframe';
 
 export type WidgetStyle = {
     transform: string;
