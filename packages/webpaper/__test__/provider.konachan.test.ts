@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../konachan/api', async () => {
-    const actual = await vi.importActual<typeof import('@/providers/konachan/api')>('../konachan/api');
-    return {
-        ...actual,
-        fetchKonachan: vi.fn(),
-    };
-});
+vi.mock('@/providers/konachan/api', () => ({
+    fetchKonachan: vi.fn(),
+}));
 
 import { DEFAULT_KONACHAN_SETTINGS, type KonachanProviderSettings } from '@/providers/konachan/settings';
 import { KonachanProvider } from '@/providers/konachan/provider';
