@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { DEFAULT_OVERLAY_Z_INDEX } from './constants';
+import { ClockWidget } from './clock';
 import { ImageWidget } from './image';
 import { VideoWidget } from './video';
 import { OverlayMoveable } from './moveable';
@@ -21,13 +22,15 @@ type OverlayRootProps = {
 };
 
 export function createDefaultOverlayRenderers(): WidgetRendererMap {
+    // cast to WidgetRendererMap to avoid excess property checking on the literal
     return createWidgetRegistry({
+        clock: ClockWidget,
         image: ImageWidget,
         video: VideoWidget,
         text: TextWidget,
         html: HtmlWidget,
         iframe: IframeWidget,
-    });
+    } as WidgetRendererMap);
 }
 
 export { createTextWidget, createHtmlWidget, createImageWidget, createVideoWidget, createIframeWidget } from '@/store/overlay_defaults';
@@ -47,10 +50,13 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     const copyOverlayWidget = useOverlayRootStore((rootState) => rootState.copyOverlayWidget);
     const setOverlayActiveWidget = useOverlayRootStore((rootState) => rootState.setOverlayActiveWidget);
     const updateOverlayWidget = useOverlayRootStore((rootState) => rootState.updateOverlayWidget);
+    const pendingSettingsWidgetId = useOverlayRootStore((rootState) => rootState.pendingSettingsWidgetId);
+    const clearOverlayWidgetSettingsRequest = useOverlayRootStore((rootState) => rootState.clearOverlayWidgetSettingsRequest);
 
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});
     const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
+    const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
 
     const settingsSourceWidget = useMemo(() => {
         if (!settingsWidgetId) {
@@ -65,6 +71,24 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
             setSettingsWidgetId(null);
         }
     }, [settingsSourceWidget, settingsWidgetId]);
+
+    useEffect(() => {
+        if (!pendingSettingsWidgetId) {
+            return;
+        }
+
+        setOverlayActiveWidget(pendingSettingsWidgetId);
+        setSettingsWidgetId(pendingSettingsWidgetId);
+        clearOverlayWidgetSettingsRequest();
+    }, [clearOverlayWidgetSettingsRequest, pendingSettingsWidgetId, setOverlayActiveWidget]);
+
+    const hoveredWidget = useMemo(() => {
+        if (!hoveredWidgetId) {
+            return null;
+        }
+
+        return state.widgets.find((widget) => widget.id === hoveredWidgetId) || null;
+    }, [hoveredWidgetId, state.widgets]);
 
     const handleWidgetableAction = useCallback((event: WidgetableActionEvent) => {
         switch (event.type) {
@@ -144,6 +168,10 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                             widgetElementRef.current[widget.id] = element;
                         }}
                         onClick={() => activateWidget(widget.id)}
+                        onMouseEnter={() => setHoveredWidgetId(widget.id)}
+                        onMouseLeave={() => {
+                            setHoveredWidgetId((current) => (current === widget.id ? null : current));
+                        }}
                         onContextMenu={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -161,6 +189,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
 
             <OverlayMoveable
                 activeWidget={activeWidget}
+                hoveredWidget={hoveredWidget}
                 overlayRef={overlayRef}
                 widgetElementRef={widgetElementRef}
                 widgets={state.widgets}
