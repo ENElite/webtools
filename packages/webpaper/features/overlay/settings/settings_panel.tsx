@@ -16,6 +16,8 @@ type SettingsPanelProps = {
     onClose: () => void;
 };
 
+const DEFERRED_MODEL_KEYS = new Set(['locked', 'autoHide']);
+
 const WIDGET_KIND_LABEL: Partial<Record<WidgetModel['kind'], string>> = {
     text: '文本组件',
     html: 'HTML 组件',
@@ -40,6 +42,7 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
         saveAndClose,
         discardAndClose,
         closeWithoutSave,
+        applyLivePatch,
     } = useWidgetStore(sourceWidget, onClose);
 
     useEffect(() => {
@@ -179,7 +182,12 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                     <WidgetDynamicForm
                         value={draftValues}
                         schema={schema}
-                        onChange={commitDraft}
+                        onChange={(nextDraft, changedKey) => {
+                            commitDraft(nextDraft);
+                            if (!DEFERRED_MODEL_KEYS.has(changedKey)) {
+                                applyLivePatch(nextDraft);
+                            }
+                        }}
                     />
                 </div>
             </Modal>

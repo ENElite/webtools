@@ -10,7 +10,7 @@ import type { WidgetSettingsSchema } from './schema';
 type WidgetDynamicFormProps = {
     value: Record<string, WidgetPropPrimitive>;
     schema: WidgetSettingsSchema;
-    onChange: (next: Record<string, WidgetPropPrimitive>) => void;
+    onChange: (next: Record<string, WidgetPropPrimitive>, changedKey: string) => void;
 };
 
 export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicFormProps) {
@@ -21,7 +21,7 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
         onChange({
             ...value,
             [key]: nextValue,
-        });
+        }, key);
     };
 
     const shouldShowField = (key: string, expected: WidgetPropPrimitive) => {

@@ -143,6 +143,14 @@ export function useWidgetStore(widget: WidgetModel, onClose: () => void) {
         setSavedDraft(cloneDraft(draftValues));
     }, [draftValues, updateWidget, widget]);
 
+    const applyLivePatch = useCallback((nextDraft: WidgetSettingsDraft) => {
+        const nextPatch = splitSettingsValues(nextDraft, widget);
+        updateWidget(widget.id, {
+            props: nextPatch.props,
+            style: nextPatch.style,
+        });
+    }, [updateWidget, widget]);
+
     const saveAndClose = useCallback(() => {
         const nextPatch = splitSettingsValues(draftValues, widget);
         updateWidget(widget.id, nextPatch);
@@ -167,6 +175,7 @@ export function useWidgetStore(widget: WidgetModel, onClose: () => void) {
         undo,
         redo,
         resetToInitial,
+        applyLivePatch,
         save,
         saveAndClose,
         discardAndClose,
