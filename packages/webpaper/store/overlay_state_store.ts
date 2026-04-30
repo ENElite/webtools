@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 
-import { createDefaultOverlayState } from './overlay_defaults';
-import { buildTransformString, normalizeSizeToPx, parseTransformString } from '@/features/overlay/transform_utils';
+
+import {
+    buildTransformString,
+    normalizeSizeToPx,
+    parseTransformString,
+    createWidget,
+} from '@/features/overlay';
+
 import type {
     OverlayState,
     WidgetId,
@@ -74,6 +80,16 @@ function replaceWidget(state: OverlayState, widgetId: WidgetId, patch: Partial<O
     return {
         ...state,
         widgets: nextWidgets,
+    };
+}
+
+export function createDefaultOverlayState(): OverlayState {
+    return {
+        widgets: [
+            createWidget('text', 'text-widget-1'),
+            createWidget('iframe', 'iframe-widget-1', { transform: buildTransformString(200, 150, 0), width: '555px' }),
+        ],
+        activeWidgetId: null,
     };
 }
 

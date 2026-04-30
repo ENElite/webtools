@@ -3,19 +3,9 @@ export {
     useAppSelector,
     useOverlayStore,
     useOverlaySelector,
+    createDefaultOverlayState,
 } from './overlay_state_store';
 
-export {
-    DEFAULT_OVERLAY_Z_INDEX,
-    DEFAULT_SNAP_THRESHOLD,
-    DEFAULT_MIN_WIDGET_WIDTH,
-    DEFAULT_MIN_WIDGET_HEIGHT,
-    DEFAULT_TEXT_WIDGET_TRANSFORM,
-    createTextWidget,
-    createHtmlWidget,
-    createIframeWidget,
-    createDefaultOverlayState,
-} from './overlay_defaults';
 
 export {
     useWebpaperStore,

@@ -3,9 +3,9 @@ import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 
 import { Widgetable } from './widgetable';
-import { DEFAULT_SNAP_THRESHOLD } from './constants';
 import type { WidgetModel, WidgetableActionEvent } from './types';
 import { snapshotTransformFromStyle } from './transform_utils';
+import { DEFAULT_SNAP_THRESHOLD } from './registry';
 
 type OverlayMoveableProps = {
     activeWidget: WidgetModel | null;

@@ -1,39 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { DEFAULT_OVERLAY_Z_INDEX } from './constants';
-import { ClockWidget } from './clock';
-import { ImageWidget } from './image';
-import { VideoWidget } from './video';
 import { OverlayMoveable } from './moveable';
-import { resolveWidgetRenderer } from './registry';
+import { resolveWidgetRenderer, DEFAULT_OVERLAY_Z_INDEX } from './registry';
 import { SettingsPanel } from './settings/settings_panel';
-import { useOverlayStore as useOverlayRootStore, useOverlayWidgetStore } from './store';
-import { HtmlWidget } from './html';
-import { IframeWidget } from './iframe';
-import { TextWidget } from './text';
+import { useOverlayStore, useOverlayWidgetStore } from './store';
 import type { WidgetRendererMap, WidgetableActionEvent } from './types';
 import { buildTransformString, parseTransformString } from './transform_utils';
 import { Widget } from './widget';
-import { createWidgetRegistry } from './registry';
 
 type OverlayRootProps = {
     renderers: WidgetRendererMap;
     onWidgetContextMenu?: () => void;
 };
 
-export function createDefaultOverlayRenderers(): WidgetRendererMap {
-    // cast to WidgetRendererMap to avoid excess property checking on the literal
-    return createWidgetRegistry({
-        clock: ClockWidget,
-        image: ImageWidget,
-        video: VideoWidget,
-        text: TextWidget,
-        html: HtmlWidget,
-        iframe: IframeWidget,
-    } as WidgetRendererMap);
-}
-
-export { createTextWidget, createHtmlWidget, createImageWidget, createVideoWidget, createIframeWidget } from '@/store/overlay_defaults';
 
 export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps) {
     const {
@@ -42,16 +21,16 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
         activateWidget,
         updateWidgetStyle,
     } = useOverlayWidgetStore();
-    const moveOverlayWidgetUp = useOverlayRootStore((rootState) => rootState.moveOverlayWidgetUp);
-    const moveOverlayWidgetDown = useOverlayRootStore((rootState) => rootState.moveOverlayWidgetDown);
-    const moveOverlayWidgetToTop = useOverlayRootStore((rootState) => rootState.moveOverlayWidgetToTop);
-    const moveOverlayWidgetToBottom = useOverlayRootStore((rootState) => rootState.moveOverlayWidgetToBottom);
-    const removeOverlayWidget = useOverlayRootStore((rootState) => rootState.removeOverlayWidget);
-    const copyOverlayWidget = useOverlayRootStore((rootState) => rootState.copyOverlayWidget);
-    const setOverlayActiveWidget = useOverlayRootStore((rootState) => rootState.setOverlayActiveWidget);
-    const updateOverlayWidget = useOverlayRootStore((rootState) => rootState.updateOverlayWidget);
-    const pendingSettingsWidgetId = useOverlayRootStore((rootState) => rootState.pendingSettingsWidgetId);
-    const clearOverlayWidgetSettingsRequest = useOverlayRootStore((rootState) => rootState.clearOverlayWidgetSettingsRequest);
+    const moveOverlayWidgetUp = useOverlayStore((rootState) => rootState.moveOverlayWidgetUp);
+    const moveOverlayWidgetDown = useOverlayStore((rootState) => rootState.moveOverlayWidgetDown);
+    const moveOverlayWidgetToTop = useOverlayStore((rootState) => rootState.moveOverlayWidgetToTop);
+    const moveOverlayWidgetToBottom = useOverlayStore((rootState) => rootState.moveOverlayWidgetToBottom);
+    const removeOverlayWidget = useOverlayStore((rootState) => rootState.removeOverlayWidget);
+    const copyOverlayWidget = useOverlayStore((rootState) => rootState.copyOverlayWidget);
+    const setOverlayActiveWidget = useOverlayStore((rootState) => rootState.setOverlayActiveWidget);
+    const updateOverlayWidget = useOverlayStore((rootState) => rootState.updateOverlayWidget);
+    const pendingSettingsWidgetId = useOverlayStore((rootState) => rootState.pendingSettingsWidgetId);
+    const clearOverlayWidgetSettingsRequest = useOverlayStore((rootState) => rootState.clearOverlayWidgetSettingsRequest);
 
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});

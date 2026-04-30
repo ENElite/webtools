@@ -1,14 +1,13 @@
 export {
     OverlayRoot,
-    createDefaultOverlayRenderers,
-    createTextWidget,
-    createHtmlWidget,
-    createImageWidget,
-    createVideoWidget,
-    createIframeWidget,
 } from './overlay';
 
-export { buildTransformString } from './transform_utils';
+export {
+    createOverlayRendererMap,
+    createWidget,
+} from './registry';
+
+export { buildTransformString, normalizeSizeToPx, parseTransformString } from './transform_utils';
 
 export {
     useOverlayStore,

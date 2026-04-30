@@ -14,12 +14,8 @@ import { SharedSettingsPanel, useWebpaperStore } from '@/features/settings';
 import {
     OverlayRoot,
     buildTransformString,
-    createDefaultOverlayRenderers,
-    createHtmlWidget,
-    createImageWidget,
-    createVideoWidget,
-    createIframeWidget,
-    createTextWidget,
+    createOverlayRendererMap,
+    createWidget,
     useOverlayStore,
 } from '@/features/overlay';
 import {
@@ -31,7 +27,7 @@ import {
     KonachanSettingsPanel,
     buildKonachanQueryKey,
 } from '@/features/provider';
-import type { HistoryRecord, ProviderRecord } from '@/shared/types';
+import type { HistoryRecord, ProviderRecord, WidgetKind } from '@/shared/types';
 
 type NormalProvider = 'Konachan' | 'Json';
 type ActiveProvider = NormalProvider | 'History';
@@ -123,9 +119,10 @@ export function Webpaper() {
         return `${history.length}:${last?.sequence ?? 0}`;
     }, [history]);
 
-    const overlayRenderers = useMemo(() => createDefaultOverlayRenderers(), []);
+    const overlayRenderers = useMemo(() => createOverlayRendererMap(), []);
     const overlayState = useOverlayStore((state) => state.overlay);
     const addOverlayWidget = useOverlayStore((state) => state.addOverlayWidget);
+    const requestOverlayWidgetSettings = useOverlayStore((state) => state.requestOverlayWidgetSettings);
 
     const activeRequestKey = useMemo(() => {
         if (activeProvider === 'Konachan') {
@@ -456,6 +453,28 @@ export function Webpaper() {
     const activeProviderRuntime = getActiveProviderRuntime();
     const hasMore = activeProviderRuntime?.hasMore ?? false;
 
+    const tryCreateWidget = (kind: WidgetKind) => {
+        const widgetId = `${Date.now().toString(16)}-${overlayState.widgets.length.toString(16)}`;
+        if (overlayState.widgets.some((widget) => widget.id === widgetId)) {
+            notify('warning', '组件 ID 已存在', `请使用不同的 ID: ${widgetId}`);
+            return;
+        }
+        const offset = overlayState.widgets.length * 36;
+        const transform = { transform: buildTransformString(120 + offset, 120 + offset, 0) };
+        const nextWidget = createWidget(kind, widgetId, transform);
+        addOverlayWidget(nextWidget);
+        requestOverlayWidgetSettings(widgetId);
+        const label = {
+            text: '文本组件',
+            html: 'HTML 组件',
+            image: 'Image 组件',
+            video: 'Video 组件',
+            clock: 'Clock 组件',
+            iframe: 'URL 组件',
+        }[kind];
+        notify('success', '组件已创建', `${label} (${widgetId})`);
+    };
+
     const rightClickMenuItems = useMemo<MenuProps['items']>(() => {
         const makeItemIcon = (iconClass: string) => (
             <span aria-hidden='true' className={`inline-block h-4 w-4 ${iconClass}`} />
@@ -466,31 +485,40 @@ export function Webpaper() {
                 key: 'toggle-play',
                 label: isRunning ? '暂停自动切换' : '开始自动切换',
                 icon: makeItemIcon(isRunning ? 'icon-[octicon--pause-16]' : 'icon-[octicon--play-16]'),
+                onClick: togglePlay,
             },
             {
                 key: 'next-image',
                 label: '下一张',
                 disabled: !hasMore,
                 icon: makeItemIcon('icon-[octicon--arrow-right-16]'),
+                onClick: () => void loadNextImage('manual'),
             },
             {
                 key: 'fullscreen',
                 label: '全屏',
                 icon: makeItemIcon('icon-[octicon--screen-full-16]'),
+                onClick: fullScreen,
             },
             {
                 key: 'open-settings',
                 label: '设置',
                 icon: makeItemIcon('icon-[octicon--gear-16]'),
+                onClick: openSettings,
             },
             {
                 key: 'open-history',
                 label: '历史记录',
                 icon: makeItemIcon('icon-[octicon--history-16]'),
+                onClick: () => setHistoryVisible(true),
             },
             ...(activeProvider === 'History'
-                ? [{ key: 'return-from-history', label: '返回原数据源', icon: makeItemIcon('icon-[octicon--arrow-left-16]') }]
-                : []),
+                ? [{
+                    key: 'return-from-history',
+                    label: '返回原数据源',
+                    icon: makeItemIcon('icon-[octicon--arrow-left-16]'),
+                    onClick: returnFromHistory,
+                }] : []),
             {
                 key: 'divider-1',
                 type: 'divider',
@@ -504,137 +532,42 @@ export function Webpaper() {
                         key: 'create-text-widget',
                         label: '文本组件',
                         icon: makeItemIcon('icon-[octicon--typography-16]'),
+                        onClick: () => tryCreateWidget('text'),
                     },
                     {
                         key: 'create-html-widget',
                         label: 'HTML 组件',
                         icon: makeItemIcon('icon-[octicon--code-16]'),
+                        onClick: () => tryCreateWidget('html'),
                     },
                     {
                         key: 'create-image-widget',
                         label: 'Image 组件',
                         icon: makeItemIcon('icon-[octicon--image-16]'),
+                        onClick: () => tryCreateWidget('image'),
                     },
                     {
                         key: 'create-video-widget',
                         label: 'Video 组件',
                         icon: makeItemIcon('icon-[octicon--video-16]'),
+                        onClick: () => tryCreateWidget('video'),
+                    },
+                    {
+                        key: 'create-clock-widget',
+                        label: 'Clock 组件',
+                        icon: makeItemIcon('icon-[octicon--clock-16]'),
+                        onClick: () => tryCreateWidget('clock'),
                     },
                     {
                         key: 'create-iframe-widget',
                         label: 'URL 组件',
                         icon: makeItemIcon('icon-[octicon--code-16]'),
+                        onClick: () => tryCreateWidget('iframe'),
                     },
                 ],
             },
         ];
     }, [activeProvider, hasMore, isRunning]);
-
-    const onRightClickMenuAction = useCallback<Required<MenuProps>['onClick']>(
-        ({ key }) => {
-            setContextMenuOpen(false);
-
-            const promptWidgetId = (label: string) => {
-                const nextId = window.prompt(`请输入${label} ID`, `${label.toLowerCase()}-${Date.now()}`);
-                return nextId ? nextId.trim() : '';
-            };
-
-            const tryCreateWidget = (kind: 'text' | 'html' | 'image' | 'video' | 'iframe') => {
-                const label = kind === 'text'
-                    ? '文本组件'
-                    : kind === 'html'
-                        ? 'HTML 组件'
-                        : kind === 'image'
-                            ? 'Image 组件'
-                            : kind === 'video'
-                                ? 'Video 组件'
-                                : 'URL 组件';
-                const widgetId = promptWidgetId(label);
-                if (!widgetId) {
-                    return;
-                }
-
-                if (overlayState.widgets.some((widget) => widget.id === widgetId)) {
-                    notify('warning', '组件 ID 已存在', `请使用不同的 ID: ${widgetId}`);
-                    return;
-                }
-
-                const offset = overlayState.widgets.length * 36;
-                const transform = { transform: buildTransformString(120 + offset, 120 + offset, 0) };
-                const nextWidget = kind === 'text'
-                    ? createTextWidget(widgetId, transform)
-                    : kind === 'html'
-                        ? createHtmlWidget(widgetId, transform)
-                        : kind === 'image'
-                            ? createImageWidget(widgetId, transform)
-                            : kind === 'video'
-                                ? createVideoWidget(widgetId, transform)
-                        : createIframeWidget(widgetId, transform);
-
-                addOverlayWidget(nextWidget);
-                notify('success', '组件已创建', `${label} (${widgetId})`);
-            };
-
-            switch (key) {
-                case 'create-text-widget': {
-                    tryCreateWidget('text');
-                    break;
-                }
-                case 'create-html-widget': {
-                    tryCreateWidget('html');
-                    break;
-                }
-                case 'create-image-widget': {
-                    tryCreateWidget('image');
-                    break;
-                }
-                case 'create-video-widget': {
-                    tryCreateWidget('video');
-                    break;
-                }
-                case 'create-iframe-widget': {
-                    tryCreateWidget('iframe');
-                    break;
-                }
-                case 'toggle-play': {
-                    togglePlay();
-                    break;
-                }
-                case 'next-image': {
-                    void loadNextImage('manual');
-                    break;
-                }
-                case 'fullscreen': {
-                    void fullScreen();
-                    break;
-                }
-                case 'open-settings': {
-                    openSettings();
-                    break;
-                }
-                case 'open-history': {
-                    setHistoryVisible(true);
-                    break;
-                }
-                case 'return-from-history': {
-                    returnFromHistory();
-                    break;
-                }
-                default:
-                    break;
-            }
-        },
-        [
-            addOverlayWidget,
-            fullScreen,
-            loadNextImage,
-            notify,
-            openSettings,
-            overlayState.widgets,
-            returnFromHistory,
-            togglePlay,
-        ]
-    );
 
     return (
         <Dropdown
@@ -643,7 +576,6 @@ export function Webpaper() {
             onOpenChange={setContextMenuOpen}
             menu={{
                 items: rightClickMenuItems,
-                onClick: onRightClickMenuAction,
             }}
         >
             <div className='relative h-screen min-h-screen w-full overflow-hidden'>
