@@ -1,4 +1,5 @@
 import { WIDGET_STYLE_SETTINGS_SCHEMA } from './schema';
+import { CLOCK_WIDGET_SETTINGS_SCHEMA } from '../clock';
 import { IMAGE_WIDGET_SETTINGS_SCHEMA } from '../image';
 import { VIDEO_WIDGET_SETTINGS_SCHEMA } from '../video';
 import { TEXT_WIDGET_SETTINGS_SCHEMA } from '../text/schema';
@@ -10,7 +11,7 @@ import type { WidgetSettingsSchema } from './schema';
 const MODEL_WIDGET_SETTINGS_SCHEMA = [
     {
         key: 'id',
-        label: 'ID',
+        label: '组件 ID',
         type: 'string',
         readOnly: true,
     },
@@ -27,6 +28,7 @@ const MODEL_WIDGET_SETTINGS_SCHEMA = [
 ] satisfies WidgetSettingsSchema;
 
 const WIDGET_SETTINGS_SCHEMAS: Partial<Record<WidgetKind, WidgetSettingsSchema>> = {
+    clock: CLOCK_WIDGET_SETTINGS_SCHEMA,
     image: IMAGE_WIDGET_SETTINGS_SCHEMA,
     video: VIDEO_WIDGET_SETTINGS_SCHEMA,
     text: TEXT_WIDGET_SETTINGS_SCHEMA,
