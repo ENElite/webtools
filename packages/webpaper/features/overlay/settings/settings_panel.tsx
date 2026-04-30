@@ -16,7 +16,7 @@ type SettingsPanelProps = {
     onClose: () => void;
 };
 
-const DEFERRED_MODEL_KEYS = new Set(['locked', 'autoHide']);
+const DEFERRED_MODEL_KEYS = new Set(['label', 'locked', 'autoHide', 'width', 'height', 'x', 'y', 'rotation']);
 
 export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPanelProps) {
     const [panelHostElement, setPanelHostElement] = useState<HTMLDivElement | null>(null);
