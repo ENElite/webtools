@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS_WIDGET_STYLE: WidgetStyle = {
 };
 
 export type WidgetStyleSettingsDraft = {
+    color: string;
+    opacity: number;
     width: number;
     height: number;
     x: number;
@@ -24,6 +26,20 @@ export type WidgetStyleSettingsDraft = {
 };
 
 export const WIDGET_STYLE_SETTINGS_SCHEMA = [
+    {
+        key: 'color',
+        label: '颜色',
+        type: 'color',
+        alpha: true,
+    },
+    {
+        key: 'opacity',
+        label: '透明度',
+        type: 'number',
+        min: 0,
+        max: 1,
+        step: 0.01,
+    },
     {
         key: 'backgroundColor',
         label: '背景颜色',

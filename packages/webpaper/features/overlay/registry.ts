@@ -55,6 +55,8 @@ export const DEFAULT_WIDGET_STYLE = {
     transform: 'translate(56px, 56px) rotate(0deg)',
     width: '520px',
     height: '128px',
+    color: '#f8fafc',
+    opacity: 1,
     backgroundColor: 'rgba(255, 255, 255, 0)',
     backgroundEffect: 'none',
     backgroundImageUrl: '',

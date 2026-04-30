@@ -22,7 +22,7 @@ describe('overlay widget registry', () => {
         const schema = resolveWidgetSettingsSchema('text');
 
         expect(schema).not.toBeNull();
-        expect(schema?.[0]).toEqual({ type: 'divider', label: '基本属性' });
+        expect(schema?.[0]).toEqual({ type: 'divider', label: '基本设置' });
         const attrGroup = (schema || []).slice(1).filter((field) => field.type !== 'divider').slice(0, 8);
         expect(attrGroup.map((field) => field.key)).toEqual(['label', 'locked', 'autoHide', 'width', 'height', 'x', 'y', 'rotation']);
 
@@ -33,7 +33,7 @@ describe('overlay widget registry', () => {
         expect(componentDividerIndex).toBeGreaterThan(styleDividerIndex);
 
         const styleGroup = (schema || []).slice((styleDividerIndex + 1), componentDividerIndex).filter((field) => field.type !== 'divider');
-        expect(styleGroup.map((field) => field.key)).toEqual(['backgroundColor', 'backgroundEffect', 'backgroundImageUrl', 'borderColor', 'borderWidth', 'borderStyle', 'shadowRadius', 'shadowColor']);
+        expect(styleGroup.map((field) => field.key)).toEqual(['color', 'opacity', 'backgroundColor', 'backgroundEffect', 'backgroundImageUrl', 'borderColor', 'borderWidth', 'borderStyle', 'shadowRadius', 'shadowColor']);
 
         const textGroup = (schema || []).slice((componentDividerIndex + 1)).filter((field) => field.type !== 'divider');
         expect(textGroup.map((field) => field.key)).toEqual(['text', 'fontSize', 'fontWeight', 'color', 'align']);

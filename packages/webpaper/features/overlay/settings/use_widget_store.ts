@@ -25,6 +25,8 @@ function buildDraft(widget: WidgetModel): WidgetSettingsDraft {
         y,
         rotation,
         borderRadius,
+        color: widget.style.color ?? '#f8fafc',
+        opacity: widget.style.opacity ?? 1,
         backgroundColor: widget.style.backgroundColor ?? 'rgba(255, 255, 255, 0)',
         backgroundEffect: widget.style.backgroundEffect ?? 'none',
         backgroundImageUrl: widget.style.backgroundImageUrl ?? '',
