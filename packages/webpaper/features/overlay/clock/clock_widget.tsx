@@ -1,26 +1,13 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
+
+import { useTimestamp } from '@/hooks/useTimestamp';
 
 import type { WidgetRendererProps } from '../types';
 import type { ClockWidgetProps } from './schema';
 
-function subscribe(callback: () => void) {
-    const intervalId = window.setInterval(callback, 1000);
-    return () => {
-        window.clearInterval(intervalId);
-    };
-}
-
-function getNow() {
-    return Date.now();
-}
-
-function getServerNow() {
-    return 0;
-}
-
 export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
-    const now = useSyncExternalStore(subscribe, getNow, getServerNow);
+    const now = useTimestamp();
     const date = useMemo(() => new Date(now), [now]);
 
     const locale = widget.props.locale || 'zh-CN';
@@ -56,14 +43,14 @@ export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
 
     return (
         <div
-            className='flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-900/40'
+            className='flex h-full w-full flex-col items-center justify-center gap-2'
             style={{
                 userSelect: 'none',
             }}
         >
             <div style={textStyle}>{timeText}</div>
             {dateText
-                ? <div style={{ color: widget.props.color, opacity: 0.85, fontSize: `${Math.max(12, widget.props.fontSize * 0.42)}px` }}>{dateText}</div>
+                ? <div style={{ color: widget.props.color, fontSize: `${Math.max(12, widget.props.fontSize * 0.42)}px` }}>{dateText}</div>
                 : null}
         </div>
     );
