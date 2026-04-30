@@ -57,6 +57,35 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});
     const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
     const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+    const [widgetableVisibleWidgetId, setWidgetableVisibleWidgetId] = useState<string | null>(null);
+    const widgetableHideTimerRef = useRef<number | null>(null);
+
+    const clearWidgetableHideTimer = useCallback(() => {
+        if (widgetableHideTimerRef.current !== null) {
+            window.clearTimeout(widgetableHideTimerRef.current);
+            widgetableHideTimerRef.current = null;
+        }
+    }, []);
+
+    const hideWidgetableNow = useCallback(() => {
+        clearWidgetableHideTimer();
+        setHoveredWidgetId(null);
+        setWidgetableVisibleWidgetId(null);
+    }, [clearWidgetableHideTimer]);
+
+    const showWidgetableForWidget = useCallback((widgetId: string) => {
+        clearWidgetableHideTimer();
+        setWidgetableVisibleWidgetId(widgetId);
+    }, [clearWidgetableHideTimer]);
+
+    const hideWidgetableLater = useCallback((widgetId: string) => {
+        clearWidgetableHideTimer();
+        widgetableHideTimerRef.current = window.setTimeout(() => {
+            setWidgetableVisibleWidgetId((current) => (current === widgetId ? null : current));
+            setHoveredWidgetId((current) => (current === widgetId ? null : current));
+            widgetableHideTimerRef.current = null;
+        }, 2000);
+    }, [clearWidgetableHideTimer]);
 
     const settingsSourceWidget = useMemo(() => {
         if (!settingsWidgetId) {
@@ -71,6 +100,17 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
             setSettingsWidgetId(null);
         }
     }, [settingsSourceWidget, settingsWidgetId]);
+
+    useEffect(() => {
+        if (state.activeWidgetId) {
+            setHoveredWidgetId(null);
+            clearWidgetableHideTimer();
+            setWidgetableVisibleWidgetId(state.activeWidgetId);
+            return;
+        }
+
+        hideWidgetableNow();
+    }, [clearWidgetableHideTimer, hideWidgetableNow, state.activeWidgetId]);
 
     useEffect(() => {
         if (!pendingSettingsWidgetId) {
@@ -133,13 +173,14 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                 copyOverlayWidget(event.widgetId, event.style);
                 return;
             case 'open-widget-settings':
+                hideWidgetableNow();
                 setOverlayActiveWidget(null);
                 setSettingsWidgetId(event.widgetId);
                 return;
             default:
                 return;
         }
-    }, [copyOverlayWidget, moveOverlayWidgetDown, moveOverlayWidgetToBottom, moveOverlayWidgetToTop, moveOverlayWidgetUp, removeOverlayWidget, setOverlayActiveWidget, settingsWidgetId, state.widgets, updateOverlayWidget]);
+    }, [clearWidgetableHideTimer, copyOverlayWidget, hideWidgetableNow, moveOverlayWidgetDown, moveOverlayWidgetToBottom, moveOverlayWidgetToTop, moveOverlayWidgetUp, removeOverlayWidget, setOverlayActiveWidget, settingsWidgetId, state.widgets, updateOverlayWidget]);
 
     return (
         <div
@@ -151,6 +192,9 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     return;
                 }
                 activateWidget(null);
+                // 点击空白处时清除 hover 与 widgetable 可见状态
+                setHoveredWidgetId(null);
+                hideWidgetableNow();
             }}
         >
             {state.widgets.map((widget) => {
@@ -168,9 +212,18 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                             widgetElementRef.current[widget.id] = element;
                         }}
                         onClick={() => activateWidget(widget.id)}
-                        onMouseEnter={() => setHoveredWidgetId(widget.id)}
+                        onMouseEnter={() => {
+                            if (state.activeWidgetId === null || state.activeWidgetId === widget.id) {
+                                setHoveredWidgetId(widget.id);
+                                showWidgetableForWidget(widget.id);
+                            } else {
+                                setHoveredWidgetId(null);
+                            }
+                        }}
                         onMouseLeave={() => {
-                            setHoveredWidgetId((current) => (current === widget.id ? null : current));
+                            if (state.activeWidgetId === null) {
+                                hideWidgetableLater(widget.id);
+                            }
                         }}
                         onContextMenu={(event) => {
                             event.preventDefault();
@@ -190,9 +243,22 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
             <OverlayMoveable
                 activeWidget={activeWidget}
                 hoveredWidget={hoveredWidget}
+                widgetableVisibleWidgetId={widgetableVisibleWidgetId}
                 overlayRef={overlayRef}
                 widgetElementRef={widgetElementRef}
                 widgets={state.widgets}
+                onWidgetableMouseEnter={(widgetId) => {
+                    if (state.activeWidgetId !== null) {
+                        return;
+                    }
+                    setHoveredWidgetId(widgetId);
+                    showWidgetableForWidget(widgetId);
+                }}
+                onWidgetableMouseLeave={(widgetId) => {
+                    if (state.activeWidgetId === null) {
+                        hideWidgetableLater(widgetId);
+                    }
+                }}
                 onWidgetableAction={handleWidgetableAction}
                 onWidgetTransformChange={updateWidgetStyle}
             />

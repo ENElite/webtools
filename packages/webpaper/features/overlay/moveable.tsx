@@ -10,6 +10,7 @@ import { snapshotTransformFromStyle } from './transform_utils';
 type OverlayMoveableProps = {
     activeWidget: WidgetModel | null;
     hoveredWidget: WidgetModel | null;
+    widgetableVisibleWidgetId: string | null;
     overlayRef: RefObject<HTMLDivElement | null>;
     widgetElementRef: RefObject<Record<string, HTMLDivElement | null>>;
     widgets: WidgetModel[];
@@ -20,6 +21,8 @@ type OverlayMoveableProps = {
         resizable?: boolean;
         dragTarget?: HTMLElement;
     };
+    onWidgetableMouseEnter: (widgetId: string) => void;
+    onWidgetableMouseLeave: (widgetId: string) => void;
     onWidgetableAction: (event: WidgetableActionEvent) => void;
     onWidgetTransformChange: (widgetId: string, transform: WidgetModel['style']) => void;
 };
@@ -27,10 +30,13 @@ type OverlayMoveableProps = {
 export function OverlayMoveable({
     activeWidget,
     hoveredWidget,
+    widgetableVisibleWidgetId,
     overlayRef,
     widgetElementRef,
     widgets,
     widgetableConfig,
+    onWidgetableMouseEnter,
+    onWidgetableMouseLeave,
     onWidgetableAction,
     onWidgetTransformChange,
 }: OverlayMoveableProps) {
@@ -70,35 +76,41 @@ export function OverlayMoveable({
             .filter((element): element is HTMLDivElement => Boolean(element));
     }, [activeWidget, widgetElementRef, widgets]);
 
-    if (!activeTarget || !activeWidget) {
-        if (!hoveredTarget || !hoveredWidget) {
-            return null;
-        }
-    }
-
     const locked = activeWidget?.locked ?? false;
-    const hoveredLocked = hoveredWidget?.locked ?? false;
     const widgetable = widgetableConfig?.widgetable ?? true;
     const rotatable = widgetableConfig?.rotatable ?? !locked;
     const roundable = widgetableConfig?.roundable ?? !locked;
     const resizable = widgetableConfig?.resizable ?? !locked;
     const draggable = !locked;
     const dragTarget = widgetableConfig?.dragTarget ?? activeTarget ?? undefined;
-    const onWidgetableClicked = (type: string) => onWidgetableAction({
-        type,
-        widgetId: (hoveredWidget || activeWidget)!.id,
-        style: snapshotTransformFromStyle((hoveredTarget || activeTarget)!.style),
-        locked: !(hoveredWidget || activeWidget)!.locked,
-    } as WidgetableActionEvent);
+
+    const widgetableWidget = widgetableVisibleWidgetId
+        ? (activeWidget?.id === widgetableVisibleWidgetId ? activeWidget : hoveredWidget?.id === widgetableVisibleWidgetId ? hoveredWidget : null)
+        : null;
+    const widgetableTarget = widgetableVisibleWidgetId
+        ? (activeWidget?.id === widgetableVisibleWidgetId ? activeTarget : hoveredWidget?.id === widgetableVisibleWidgetId ? hoveredTarget : null)
+        : null;
+    const widgetableLocked = widgetableWidget?.locked ?? false;
+
     const commitActiveWidgetTransform = (target: HTMLDivElement) => {
         if (!activeWidget) {
             return;
         }
 
-        onWidgetTransformChange(
-            activeWidget.id,
-            snapshotTransformFromStyle(target.style)
-        );
+        onWidgetTransformChange(activeWidget.id, snapshotTransformFromStyle(target.style));
+    };
+
+    const onWidgetableClicked = (type: string) => {
+        if (!widgetableWidget || !widgetableTarget) {
+            return;
+        }
+
+        onWidgetableAction({
+            type,
+            widgetId: widgetableWidget.id,
+            style: snapshotTransformFromStyle(widgetableTarget.style),
+            locked: !widgetableWidget.locked,
+        } as WidgetableActionEvent);
     };
 
     return (
@@ -112,8 +124,8 @@ export function OverlayMoveable({
                         dragTarget={dragTarget}
                         rotatable={rotatable}
                         roundable={roundable}
-                        isDisplayShadowRoundControls={"horizontal"}
-                        roundClickable={"control"}
+                        isDisplayShadowRoundControls={'horizontal'}
+                        roundClickable={'control'}
                         roundPadding={15}
                         snappable
                         snapGap
@@ -129,6 +141,12 @@ export function OverlayMoveable({
                         origin={false}
                         edge={false}
                         preventClickEventOnDrag
+                        ables={[Widgetable]}
+                        props={{
+                            widgetable,
+                            locked: widgetableLocked,
+                            onWidgetableClicked,
+                        }}
                         onDrag={({ target, transform }) => {
                             target.style.transform = transform;
                         }}
@@ -151,11 +169,11 @@ export function OverlayMoveable({
                 )
                 : null}
 
-            {hoveredTarget && hoveredWidget
+            {(!activeTarget || !activeWidget) && widgetableTarget && widgetableWidget
                 ? (
                     <Moveable
                         ref={widgetableRef}
-                        target={hoveredTarget}
+                        target={widgetableTarget}
                         draggable={false}
                         rotatable={false}
                         resizable={false}
@@ -167,7 +185,9 @@ export function OverlayMoveable({
                         ables={[Widgetable]}
                         props={{
                             widgetable,
-                            locked: hoveredLocked,
+                            locked: widgetableLocked,
+                            onWidgetableMouseEnter: () => onWidgetableMouseEnter(widgetableWidget.id),
+                            onWidgetableMouseLeave: () => onWidgetableMouseLeave(widgetableWidget.id),
                             onWidgetableClicked,
                         }}
                     />
