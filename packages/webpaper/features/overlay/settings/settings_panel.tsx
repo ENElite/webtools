@@ -18,12 +18,6 @@ type SettingsPanelProps = {
 
 const DEFERRED_MODEL_KEYS = new Set(['locked', 'autoHide']);
 
-const WIDGET_KIND_LABEL: Partial<Record<WidgetModel['kind'], string>> = {
-    text: '文本组件',
-    html: 'HTML 组件',
-    iframe: '网页组件',
-};
-
 export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPanelProps) {
     const [panelHostElement, setPanelHostElement] = useState<HTMLDivElement | null>(null);
     const [headerElement, setHeaderElement] = useState<HTMLElement | null>(null);
@@ -79,10 +73,8 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
     }, [sourceWidget.kind, draftValues['width'], draftValues['height']]);
 
     const widgetTitle = useMemo(() => {
-        const kindLabel = WIDGET_KIND_LABEL[sourceWidget.kind] ?? `${sourceWidget.kind} 组件`;
-        return `组件设置 - ${kindLabel} - ${sourceWidget.id}`;
-    }, [sourceWidget.kind, sourceWidget.id]);
-
+        return `组件设置 - ${sourceWidget.label}`;
+    }, [sourceWidget.label]);
 
     const requestClose = () => {
         if (!isDirty) {

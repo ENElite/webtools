@@ -86,8 +86,8 @@ function replaceWidget(state: OverlayState, widgetId: WidgetId, patch: Partial<O
 export function createDefaultOverlayState(): OverlayState {
     return {
         widgets: [
-            createWidget('text', 'text-widget-1'),
-            createWidget('iframe', 'iframe-widget-1', { transform: buildTransformString(200, 150, 0), width: '555px' }),
+            createWidget('text'),
+            createWidget('iframe', { transform: buildTransformString(200, 150, 0), width: '555px' }),
         ],
         activeWidgetId: null,
     };

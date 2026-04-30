@@ -10,10 +10,9 @@ import type { WidgetSettingsSchema } from './schema';
 
 const MODEL_WIDGET_SETTINGS_SCHEMA = [
     {
-        key: 'id',
-        label: '组件 ID',
+        key: 'label',
+        label: '组件名称',
         type: 'string',
-        readOnly: true,
     },
     {
         key: 'locked',

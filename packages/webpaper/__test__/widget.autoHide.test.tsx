@@ -19,6 +19,7 @@ vi.mock('@reactuses/core', async () => {
 function createWidget(autoHide: boolean): WidgetModel {
     return {
         id: 'widget-1',
+        label: 'widget-1',
         kind: 'text',
         props: { text: 'hello' },
         style: {

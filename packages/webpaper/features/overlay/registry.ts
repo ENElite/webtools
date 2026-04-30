@@ -48,26 +48,20 @@ export function createOverlayRendererMap(): WidgetRendererMap {
     } as WidgetRendererMap);
 }
 
-
 export const DEFAULT_OVERLAY_Z_INDEX = 4;
 export const DEFAULT_SNAP_THRESHOLD = 8;
-export const DEFAULT_MIN_WIDGET_WIDTH = 120;
-export const DEFAULT_MIN_WIDGET_HEIGHT = 72;
 
-export const DEFAULT_TEXT_WIDGET_TRANSFORM: WidgetStyle = {
+export const DEFAULT_WIDGET_STYLE = {
     transform: 'translate(56px, 56px) rotate(0deg)',
     width: '520px',
     height: '128px',
-    borderRadius: '0px',
-};
-
-const DEFAULT_WIDGET_STYLE = {
     backgroundColor: 'rgba(255, 255, 255, 0)',
     backgroundEffect: 'none',
     backgroundImageUrl: '',
     borderColor: '#38bdf8',
     borderWidth: 0,
     borderStyle: 'solid',
+    borderRadius: '0px',
     shadowRadius: 0,
     shadowColor: 'rgba(0, 0, 0, 0.5)',
 } satisfies Partial<WidgetStyle>;
@@ -75,12 +69,49 @@ const DEFAULT_WIDGET_STYLE = {
 function createWidgetStyle(transform: Partial<WidgetStyle> = {}): WidgetStyle {
     return {
         ...DEFAULT_WIDGET_STYLE,
-        ...DEFAULT_TEXT_WIDGET_TRANSFORM,
         ...transform,
     } as WidgetStyle;
 }
 
-export function createWidget(kind: WidgetKind, id: string, transform: Partial<WidgetStyle> = {}): WidgetModel {
+function encodeBase62(value: bigint): string {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    if (value === 0n) {
+        return alphabet[0]!;
+    }
+
+    let nextValue = value < 0n ? -value : value;
+    let output = '';
+
+    while (nextValue > 0n) {
+        const remainder = Number(nextValue % 62n);
+        output = alphabet[remainder] + output;
+        nextValue /= 62n;
+    }
+
+    return output;
+}
+
+function generateWidgetId(): string {
+    const seed = (BigInt(Date.now()) * 1000000n) + BigInt(Math.floor(Math.random() * 1000000));
+    return encodeBase62(seed);
+}
+
+function defaultWidgetLabel(kind: WidgetKind): string {
+    return {
+        text: '文本组件',
+        html: 'HTML 组件',
+        clock: 'Clock 组件',
+        image: 'Image 组件',
+        video: 'Video 组件',
+        iframe: 'URL 组件',
+    }[kind];
+}
+
+export function createWidget(
+    kind: WidgetKind,
+    transform: Partial<WidgetStyle> = {},
+): WidgetModel {
     const props = {
         text: DEFAULT_TEXT_WIDGET_PROPS,
         html: DEFAULT_HTML_WIDGET_PROPS,
@@ -88,12 +119,15 @@ export function createWidget(kind: WidgetKind, id: string, transform: Partial<Wi
         image: DEFAULT_IMAGE_WIDGET_PROPS,
         video: DEFAULT_VIDEO_WIDGET_PROPS,
         iframe: DEFAULT_IFRAME_WIDGET_PROPS,
-    }
+    };
+
+    const id = generateWidgetId();
     return {
         id,
         kind,
+        label: defaultWidgetLabel(kind),
         props: props[kind],
         style: createWidgetStyle(transform),
         autoHide: false,
-    }
+    };
 }

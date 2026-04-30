@@ -454,25 +454,12 @@ export function Webpaper() {
     const hasMore = activeProviderRuntime?.hasMore ?? false;
 
     const tryCreateWidget = (kind: WidgetKind) => {
-        const widgetId = `${Date.now().toString(16)}-${overlayState.widgets.length.toString(16)}`;
-        if (overlayState.widgets.some((widget) => widget.id === widgetId)) {
-            notify('warning', '组件 ID 已存在', `请使用不同的 ID: ${widgetId}`);
-            return;
-        }
         const offset = overlayState.widgets.length * 36;
         const transform = { transform: buildTransformString(120 + offset, 120 + offset, 0) };
-        const nextWidget = createWidget(kind, widgetId, transform);
+        const nextWidget = createWidget(kind, transform);
         addOverlayWidget(nextWidget);
-        requestOverlayWidgetSettings(widgetId);
-        const label = {
-            text: '文本组件',
-            html: 'HTML 组件',
-            image: 'Image 组件',
-            video: 'Video 组件',
-            clock: 'Clock 组件',
-            iframe: 'URL 组件',
-        }[kind];
-        notify('success', '组件已创建', `${label} (${widgetId})`);
+        requestOverlayWidgetSettings(nextWidget.id);
+        notify('success', '组件已创建', `${nextWidget.label} (${nextWidget.id})`);
     };
 
     const rightClickMenuItems = useMemo<MenuProps['items']>(() => {

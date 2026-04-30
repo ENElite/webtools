@@ -24,6 +24,7 @@ export type WidgetFlatProps = Record<string, WidgetPropPrimitive>;
 export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     id: WidgetId;
     kind: WidgetKind;
+    label: string;
     style: WidgetStyle;
     props: TProps;
     locked?: boolean;

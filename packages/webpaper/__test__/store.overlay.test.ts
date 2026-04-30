@@ -6,6 +6,7 @@ import type { OverlayState, WidgetModel } from '@/features/overlay/types';
 function createWidget(id: string): WidgetModel {
     return {
         id,
+        label: id,
         kind: 'text',
         props: { text: id },
         style: {
@@ -106,6 +107,7 @@ describe('overlayReducer', () => {
             widgets: [
                 {
                     id: 'a',
+                    label: 'a',
                     kind: 'text',
                     props: { text: 'a' },
                     style: {
@@ -167,6 +169,7 @@ describe('overlayReducer', () => {
             widgets: [
                 {
                     id: 'frame-1',
+                    label: 'frame-1',
                     kind: 'iframe',
                     props: {
                         html: '<p>old</p>',

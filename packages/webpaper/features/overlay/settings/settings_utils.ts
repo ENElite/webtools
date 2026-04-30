@@ -58,6 +58,7 @@ export const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetMo
         rotation,
         borderRadius,
         id: _id,
+        label,
         locked,
         autoHide,
         backgroundColor,
@@ -72,6 +73,7 @@ export const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetMo
     } = draft;
 
     return {
+        label: typeof label === 'string' ? label : widget.label,
         props,
         locked: typeof locked === 'boolean' ? locked : (widget.locked ?? false),
         autoHide: typeof autoHide === 'boolean' ? autoHide : (widget.autoHide ?? false),

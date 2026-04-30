@@ -24,7 +24,7 @@ describe('overlay widget registry', () => {
         expect(schema).not.toBeNull();
         expect(schema?.[0]).toEqual({ type: 'divider', label: '属性设置' });
         const attrGroup = (schema || []).slice(1).filter((field) => field.type !== 'divider').slice(0, 3);
-        expect(attrGroup.map((field) => field.key)).toEqual(['id', 'locked', 'autoHide']);
+        expect(attrGroup.map((field) => field.key)).toEqual(['label', 'locked', 'autoHide']);
 
         const styleDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '样式设置');
         const componentDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '组件设置');

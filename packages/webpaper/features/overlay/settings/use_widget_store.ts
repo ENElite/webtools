@@ -15,6 +15,7 @@ function buildDraft(widget: WidgetModel): WidgetSettingsDraft {
 
     return {
         id: widget.id,
+        label: widget.label,
         locked: widget.locked ?? false,
         autoHide: widget.autoHide ?? false,
         ...widget.props,
