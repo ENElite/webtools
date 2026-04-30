@@ -96,10 +96,11 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
             return;
         }
 
-        setOverlayActiveWidget(pendingSettingsWidgetId);
+        hideWidgetableNow();
+        setOverlayActiveWidget(null);
         setSettingsWidgetId(pendingSettingsWidgetId);
         clearOverlayWidgetSettingsRequest();
-    }, [clearOverlayWidgetSettingsRequest, pendingSettingsWidgetId, setOverlayActiveWidget]);
+    }, [clearOverlayWidgetSettingsRequest, hideWidgetableNow, pendingSettingsWidgetId, setOverlayActiveWidget]);
 
     const hoveredWidget = useMemo(() => {
         if (!hoveredWidgetId) {

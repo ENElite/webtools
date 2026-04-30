@@ -158,7 +158,7 @@ export const useOverlayStore = create<OverlayStore>((set) => ({
                 overlay: {
                     ...state.overlay,
                     widgets: [...withoutSameId, widget],
-                    activeWidgetId: widget.id,
+                    activeWidgetId: state.overlay.activeWidgetId,
                 },
             };
         });
