@@ -4,54 +4,230 @@ import type { CSSProperties } from 'react';
 import { useTimestamp } from '@/hooks/useTimestamp';
 
 import type { WidgetRendererProps } from '../types';
-import type { ClockWidgetProps } from './schema';
+import type { AmPmFormat, ClockWidgetProps, DateFormat, DigitFormat, ShowYearPlacement, WeekdayFormat } from './schema';
+import { useEffect } from 'react';
+
+const CHINESE_WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'] as const;
+const ENGLISH_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+const ENGLISH_WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+const ENGLISH_MONTHS = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+] as const;
+
+const ENGLISH_MONTHS_SHORT = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+] as const;
+
+function padDatePart(value: number, digitFormat: DigitFormat): string {
+    return digitFormat === 'double' ? String(value).padStart(2, '0') : String(value);
+}
+
+function getWeekdayText(date: Date, weekdayFormat: WeekdayFormat): string {
+    const weekdayIndex = date.getDay();
+
+    switch (weekdayFormat) {
+        case 'chinese':
+            return CHINESE_WEEKDAYS[weekdayIndex] ?? '';
+        case 'english':
+            return ENGLISH_WEEKDAYS[weekdayIndex] ?? '';
+        case 'english-short':
+            return ENGLISH_WEEKDAYS_SHORT[weekdayIndex] ?? '';
+        default:
+            return '';
+    }
+}
+
+function getAmPmText(date: Date, amPmFormat: AmPmFormat): string {
+    const hour = date.getHours();
+    const isMorning = hour < 12;
+
+    switch (amPmFormat) {
+        case 'chinese':
+            return isMorning ? '上午' : '下午';
+        case 'english':
+            return isMorning ? 'AM' : 'PM';
+        case 'english-lower':
+            return isMorning ? 'am' : 'pm';
+        default:
+            return '';
+    }
+}
+
+function buildDateDisplay(dateText: string, weekdayText: string, weekdayPlacement: 'left' | 'right' | 'none'): string {
+    if (!dateText) {
+        return '';
+    }
+
+    if (!weekdayText || weekdayPlacement === 'none') {
+        return dateText;
+    }
+
+    return weekdayPlacement === 'left' ? `${weekdayText} ${dateText}` : `${dateText} ${weekdayText}`;
+}
+
+function getTimeText(date: Date, use24Hour: boolean, showSeconds: boolean): string {
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    if (use24Hour) {
+        const hourText = String(hours).padStart(2, '0');
+        return showSeconds ? `${hourText}:${minutes}:${seconds}` : `${hourText}:${minutes}`;
+    }
+
+    const hour12 = hours % 12 || 12;
+    const hourText = String(hour12).padStart(2, '0');
+    return showSeconds ? `${hourText}:${minutes}:${seconds}` : `${hourText}:${minutes}`;
+}
+
+function getDateText(
+    date: Date,
+    dateFormat: DateFormat,
+    digitFormat: DigitFormat,
+    showYear: ShowYearPlacement
+): string {
+    const year = String(date.getFullYear());
+    const month = padDatePart(date.getMonth() + 1, digitFormat);
+    const day = padDatePart(date.getDate(), digitFormat);
+
+    let dateText = '';
+
+    switch (dateFormat) {
+        case 'chinese': {
+            const core = `${month}月${day}日`;
+            dateText = showYear === 'left'
+                ? `${year}年${core}`
+                : showYear === 'right'
+                    ? `${core}${year}年`
+                    : core;
+            break;
+        }
+        case 'numeric1': {
+            const core = `${month}-${day}`;
+            dateText = showYear === 'left'
+                ? `${year}-${core}`
+                : showYear === 'right'
+                    ? `${core}-${year}`
+                    : core;
+            break;
+        }
+        case 'english': {
+            const core = `${ENGLISH_MONTHS[date.getMonth()]} ${day}`;
+            dateText = showYear === 'left'
+                ? `${year} ${core}`
+                : showYear === 'right'
+                    ? `${core}, ${year}`
+                    : core;
+            break;
+        }
+        case 'english-short': {
+            const core = `${ENGLISH_MONTHS_SHORT[date.getMonth()]} ${day}`;
+            dateText = showYear === 'left'
+                ? `${year} ${core}`
+                : showYear === 'right'
+                    ? `${core}, ${year}`
+                    : core;
+            break;
+        }
+        default:
+            return '';
+    }
+
+    return dateText;
+}
 
 export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
-    const now = useTimestamp();
-    const date = useMemo(() => new Date(now), [now]);
+    const { timestamp: now, resume } = useTimestamp({ controls: true });
 
-    const locale = widget.props.locale || 'zh-CN';
+    // Ensure RAF is started on mount to fix the time-freeze issue
+    useEffect(() => {
+        resume();
+    }, [resume]);
+
+    const date = useMemo(() => new Date(now), [now]);
     const timeText = useMemo(() => {
-        return new Intl.DateTimeFormat(locale, {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: widget.props.showSeconds ? '2-digit' : undefined,
-            hour12: !widget.props.use24Hour,
-        }).format(date);
-    }, [date, locale, widget.props.showSeconds, widget.props.use24Hour]);
+        return getTimeText(date, widget.props.use24Hour, widget.props.showSeconds);
+    }, [date, widget.props.showSeconds, widget.props.use24Hour]);
+
+    const amPmText = useMemo(() => {
+        return widget.props.use24Hour ? '' : getAmPmText(date, widget.props.amPmFormat);
+    }, [date, widget.props.amPmFormat, widget.props.use24Hour]);
 
     const dateText = useMemo(() => {
-        if (!widget.props.showDate) {
-            return '';
-        }
+        return getDateText(date, widget.props.dateFormat, widget.props.digitFormat, widget.props.showYear);
+    }, [date, widget.props.dateFormat, widget.props.digitFormat, widget.props.showYear]);
 
-        return new Intl.DateTimeFormat(locale, {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            weekday: 'short',
-        }).format(date);
-    }, [date, locale, widget.props.showDate]);
+    const weekdayText = useMemo(() => {
+        return getWeekdayText(date, widget.props.weekdayFormat);
+    }, [date, widget.props.weekdayFormat]);
 
     const textStyle: CSSProperties = {
-        fontSize: `${widget.props.fontSize}px`,
-        color: widget.props.color,
+        fontSize: `${widget.props.timeFontSize}px`,
         fontWeight: widget.props.fontWeight,
         lineHeight: 1.1,
         letterSpacing: '0.04em',
     };
 
+    const dateStyle: CSSProperties = {
+        fontSize: `${widget.props.dateFontSize}px`,
+        fontWeight: widget.props.fontWeight,
+        lineHeight: 1.1,
+        letterSpacing: '0.04em',
+    };
+
+    const finalDateDisplay = buildDateDisplay(dateText, weekdayText, widget.props.weekdayPlacement);
+
+    const amPmDisplay = amPmText && !widget.props.use24Hour
+        ? widget.props.amPmPlacement === 'left'
+            ? `${amPmText} ${timeText}`
+            : widget.props.amPmPlacement === 'right'
+                ? `${timeText} ${amPmText}`
+                : timeText
+        : timeText;
+
+    const gapValue = Math.min(widget.props.dateGap, 1.1);
+
+    const dateNode = widget.props.datePlacement === 'none' || !finalDateDisplay
+        ? null
+        : <div style={dateStyle}>{finalDateDisplay}</div>;
+
+    const content = widget.props.datePlacement === 'before-time'
+        ? [dateNode, <div key='time' style={textStyle}>{amPmDisplay}</div>]
+        : [<div key='time' style={textStyle}>{amPmDisplay}</div>, dateNode];
+
     return (
         <div
-            className='flex h-full w-full flex-col items-center justify-center gap-2'
+            className='flex h-full w-full items-center justify-center gap-2'
             style={{
                 userSelect: 'none',
+                flexDirection: widget.props.layout === 'single-line' ? 'row' : 'column',
+                gap: `${gapValue}em`,
             }}
         >
-            <div style={textStyle}>{timeText}</div>
-            {dateText
-                ? <div style={{ color: widget.props.color, fontSize: `${Math.max(12, widget.props.fontSize * 0.42)}px` }}>{dateText}</div>
-                : null}
+            {content}
         </div>
     );
 }

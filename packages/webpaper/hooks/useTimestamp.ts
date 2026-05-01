@@ -38,14 +38,11 @@ export function useTimestamp(options: UseTimestampOptions = {}): UseTimestampRet
     const controls = useIntervalFn(syncTimestamp, interval, { immediate });
 
     useEffect(() => {
-        // For RAF mode ensure controls are resumed on mount and paused on unmount
         if (typeof interval === 'number') {
             return;
         }
 
-        if (immediate) {
-            controls.resume();
-        }
+        controls.resume();
 
         return () => {
             controls.pause();
