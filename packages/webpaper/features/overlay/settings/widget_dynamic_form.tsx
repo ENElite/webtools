@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Button, ColorPicker, Form, Input, InputNumber, Radio, Switch, Tabs } from 'antd';
 import { AiEditorPanel } from '@/features/editor';
 
+import { FontPicker } from './font_picker';
 import type { WidgetPropPrimitive } from '../types';
 import type { WidgetSettingsSchema } from './schema';
 
@@ -126,6 +127,17 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
             );
         }
 
+        if (field.type === 'font') {
+            return (
+                <Form.Item key={field.key} label={field.label}>
+                    <FontPicker
+                        value={typeof currentValue === 'string' ? currentValue : undefined}
+                        onChange={(nextFont) => updateField(field.key, nextFont)}
+                    />
+                </Form.Item>
+            );
+        }
+
         if (field.type === 'image') {
             const inputId = `${field.key}-image-input`;
 
@@ -204,17 +216,21 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
             );
         }
 
-        return (
-            <Form.Item key={field.key} label={field.label}>
-                <Radio.Group
-                    value={typeof currentValue === 'string' || typeof currentValue === 'number' ? currentValue : undefined}
-                    options={field.options}
-                    onChange={(event) => updateField(field.key, event.target.value)}
-                    optionType='button'
-                    buttonStyle='solid'
-                />
-            </Form.Item>
-        );
+        if (field.type === 'enum') {
+            return (
+                <Form.Item key={field.key} label={field.label}>
+                    <Radio.Group
+                        value={typeof currentValue === 'string' || typeof currentValue === 'number' ? currentValue : undefined}
+                        options={field.options}
+                        onChange={(event) => updateField(field.key, event.target.value)}
+                        optionType='button'
+                        buttonStyle='solid'
+                    />
+                </Form.Item>
+            );
+        }
+
+        return null;
     };
 
     const groups: Array<{ key: string; label: string; fields: WidgetSettingsSchema }> = [];

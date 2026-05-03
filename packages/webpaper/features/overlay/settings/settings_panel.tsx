@@ -5,7 +5,7 @@ import { Button, Modal, Typography } from 'antd';
 
 import { Maximizable, toggleMaximizeTarget } from '../maximizable';
 import { WidgetDynamicForm } from './widget_dynamic_form';
-import { resolveWidgetSettingsSchema } from './registry';
+import { resolveWidgetSettingsSchema } from './schema';
 import { useWidgetStore } from './use_widget_store';
 import type { WidgetSettingsSchema } from './schema';
 import type { WidgetModel } from '../types';

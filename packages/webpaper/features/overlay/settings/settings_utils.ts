@@ -1,5 +1,6 @@
 import type { WidgetModel, WidgetPropPrimitive } from '../types';
 import { buildTransformString, parseTransformString } from '../transform_utils';
+import { WidgetStyleSettingsKeys } from './schema';
 
 export type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
 
@@ -52,52 +53,20 @@ export const buildWidgetStyleFromDraft = (
 };
 
 export const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetModel) => {
-    const {
-        width,
-        height,
-        x,
-        y,
-        rotation,
-        borderRadius,
-        color,
-        opacity,
-        id: _id,
-        label,
-        locked,
-        autoHide,
-        backgroundColor,
-        backgroundEffect,
-        backgroundImageUrl,
-        borderColor,
-        borderWidth,
-        borderStyle,
-        shadowRadius,
-        shadowColor,
-        ...props
-    } = draft;
-
+    let props: Record<string, WidgetPropPrimitive> = {};
+    for (const key in draft) {
+        if (key in WidgetStyleSettingsKeys)
+            continue;
+        props[key] = draft[key] ?? widget.props[key] ?? '';
+    }
+    const label = typeof draft['label'] === 'string' ? draft['label'] : widget.label;
+    const locked = typeof draft['locked'] === 'boolean' ? draft['locked'] : (widget.locked ?? false);
+    const autoHide = typeof draft['autoHide'] === 'boolean' ? draft['autoHide'] : (widget.autoHide ?? false);
     return {
-        label: typeof label === 'string' ? label : widget.label,
+        label: label,
+        locked: locked,
+        autoHide: autoHide,
+        style: buildWidgetStyleFromDraft(draft, widget.style, null),
         props,
-        locked: typeof locked === 'boolean' ? locked : (widget.locked ?? false),
-        autoHide: typeof autoHide === 'boolean' ? autoHide : (widget.autoHide ?? false),
-        style: buildWidgetStyleFromDraft({
-            width,
-            height,
-            x,
-            y,
-            rotation,
-            borderRadius,
-            color,
-            opacity,
-            backgroundColor,
-            backgroundEffect,
-            backgroundImageUrl,
-            borderColor,
-            borderWidth,
-            borderStyle,
-            shadowRadius,
-            shadowColor,
-        } as unknown as WidgetSettingsDraft, widget.style, null),
     };
 };
