@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 
 import { Button, Form, Popover, Radio, Select, InputNumber, Slider } from 'antd';
+import useLocalFonts from '@/hooks/useLocalFonts';
 
 export type FontPickerValue = {
     style: 'normal' | 'italic' | 'oblique';
@@ -85,7 +86,7 @@ export function parseFontString(font?: string): FontPickerValue {
     const assignOptionalToken = (token: string) => {
         const normalized = token.toLowerCase();
 
-        if (!consumed.style && (normalized === 'normal' || normalized === 'italic')) {
+        if (!consumed.style && (normalized === 'normal' || normalized === 'italic' || normalized === 'oblique')) {
             nextValue.style = normalized as FontPickerValue['style'];
             consumed.style = true;
             return true;
@@ -157,6 +158,7 @@ export function FontPicker({ value, onChange, fonts = DEFAULT_FONT_FAMILIES }: F
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<FontPickerValue>(() => parseFontString(value));
     const pendingChangeRef = useRef<string | null>(null);
+    const availableFonts = useLocalFonts(fonts);
 
     const commitDraft = useCallback((updater: (current: FontPickerValue) => FontPickerValue) => {
         setDraft((current) => {
@@ -207,7 +209,7 @@ export function FontPicker({ value, onChange, fonts = DEFAULT_FONT_FAMILIES }: F
                 <Form.Item label='字体' className='mb-0 flex-1 min-w-55'>
                     <Select
                         className='w-full'
-                        options={fonts}
+                        options={availableFonts}
                         value={draft.family}
                         showSearch={{ optionFilterProp: 'label' }}
                         onChange={(nextFamily) => commitDraft((current) => ({ ...current, family: nextFamily }))}
