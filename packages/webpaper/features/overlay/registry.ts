@@ -55,7 +55,6 @@ export const DEFAULT_WIDGET_STYLE = {
     transform: 'translate(56px, 56px) rotate(0deg)',
     width: '520px',
     height: '128px',
-    color: '#f8fafc',
     opacity: 1,
     backgroundColor: 'rgba(255, 255, 255, 0)',
     backgroundEffect: 'none',
@@ -103,9 +102,9 @@ function defaultWidgetLabel(kind: WidgetKind): string {
     return {
         text: '文本组件',
         html: 'HTML 组件',
-        clock: 'Clock 组件',
-        image: 'Image 组件',
-        video: 'Video 组件',
+        clock: '时钟组件',
+        image: '图片组件',
+        video: '视频组件',
         iframe: 'URL 组件',
     }[kind];
 }

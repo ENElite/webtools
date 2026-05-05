@@ -8,7 +8,6 @@ export type WidgetStyle = {
     width: string;
     height: string;
     borderRadius: string;
-    color?: string;
     opacity?: number;
     backgroundColor?: string;
     backgroundEffect?: 'blur' | 'image' | 'none';

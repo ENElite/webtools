@@ -36,7 +36,6 @@ function mapBorderStyle(value: string): CSSProperties['borderStyle'] {
 
 function buildWidgetVisualStyle(widget: WidgetModel): CSSProperties {
     const backgroundColor = widget.style.backgroundColor ?? 'rgba(255, 255, 255, 0)';
-    const color = widget.style.color ?? '#f8fafc';
     const opacity = widget.style.opacity ?? 1;
     const backgroundEffect = widget.style.backgroundEffect ?? 'none';
     const backgroundImageUrl = widget.style.backgroundImageUrl ?? '';
@@ -53,7 +52,6 @@ function buildWidgetVisualStyle(widget: WidgetModel): CSSProperties {
         transform: widget.style.transform,
         transformOrigin: 'center center',
         borderRadius: widget.style.borderRadius,
-        color,
         opacity,
         backgroundColor,
         borderColor,

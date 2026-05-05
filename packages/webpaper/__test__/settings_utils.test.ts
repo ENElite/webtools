@@ -16,7 +16,6 @@ function createWidget(): WidgetModel {
             width: '240px',
             height: '120px',
             borderRadius: '8px',
-            color: '#f8fafc',
             opacity: 1,
         },
     };
@@ -34,14 +33,12 @@ describe('splitSettingsValues', () => {
                 y: 18,
                 rotation: 0,
                 borderRadius: 8,
-                color: '#ffffff',
                 opacity: 0.42,
             },
             widget
         );
 
         expect(next.style.opacity).toBe(0.42);
-        expect(next.style.color).toBe('#ffffff');
         expect(next.props.opacity).toBeUndefined();
         expect(next.props.color).toBeUndefined();
     });

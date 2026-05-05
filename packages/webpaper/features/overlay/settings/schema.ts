@@ -20,7 +20,6 @@ export const DEFAULT_SETTINGS_WIDGET_STYLE: WidgetStyle = {
 };
 
 export const WidgetStyleSettingsKeys = [
-    'color',
     'opacity',
     'width',
     'height',
@@ -40,7 +39,6 @@ export const WidgetStyleSettingsKeys = [
 export type WidgetStyleSettingsKey = typeof WidgetStyleSettingsKeys[number];
 
 export type WidgetStyleSettingsDraft = {
-    color: string;
     opacity: number;
     width: number;
     height: number;
@@ -121,12 +119,6 @@ const WIDGET_BASE_SETTINGS_SCHEMA = [
 ] satisfies WidgetSettingsSchema;
 
 export const WIDGET_STYLE_SETTINGS_SCHEMA = [
-    {
-        key: 'color',
-        label: '颜色',
-        type: 'color',
-        alpha: true,
-    },
     {
         key: 'opacity',
         label: '透明度',

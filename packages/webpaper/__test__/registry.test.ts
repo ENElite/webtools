@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { createWidgetRegistry, registerWidgetRenderer, resolveWidgetRenderer } from '@/features/overlay/registry';
-import { resolveWidgetSettingsSchema } from '@/features/overlay/settings/registry';
+import { resolveWidgetSettingsSchema } from '@/features/overlay/settings/schema';
+import { DEFAULT_CLOCK_WIDGET_PROPS } from '@/features/overlay/clock';
 
 describe('overlay widget registry', () => {
     it('registers and resolves renderer by kind', () => {
@@ -33,7 +34,7 @@ describe('overlay widget registry', () => {
         expect(componentDividerIndex).toBeGreaterThan(styleDividerIndex);
 
         const styleGroup = (schema || []).slice((styleDividerIndex + 1), componentDividerIndex).filter((field) => field.type !== 'divider');
-        expect(styleGroup.map((field) => field.key)).toEqual(['color', 'opacity', 'backgroundColor', 'backgroundEffect', 'backgroundImageUrl', 'borderColor', 'borderWidth', 'borderStyle', 'shadowRadius', 'shadowColor']);
+        expect(styleGroup.map((field) => field.key)).toEqual(['opacity', 'backgroundColor', 'backgroundEffect', 'backgroundImageUrl', 'borderColor', 'borderWidth', 'borderStyle', 'shadowRadius', 'shadowColor']);
 
         const textGroup = (schema || []).slice((componentDividerIndex + 1)).filter((field) => field.type !== 'divider');
         expect(textGroup.map((field) => field.key)).toEqual(['text', 'fontSize', 'fontWeight', 'color', 'align']);

@@ -39,7 +39,6 @@ export const buildWidgetStyleFromDraft = (
         width: `${width}px`,
         height: `${height}px`,
         transform: buildTransformString(x, y, rotation),
-        color: typeof draft['color'] === 'string' ? draft['color'] : (fallbackStyle.color ?? '#f8fafc'),
         opacity: typeof draft['opacity'] === 'number' ? clamp(draft['opacity'], 0, 1) : (fallbackStyle.opacity ?? 1),
         backgroundColor: typeof draft['backgroundColor'] === 'string' ? draft['backgroundColor'] : fallbackStyle.backgroundColor ?? 'rgba(255, 255, 255, 0)',
         backgroundEffect: typeof draft['backgroundEffect'] === 'string' ? draft['backgroundEffect'] as WidgetModel['style']['backgroundEffect'] : (fallbackStyle.backgroundEffect ?? 'none'),
@@ -55,7 +54,7 @@ export const buildWidgetStyleFromDraft = (
 export const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetModel) => {
     let props: Record<string, WidgetPropPrimitive> = {};
     for (const key in draft) {
-        if (key in WidgetStyleSettingsKeys)
+        if (WidgetStyleSettingsKeys.includes(key as any))
             continue;
         props[key] = draft[key] ?? widget.props[key] ?? '';
     }

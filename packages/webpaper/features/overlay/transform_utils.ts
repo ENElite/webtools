@@ -40,7 +40,6 @@ export function snapshotTransformFromStyle(style: CSSStyleDeclaration): WidgetSt
         width: style.width,
         height: style.height,
         borderRadius: style.borderRadius,
-        color: style.color,
         opacity: style.opacity ? parseFloat(style.opacity) : undefined,
     } satisfies WidgetStyle;
 }
