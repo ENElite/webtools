@@ -1,1 +1,1 @@
-export { usePlaybackScheduler } from '@/hooks/use_playback_scheduler';
+export { usePlaybackScheduler } from '@/hooks/usePlaybackScheduler';
