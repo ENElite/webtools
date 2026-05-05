@@ -1,2 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
+
+/* 用于在 antd Tabs 中设置 content 的高度，实现可滚动 */
+/* 在 @/features/overlay/settings/widget_dynamic_form.tsx 中使用 */
+.custom-tabs {
+    .ant-tabs-content {
+        height: 100%;
+    }
+}

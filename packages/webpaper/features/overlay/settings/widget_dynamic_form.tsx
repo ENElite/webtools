@@ -264,26 +264,32 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
     }
 
     return (
-        <div className='flex h-full min-h-0 flex-col'>
-            <Tabs
-                className='flex h-full min-h-0 flex-1'
-                tabBarStyle={{ marginBottom: 0 }}
-                tabBarGutter={8}
-                tabPlacement='start'
-                indicator={{ align: 'start' }}
-                defaultActiveKey={groups[groups.length - 1]?.key}
-                items={groups.map((group) => ({
-                    key: group.key,
-                    label: group.label,
-                    children: (
-                        <div className='flex h-full min-h-0 flex-col overflow-hidden'>
-                            <Form layout='horizontal' variant='outlined' labelCol={{ span: 6 }} wrapperCol={{ span: 18 }} style={{ minHeight: 0 }}>
-                                {group.fields.map((field) => renderField(field))}
-                            </Form>
-                        </div>
-                    ),
-                }))}
-            />
-        </div>
+        <Tabs
+            classNames={{
+                // custom-tabs 用于覆盖 antd 默认的 height 样式，确保内容区能够正确撑满高度并显示滚动条。
+                // 该样式在 global.css 中定义。
+                root: 'h-full min-h-0 custom-tabs',
+                header: 'mb-0',
+                content: 'h-full overflow-y-auto pr-2',
+            }}
+            tabBarGutter={8}
+            tabPlacement='start'
+            indicator={{ align: 'start' }}
+            defaultActiveKey={groups[groups.length - 1]?.key}
+            items={groups.map((group) => ({
+                key: group.key,
+                label: group.label,
+                children: (
+                    <Form
+                        layout='horizontal'
+                        variant='outlined'
+                        labelCol={{ span: 6 }}
+                        wrapperCol={{ span: 18 }}
+                    >
+                        {group.fields.map((field) => renderField(field))}
+                    </Form>
+                ),
+            }))}
+        />
     );
 }

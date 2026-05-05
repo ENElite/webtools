@@ -100,18 +100,17 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                 open
                 width={760}
                 style={{
-                    display: 'flex',
-                    flexDirection: 'column',
+                    height: '550px',
                 }}
                 styles={{
-                    wrapper: {
-                        overflow: 'hidden',
+                    container: {
+                        height: '100%',
                     },
                     body: {
-                        flex: 1,
                         minHeight: 0,
-                        overflow: 'hidden',
                         padding: 0,
+                        height: '100%',
+                        paddingBottom: 30,
                     },
                 }}
                 mask={{
@@ -170,18 +169,16 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                     </div>
                 )}
             >
-                <div className='flex min-h-0 h-full w-full flex-col overflow-hidden p-1'>
-                    <WidgetDynamicForm
-                        value={draftValues}
-                        schema={schema}
-                        onChange={(nextDraft, changedKey) => {
-                            commitDraft(nextDraft);
-                            if (!DEFERRED_MODEL_KEYS.has(changedKey)) {
-                                applyLivePatch(nextDraft);
-                            }
-                        }}
-                    />
-                </div>
+                <WidgetDynamicForm
+                    value={draftValues}
+                    schema={schema}
+                    onChange={(nextDraft, changedKey) => {
+                        commitDraft(nextDraft);
+                        if (!DEFERRED_MODEL_KEYS.has(changedKey)) {
+                            applyLivePatch(nextDraft);
+                        }
+                    }}
+                />
             </Modal>
 
             <Moveable
