@@ -4,6 +4,10 @@ import type { WidgetRendererProps } from '../types';
 import type { TextWidgetProps } from './schema';
 
 export function TextWidget({ widget }: WidgetRendererProps<TextWidgetProps>) {
+    const textShadow = widget.props.textShadowRadius > 0
+        ? `0 0 ${widget.props.textShadowRadius}px ${widget.props.textShadowColor}`
+        : 'none';
+
     const style: CSSProperties = {
         width: '100%',
         height: '100%',
@@ -11,11 +15,10 @@ export function TextWidget({ widget }: WidgetRendererProps<TextWidgetProps>) {
         alignItems: 'center',
         justifyContent: widget.props.align === 'left' ? 'flex-start' : widget.props.align === 'right' ? 'flex-end' : 'center',
         color: widget.props.color,
-        fontSize: `${widget.props.fontSize}px`,
-        fontWeight: widget.props.fontWeight,
-        lineHeight: 1.25,
+        font: widget.props.font,
         padding: '12px 16px',
         textAlign: widget.props.align,
+        textShadow,
     };
 
     return (

@@ -2,18 +2,20 @@ import type { WidgetSettingsSchema } from '../settings/schema';
 
 export type TextWidgetProps = {
     text: string;
-    fontSize: number;
     color: string;
+    textShadowColor: string;
+    textShadowRadius: number;
     align: 'left' | 'center' | 'right';
-    fontWeight: number;
+    font: string;
 };
 
 export const DEFAULT_TEXT_WIDGET_PROPS: TextWidgetProps = {
     text: 'Webpaper Overlay Text Widget',
-    fontSize: 48,
     color: '#f8fafc',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowRadius: 0,
     align: 'center',
-    fontWeight: 600,
+    font: 'normal 600 48px/1.25 Arial, sans-serif',
 };
 
 export const TEXT_WIDGET_SETTINGS_SCHEMA = [
@@ -24,25 +26,28 @@ export const TEXT_WIDGET_SETTINGS_SCHEMA = [
         placeholder: '输入展示文本',
     },
     {
-        key: 'fontSize',
-        label: '字号',
-        type: 'number',
-        min: 8,
-        max: 240,
-        step: 1,
-    },
-    {
-        key: 'fontWeight',
-        label: '字重',
-        type: 'number',
-        min: 100,
-        max: 900,
-        step: 100,
+        key: 'font',
+        label: '字体',
+        type: 'font',
     },
     {
         key: 'color',
         label: '颜色',
         type: 'color',
+    },
+    {
+        key: 'textShadowColor',
+        label: '阴影颜色',
+        type: 'color',
+        alpha: true,
+    },
+    {
+        key: 'textShadowRadius',
+        label: '阴影半径',
+        type: 'number',
+        min: 0,
+        max: 100,
+        step: 1,
     },
     {
         key: 'align',
