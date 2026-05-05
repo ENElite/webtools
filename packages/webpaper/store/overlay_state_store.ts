@@ -87,7 +87,7 @@ export function createDefaultOverlayState(): OverlayState {
     return {
         widgets: [
             createWidget('text'),
-            createWidget('iframe', { transform: buildTransformString(200, 150, 0), width: '555px' }),
+            createWidget('clock', { transform: 'translate(0px, 500px)' }),
         ],
         activeWidgetId: null,
     };

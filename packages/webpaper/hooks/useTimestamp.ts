@@ -47,8 +47,7 @@ export function useTimestamp(options: UseTimestampOptions = {}): UseTimestampRet
         return () => {
             controls.pause();
         };
-        // controls identity is stable from the hook implementation
-    }, [interval, immediate, controls]);
+    }, [interval]);
 
     if (wantControls) {
         return {

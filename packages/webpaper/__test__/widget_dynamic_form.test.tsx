@@ -51,6 +51,11 @@ const schema: WidgetSettingsSchema = [
         label: '颜色',
         type: 'color',
     },
+    {
+        key: 'font',
+        label: '字体',
+        type: 'font',
+    },
 ];
 
 function renderForm(onChange: (next: WidgetFlatProps) => void) {
@@ -67,6 +72,7 @@ function renderForm(onChange: (next: WidgetFlatProps) => void) {
                     fontSize: 24,
                     align: 'center',
                     color: '#ffffff',
+                    font: 'normal normal 600 normal 24px/1.25 Arial, sans-serif',
                 }}
                 schema={schema}
                 onChange={onChange}
@@ -115,11 +121,13 @@ describe('WidgetDynamicForm', () => {
         expect(container.textContent).toContain('字号');
         expect(container.textContent).toContain('对齐');
         expect(container.textContent).toContain('颜色');
+        expect(container.textContent).toContain('字体');
 
         expect(container.querySelector('input')).toBeTruthy();
         expect(container.querySelector('.ant-input-number')).toBeTruthy();
         expect(container.querySelector('.ant-radio-group')).toBeTruthy();
         expect(container.querySelector('[class*=\'ant-color-picker\']')).toBeTruthy();
+        expect(container.querySelector('[data-testid="font-picker-trigger"]')).toBeTruthy();
 
         act(() => {
             root.unmount();

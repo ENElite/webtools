@@ -2,49 +2,51 @@ import type { WidgetSettingsSchema } from '../settings/schema';
 
 export type DateFormat = 'chinese' | 'numeric1' | 'english' | 'english-short';
 export type WeekdayFormat = 'chinese' | 'english' | 'english-short';
-export type AmPmFormat = 'chinese' | 'english' | 'english-lower';
-export type AmPmPlacement = 'left' | 'right' | 'none';
+export type TimeFormat = '24-hour' | '12-hour' | '12-hour-am-pm';
+export type AmPmFormat = 'left-chinese' | 'left-english' | 'right-chinese' | 'right-english';
 export type DigitFormat = 'single' | 'double';
 export type LayoutMode = 'single-line' | 'dual-line';
-export type DatePlacement = 'before-time' | 'after-time' | 'none';
+export type DisplayOrder = 'time-first' | 'date-first';
 
 export type ShowYearPlacement = 'left' | 'right' | 'none';
 export type WeekdayPlacement = 'left' | 'right' | 'none';
 
 export type ClockWidgetProps = {
     showSeconds: boolean;
-    use24Hour: boolean;
-    timeFontSize: number;
-    dateFontSize: number;
+    timeFormat: TimeFormat;
+    timeFont: string;
+    dateFont: string;
     dateGap: number;
-    fontWeight: 400 | 500 | 600 | 700;
     dateFormat: DateFormat;
     weekdayFormat: WeekdayFormat;
     weekdayPlacement: WeekdayPlacement;
+    color: string;
+    textShadowColor: string;
+    textShadowRadius: number;
     amPmFormat: AmPmFormat;
-    amPmPlacement: AmPmPlacement;
-    datePlacement: DatePlacement;
     showYear: ShowYearPlacement;
     digitFormat: DigitFormat;
     layout: LayoutMode;
+    displayOrder: DisplayOrder;
 };
 
 export const DEFAULT_CLOCK_WIDGET_PROPS: ClockWidgetProps = {
     showSeconds: true,
-    use24Hour: true,
-    timeFontSize: 36,
-    dateFontSize: 24,
+    timeFormat: '24-hour',
+    timeFont: 'normal 600 36px/1.1 Arial, sans-serif',
+    dateFont: 'normal 600 24px/1.1 Arial, sans-serif',
     dateGap: 0.2,
-    fontWeight: 600,
     dateFormat: 'chinese',
     weekdayFormat: 'chinese',
     weekdayPlacement: 'right',
-    amPmFormat: 'english',
-    amPmPlacement: 'right',
-    datePlacement: 'after-time',
+    color: '#f8fafc',
+    textShadowColor: 'rgba(0, 0, 0, 1)',
+    textShadowRadius: 5,
+    amPmFormat: 'right-english',
     showYear: 'left',
     digitFormat: 'double',
     layout: 'dual-line',
+    displayOrder: 'time-first',
 };
 
 export const CLOCK_WIDGET_SETTINGS_SCHEMA = [
@@ -58,34 +60,43 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA = [
         ],
     },
     {
-        key: 'use24Hour',
-        label: '24 小时制',
-        type: 'boolean',
+        key: 'displayOrder',
+        label: '显示顺序',
+        type: 'enum',
+        options: [
+            { label: '时间在前', value: 'time-first' },
+            { label: '日期在前', value: 'date-first' },
+        ],
     },
     {
-        key: 'showSeconds',
-        label: '显示秒',
-        type: 'boolean',
+        key: 'timeFormat',
+        label: '时间格式',
+        type: 'enum',
+        options: [
+            { label: '24 小时', value: '24-hour' },
+            { label: '12 小时', value: '12-hour' },
+            { label: '12 小时带 AM/PM', value: '12-hour-am-pm' },
+        ],
     },
     {
         key: 'amPmFormat',
         label: 'AM/PM 格式',
         type: 'enum',
         options: [
-            { label: '中文', value: 'chinese' },
-            { label: '英文', value: 'english' },
-            { label: '英文小写', value: 'english-lower' },
+            { label: '左侧中文', value: 'left-chinese' },
+            { label: '左侧英文', value: 'left-english' },
+            { label: '右侧中文', value: 'right-chinese' },
+            { label: '右侧英文', value: 'right-english' },
         ],
+        visibleWhen: {
+            key: 'timeFormat',
+            equals: '12-hour-am-pm',
+        }
     },
     {
-        key: 'amPmPlacement',
-        label: 'AM/PM 位置',
-        type: 'enum',
-        options: [
-            { label: '左侧', value: 'left' },
-            { label: '右侧', value: 'right' },
-            { label: '无', value: 'none' },
-        ],
+        key: 'showSeconds',
+        label: '显示秒',
+        type: 'boolean',
     },
     {
         key: 'dateFormat',
@@ -96,25 +107,6 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA = [
             { label: '纯数字', value: 'numeric1' },
             { label: '英文', value: 'english' },
             { label: '英文缩写', value: 'english-short' },
-        ],
-    },
-    {
-        key: 'datePlacement',
-        label: '日期位置',
-        type: 'enum',
-        options: [
-            { label: '时间之前', value: 'before-time' },
-            { label: '时间之后', value: 'after-time' },
-            { label: '无', value: 'none' },
-        ],
-    },
-    {
-        key: 'digitFormat',
-        label: '日期数字',
-        type: 'enum',
-        options: [
-            { label: '一位数字', value: 'single' },
-            { label: '两位数字', value: 'double' },
         ],
     },
     {
@@ -148,20 +140,42 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA = [
         ],
     },
     {
-        key: 'timeFontSize',
-        label: '时间字号',
+        key: 'digitFormat',
+        label: '日期数字',
+        type: 'enum',
+        options: [
+            { label: '一位数字', value: 'single' },
+            { label: '两位数字', value: 'double' },
+        ],
+    },
+    {
+        key: 'color',
+        label: '文本颜色',
+        type: 'color',
+    },
+    {
+        key: 'textShadowColor',
+        label: '阴影颜色',
+        type: 'color',
+        alpha: true,
+    },
+    {
+        key: 'textShadowRadius',
+        label: '阴影半径',
         type: 'number',
-        min: 10,
-        max: 240,
+        min: 0,
+        max: 100,
         step: 1,
     },
     {
-        key: 'dateFontSize',
-        label: '日期字号',
-        type: 'number',
-        min: 10,
-        max: 240,
-        step: 1,
+        key: 'timeFont',
+        label: '时间字体',
+        type: 'font',
+    },
+    {
+        key: 'dateFont',
+        label: '日期字体',
+        type: 'font',
     },
     {
         key: 'dateGap',
@@ -170,16 +184,5 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA = [
         min: 0,
         max: 1.1,
         step: 0.05,
-    },
-    {
-        key: 'fontWeight',
-        label: '字重',
-        type: 'enum',
-        options: [
-            { label: '400', value: 400 },
-            { label: '500', value: 500 },
-            { label: '600', value: 600 },
-            { label: '700', value: 700 },
-        ],
     },
 ] satisfies WidgetSettingsSchema<ClockWidgetProps>;

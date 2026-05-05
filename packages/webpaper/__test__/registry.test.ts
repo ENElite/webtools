@@ -37,7 +37,38 @@ describe('overlay widget registry', () => {
         expect(styleGroup.map((field) => field.key)).toEqual(['opacity', 'backgroundColor', 'backgroundEffect', 'backgroundImageUrl', 'borderColor', 'borderWidth', 'borderStyle', 'shadowRadius', 'shadowColor']);
 
         const textGroup = (schema || []).slice((componentDividerIndex + 1)).filter((field) => field.type !== 'divider');
-        expect(textGroup.map((field) => field.key)).toEqual(['text', 'fontSize', 'fontWeight', 'color', 'align']);
+        expect(textGroup.map((field) => field.key)).toEqual(['text', 'font', 'color', 'textShadowColor', 'textShadowRadius', 'align']);
+    });
+
+    it('builds clock settings schema with time and date font fields', () => {
+        const schema = resolveWidgetSettingsSchema('clock');
+
+        expect(schema).not.toBeNull();
+        const componentDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '组件设置');
+        expect(componentDividerIndex).toBeGreaterThan(0);
+
+        const clockGroup = (schema || []).slice((componentDividerIndex + 1)).filter((field) => field.type !== 'divider');
+        expect(clockGroup.map((field) => field.key)).toEqual([
+            'layout',
+            'displayOrder',
+            'timeFormat',
+            'amPmFormat',
+            'showSeconds',
+            'dateFormat',
+            'showYear',
+            'weekdayFormat',
+            'weekdayPlacement',
+            'digitFormat',
+            'color',
+            'textShadowColor',
+            'textShadowRadius',
+            'timeFont',
+            'dateFont',
+            'dateGap',
+        ]);
+
+        expect(DEFAULT_CLOCK_WIDGET_PROPS.timeFont).toContain('Arial');
+        expect(DEFAULT_CLOCK_WIDGET_PROPS.dateFont).toContain('Arial');
     });
 
     it('builds html settings schema with editor field', () => {
