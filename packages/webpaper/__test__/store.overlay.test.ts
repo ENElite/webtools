@@ -10,10 +10,17 @@ function createWidget(id: string): WidgetModel {
         kind: 'text',
         props: { text: id },
         style: {
-            transform: 'translate(0px, 0px) rotate(0deg)',
-            width: '100px',
-            height: '60px',
             borderRadius: '0px',
+        },
+        layout: {
+            anchorX: 'left',
+            anchorY: 'top',
+            x: 0,
+            y: 0,
+            w: 10,
+            h: 6,
+            rotation: 0,
+            adapt: 'fixed',
         },
     };
 }
@@ -111,10 +118,17 @@ describe('overlayReducer', () => {
                     kind: 'text',
                     props: { text: 'a' },
                     style: {
-                        transform: 'translate(120px, 160px) rotate(25deg)',
-                        width: '240px',
-                        height: '120px',
                         borderRadius: '12px',
+                    },
+                    layout: {
+                        anchorX: 'left',
+                        anchorY: 'top',
+                        x: 12,
+                        y: 16,
+                        w: 24,
+                        h: 12,
+                        rotation: 25,
+                        adapt: 'fixed',
                     },
                 },
             ],
@@ -124,44 +138,50 @@ describe('overlayReducer', () => {
         const next = overlayReducer(state, {
             type: 'copy-widget',
             widgetId: 'a',
-            style: {
-                transform: 'translate(120px, 160px) rotate(25deg)',
-                width: '240px',
-                height: '120px',
-                borderRadius: '12px',
-            },
         });
 
         expect(next.widgets).toHaveLength(2);
-        expect(next.widgets[1]?.style).toEqual({
-            transform: 'translate(170px, 210px) rotate(25deg)',
-            width: '240px',
-            height: '120px',
-            borderRadius: '12px',
-        });
-        expect(next.widgets[1]?.id).not.toBe('a');
+        const copiedWidget = next.widgets[1];
+        expect(copiedWidget).toBeDefined();
+        expect(copiedWidget?.id).not.toBe('a');
+        // Layout should be offset by +2% in x and y
+        expect(copiedWidget?.layout?.x).toBe(14);
+        expect(copiedWidget?.layout?.y).toBe(18);
+        expect(copiedWidget?.layout?.w).toBe(24);
+        expect(copiedWidget?.layout?.h).toBe(12);
+        expect(copiedWidget?.layout?.rotation).toBe(25);
+        expect(copiedWidget?.style.borderRadius).toBe('12px');
         expect(next.activeWidgetId).toBe(next.widgets[1]?.id || null);
     });
 
-    it('copies widget from provided runtime transform payload', () => {
+    it('copies widget from provided layout payload', () => {
         const state = createState(['a']);
+        const originalWidget = state.widgets[0];
+        if (!originalWidget) {
+            throw new Error('Original widget not found');
+        }
+
+        const customLayout = {
+            anchorX: 'left' as const,
+            anchorY: 'top' as const,
+            x: 35,
+            y: 45,
+            w: 22,
+            h: 14,
+            rotation: 37,
+            adapt: 'fixed' as const,
+        };
+
         const next = overlayReducer(state, {
             type: 'copy-widget',
             widgetId: 'a',
-            style: {
-                transform: 'translate(300px, 400px) rotate(37deg)',
-                width: '220px',
-                height: '140px',
-                borderRadius: '6px',
-            },
+            layout: customLayout,
         });
 
-        expect(next.widgets[1]?.style).toEqual({
-            transform: 'translate(350px, 450px) rotate(37deg)',
-            width: '220px',
-            height: '140px',
-            borderRadius: '6px',
-        });
+        expect(next.widgets[1]).toBeDefined();
+        const copiedWidget = next.widgets[1];
+        expect(copiedWidget?.layout).toEqual(customLayout);
+        expect(copiedWidget?.style.borderRadius).toBe('0px');
     });
 
     it('updates iframe widget html through patch props', () => {
@@ -175,10 +195,17 @@ describe('overlayReducer', () => {
                         html: '<p>old</p>',
                     },
                     style: {
-                        transform: 'translate(0px, 0px) rotate(0deg)',
-                        width: '320px',
-                        height: '200px',
                         borderRadius: '0px',
+                    },
+                    layout: {
+                        anchorX: 'left',
+                        anchorY: 'top',
+                        x: 0,
+                        y: 0,
+                        w: 32,
+                        h: 20,
+                        rotation: 0,
+                        adapt: 'fixed',
                     },
                 },
             ],

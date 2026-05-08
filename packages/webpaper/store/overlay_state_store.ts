@@ -1,18 +1,14 @@
 import { create } from 'zustand';
 
 
-import {
-    buildTransformString,
-    normalizeSizeToPx,
-    parseTransformString,
-    createWidget,
-} from '@/features/overlay';
+import { createWidget, generateWidgetId } from '@/features/overlay/registry';
+import { layoutFromPx, pxFromLayout } from '@/features/overlay/transform_utils';
 
 import type {
     OverlayState,
     WidgetId,
     WidgetModel,
-    WidgetStyle,
+    WidgetLayout,
 } from '@/features/overlay/types';
 
 type OverlayStore = {
@@ -29,7 +25,9 @@ type OverlayStore = {
     moveOverlayWidgetDown: (widgetId: WidgetId) => void;
     moveOverlayWidgetToTop: (widgetId: WidgetId) => void;
     moveOverlayWidgetToBottom: (widgetId: WidgetId) => void;
-    copyOverlayWidget: (widgetId: WidgetId, style: WidgetStyle) => void;
+    copyOverlayWidget: (widgetId: WidgetId, layout?: WidgetLayout) => void;
+    updateOverlayWidgetLayoutFromTarget: (widgetId: WidgetId, target: HTMLElement | null, container: HTMLElement | null) => void;
+    updateOverlayWidgetStyleFromTarget: (widgetId: WidgetId, target: HTMLElement | null) => void;
 };
 
 function findWidgetIndex(widgets: WidgetModel[], widgetId: WidgetId): number {
@@ -83,11 +81,64 @@ function replaceWidget(state: OverlayState, widgetId: WidgetId, patch: Partial<O
     };
 }
 
+type PxRect = { x: number; y: number; w: number; h: number; rotation: number };
+
+function getTargetPxRect(target: HTMLElement, container: HTMLElement | null): PxRect {
+    const targetRect = target.getBoundingClientRect();
+    const containerRect = container?.getBoundingClientRect();
+    const containerLeft = containerRect?.left ?? 0;
+    const containerTop = containerRect?.top ?? 0;
+
+    const rotateMatch = /rotate\(([-\d.]+)deg\)/.exec(target.style.transform);
+
+    return {
+        x: targetRect.left - containerLeft,
+        y: targetRect.top - containerTop,
+        w: targetRect.width,
+        h: targetRect.height,
+        rotation: rotateMatch?.[1] ? Number.parseFloat(rotateMatch[1]) : 0,
+    };
+}
+
+function assertLayoutMatchesTarget(layout: WidgetLayout, target: HTMLElement, container: HTMLElement | null): void {
+    if (process.env.NODE_ENV === 'production') {
+        return;
+    }
+
+    const containerRect = container?.getBoundingClientRect();
+    const containerWidth = containerRect?.width ?? window.innerWidth;
+    const containerHeight = containerRect?.height ?? window.innerHeight;
+    const expectedPx = pxFromLayout(layout, containerWidth || 1, containerHeight || 1);
+    const actualPx = getTargetPxRect(target, container);
+
+    const epsilon = 0.5;
+
+    const mismatches: Array<[string, number, number]> = [];
+    const candidates: Array<[string, number, number]> = [
+        ['x', expectedPx.x, actualPx.x],
+        ['y', expectedPx.y, actualPx.y],
+        ['w', expectedPx.w, actualPx.w],
+        ['h', expectedPx.h, actualPx.h],
+        ['rotation', expectedPx.rotation, actualPx.rotation],
+    ];
+
+    for (const candidate of candidates) {
+        const [, expected, actual] = candidate;
+        if (Math.abs(expected - actual) > epsilon) {
+            mismatches.push(candidate);
+        }
+    }
+
+    if (mismatches.length > 0) {
+        throw new Error(`Widget layout validation failed: ${mismatches.map(([key, expected, actual]) => `${String(key)} expected ${expected} but got ${actual}`).join(', ')}`);
+    }
+}
+
 export function createDefaultOverlayState(): OverlayState {
     return {
         widgets: [
             createWidget('text'),
-            createWidget('clock', { transform: 'translate(0px, 500px)' }),
+            createWidget('clock', { layout: { anchorX: 'left', anchorY: 'bottom', x: 0, y: -10, w: 40, h: 16, rotation: 0, adapt: 'fixed' } }),
         ],
         activeWidgetId: null,
     };
@@ -232,7 +283,7 @@ export const useOverlayStore = create<OverlayStore>((set) => ({
         });
     },
 
-    copyOverlayWidget: (widgetId, style) => {
+    copyOverlayWidget: (widgetId, layout) => {
         set((state) => {
             const index = findWidgetIndex(state.overlay.widgets, widgetId);
             if (index < 0) {
@@ -243,19 +294,15 @@ export const useOverlayStore = create<OverlayStore>((set) => ({
             if (!sourceWidget) {
                 return state;
             }
+            const newId = generateWidgetId();
+            const newLayout = layout ?? { ...sourceWidget.layout };
+            newLayout.x += 2;
+            newLayout.y += 2;
 
-            const { x, y, rotation } = parseTransformString(style.transform);
-            const newId = `${sourceWidget.id}-copy-${Date.now()}`;
             const newWidget: WidgetModel = {
                 ...sourceWidget,
                 id: newId,
-                style: {
-                    ...sourceWidget.style,
-                    transform: buildTransformString(x + 50, y + 50, rotation),
-                    width: normalizeSizeToPx(style.width),
-                    height: normalizeSizeToPx(style.height),
-                    borderRadius: style.borderRadius || sourceWidget.style.borderRadius || '0px',
-                },
+                layout: newLayout,
             };
 
             const nextWidgets = state.overlay.widgets.slice();
@@ -267,6 +314,62 @@ export const useOverlayStore = create<OverlayStore>((set) => ({
                     widgets: nextWidgets,
                     activeWidgetId: newId,
                 },
+            };
+        });
+    },
+
+    updateOverlayWidgetLayoutFromTarget: (widgetId, target, container) => {
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
+        set((state) => {
+            const widget = findWidget(state.overlay, widgetId);
+            if (!widget) {
+                return state;
+            }
+
+            const containerRect = container?.getBoundingClientRect();
+            const containerWidth = containerRect?.width ?? window.innerWidth;
+            const containerHeight = containerRect?.height ?? window.innerHeight;
+
+            // compute layout from element rect relative to container
+
+            const layout = layoutFromPx(
+                getTargetPxRect(target, container),
+                containerWidth,
+                containerHeight,
+                widget.layout.anchorX,
+                widget.layout.anchorY,
+                widget.layout.adapt,
+            );
+
+            assertLayoutMatchesTarget(layout, target, container);
+
+            return {
+                overlay: replaceWidget(state.overlay, widgetId, { layout }),
+            };
+        });
+    },
+
+    updateOverlayWidgetStyleFromTarget: (widgetId, target) => {
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
+        set((state) => {
+            const widget = findWidget(state.overlay, widgetId);
+            if (!widget) {
+                return state;
+            }
+
+            return {
+                overlay: replaceWidget(state.overlay, widgetId, {
+                    style: {
+                        ...widget.style,
+                        borderRadius: target.style.borderRadius || widget.style.borderRadius,
+                    },
+                }),
             };
         });
     },

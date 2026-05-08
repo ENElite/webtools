@@ -3,9 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OverlayMoveable } from './moveable';
 import { resolveWidgetRenderer, DEFAULT_OVERLAY_Z_INDEX } from './registry';
 import { SettingsPanel } from './settings/settings_panel';
+import { useElementSize } from '@reactuses/core';
 import { useOverlayStore, useOverlayWidgetStore } from './store';
 import type { WidgetRendererMap, WidgetableActionEvent } from './types';
-import { buildTransformString, parseTransformString } from './transform_utils';
+
 import { Widget } from './widget';
 
 type OverlayRootProps = {
@@ -19,7 +20,8 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
         state,
         activeWidget,
         activateWidget,
-        updateWidgetStyle,
+        onWidgetLayoutChange,
+        onWidgetStyleChange,
     } = useOverlayWidgetStore();
     const moveOverlayWidgetUp = useOverlayStore((rootState) => rootState.moveOverlayWidgetUp);
     const moveOverlayWidgetDown = useOverlayStore((rootState) => rootState.moveOverlayWidgetDown);
@@ -38,6 +40,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
     const [widgetableVisibleWidgetId, setWidgetableVisibleWidgetId] = useState<string | null>(null);
     const widgetableHideTimerRef = useRef<number | null>(null);
+    const overlayBounds = useElementSize(overlayRef.current);
 
     const clearWidgetableHideTimer = useCallback(() => {
         if (widgetableHideTimerRef.current !== null) {
@@ -138,19 +141,16 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                 if (!widget) {
                     return;
                 }
-
-                const { x, y } = parseTransformString(widget.style.transform);
-
                 updateOverlayWidget(event.widgetId, {
-                    style: {
-                        ...event.style,
-                        transform: buildTransformString(x, y, 0),
+                    layout: {
+                        ...widget.layout,
+                        rotation: 0,
                     },
                 });
                 return;
             }
             case 'copy-widget':
-                copyOverlayWidget(event.widgetId, event.style);
+                copyOverlayWidget(event.widgetId, event.layout);
                 return;
             case 'open-widget-settings':
                 hideWidgetableNow();
@@ -188,6 +188,10 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                         key={widget.id}
                         widget={widget}
                         active={widget.id === state.activeWidgetId}
+                        containerBounds={{
+                            width: overlayBounds[0],
+                            height: overlayBounds[1],
+                        }}
                         rootRef={(element) => {
                             widgetElementRef.current[widget.id] = element;
                         }}
@@ -240,7 +244,8 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     }
                 }}
                 onWidgetableAction={handleWidgetableAction}
-                onWidgetTransformChange={updateWidgetStyle}
+                onWidgetLayoutChange={onWidgetLayoutChange}
+                onWidgetStyleChange={onWidgetStyleChange}
             />
 
             {settingsSourceWidget

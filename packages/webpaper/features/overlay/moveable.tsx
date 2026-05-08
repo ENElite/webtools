@@ -4,7 +4,6 @@ import type { RefObject } from 'react';
 
 import { Widgetable } from './widgetable';
 import type { WidgetModel, WidgetableActionEvent } from './types';
-import { snapshotTransformFromStyle } from './transform_utils';
 import { DEFAULT_SNAP_THRESHOLD } from './registry';
 
 type OverlayMoveableProps = {
@@ -24,7 +23,8 @@ type OverlayMoveableProps = {
     onWidgetableMouseEnter: (widgetId: string) => void;
     onWidgetableMouseLeave: (widgetId: string) => void;
     onWidgetableAction: (event: WidgetableActionEvent) => void;
-    onWidgetTransformChange: (widgetId: string, transform: WidgetModel['style']) => void;
+    onWidgetLayoutChange: (widgetId: string, target: HTMLElement | null, container: HTMLElement | null) => void;
+    onWidgetStyleChange: (widgetId: string, target: HTMLElement | null) => void;
 };
 
 export function OverlayMoveable({
@@ -38,7 +38,8 @@ export function OverlayMoveable({
     onWidgetableMouseEnter,
     onWidgetableMouseLeave,
     onWidgetableAction,
-    onWidgetTransformChange,
+    onWidgetLayoutChange,
+    onWidgetStyleChange,
 }: OverlayMoveableProps) {
     const moveableRef = useRef<Moveable | null>(null);
     const widgetableRef = useRef<Moveable | null>(null);
@@ -92,24 +93,40 @@ export function OverlayMoveable({
         : null;
     const widgetableLocked = widgetableWidget?.locked ?? false;
 
-    const commitActiveWidgetTransform = (target: HTMLDivElement) => {
-        if (!activeWidget) {
-            return;
-        }
-
-        onWidgetTransformChange(activeWidget.id, snapshotTransformFromStyle(target.style));
-    };
-
     const onWidgetableClicked = (type: string) => {
         if (!widgetableWidget || !widgetableTarget) {
             return;
         }
 
+        if (!overlayRef.current) {
+            return;
+        }
+
+        const actionType = type as WidgetableActionEvent['type'];
+
+        if (actionType === 'toggle-widget-lock') {
+            onWidgetableAction({
+                type: actionType,
+                widgetId: widgetableWidget.id,
+                locked: !widgetableWidget.locked,
+            });
+            return;
+        }
+
+        if (actionType === 'copy-widget') {
+            const layout = widgetableWidget.layout;
+
+            onWidgetableAction({
+                type: actionType,
+                widgetId: widgetableWidget.id,
+                layout,
+            });
+            return;
+        }
+
         onWidgetableAction({
-            type,
+            type: actionType,
             widgetId: widgetableWidget.id,
-            style: snapshotTransformFromStyle(widgetableTarget.style),
-            locked: !widgetableWidget.locked,
         } as WidgetableActionEvent);
     };
 
@@ -124,7 +141,10 @@ export function OverlayMoveable({
                         dragTarget={dragTarget}
                         rotatable={rotatable}
                         roundable={roundable}
+                        useMutationObserver={true}
+                        useResizeObserver={true}
                         isDisplayShadowRoundControls={'horizontal'}
+                        maxRoundControls={[1, 0]}
                         roundClickable={'control'}
                         roundPadding={15}
                         snappable
@@ -161,10 +181,10 @@ export function OverlayMoveable({
                         onRound={({ target, borderRadius }) => {
                             target.style.borderRadius = borderRadius;
                         }}
-                        onDragEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
-                        onResizeEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
-                        onRotateEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
-                        onRoundEnd={({ target }) => commitActiveWidgetTransform(target as HTMLDivElement)}
+                        onDragEnd={({ target }) => onWidgetLayoutChange(activeWidget.id, target as HTMLElement, overlayRef.current)}
+                        onResizeEnd={({ target }) => onWidgetLayoutChange(activeWidget.id, target as HTMLElement, overlayRef.current)}
+                        onRotateEnd={({ target }) => onWidgetLayoutChange(activeWidget.id, target as HTMLElement, overlayRef.current)}
+                        onRoundEnd={({ target }) => onWidgetStyleChange(activeWidget.id, target as HTMLElement)}
                     />
                 )
                 : null}

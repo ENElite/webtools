@@ -1,6 +1,7 @@
 import type { WidgetModel, WidgetPropPrimitive } from '../types';
-import { buildTransformString, parseTransformString } from '../transform_utils';
-import { WidgetStyleSettingsKeys } from './schema';
+
+import { layoutFromPx, pxFromLayout } from '../transform_utils';
+import { WidgetLayoutSettingsKeys, WidgetStyleSettingsKeys } from './schema';
 
 export type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
 
@@ -16,29 +17,33 @@ export const readDraftNumber = (draft: WidgetSettingsDraft, key: string, fallbac
 export const buildWidgetStyleFromDraft = (
     draft: WidgetSettingsDraft,
     fallbackStyle: WidgetModel['style'],
-    overlayBounds: { width: number; height: number } | null
-): WidgetModel['style'] => {
-    const fallbackTransform = parseTransformString(fallbackStyle.transform);
-    const rawBorderRadius = readDraftNumber(draft, 'borderRadius', Number.parseFloat(fallbackStyle.borderRadius) || 0);
-    const rawWidth = readDraftNumber(draft, 'width', Number.parseFloat(fallbackStyle.width) || 0);
-    const rawHeight = readDraftNumber(draft, 'height', Number.parseFloat(fallbackStyle.height) || 0);
-    const rawX = readDraftNumber(draft, 'x', fallbackTransform.x);
-    const rawY = readDraftNumber(draft, 'y', fallbackTransform.y);
-    const rawRotation = readDraftNumber(draft, 'rotation', fallbackTransform.rotation);
+    fallbackLayout: WidgetModel['layout'],
+    containerBounds?: { width: number; height: number },
+): { style: WidgetModel['style']; layout: WidgetModel['layout'] } => {
 
-    const maxWidth = overlayBounds?.width ?? Number.POSITIVE_INFINITY;
-    const maxHeight = overlayBounds?.height ?? Number.POSITIVE_INFINITY;
-    const width = clamp(rawWidth, 0, maxWidth);
-    const height = clamp(rawHeight, 0, maxHeight);
-    const x = clamp(rawX, 0, Math.max(0, maxWidth - width));
-    const y = clamp(rawY, 0, Math.max(0, maxHeight - height));
-    const rotation = ((rawRotation % 360) + 360) % 360;
+    const nextLayout: WidgetModel['layout'] = {
+        ...fallbackLayout,
+        anchorX: draft['anchorX'] as WidgetModel['layout']['anchorX'] || fallbackLayout.anchorX,
+        anchorY: draft['anchorY'] as WidgetModel['layout']['anchorY'] || fallbackLayout.anchorY,
+        adapt: draft['adapt'] as WidgetModel['layout']['adapt'] || fallbackLayout.adapt,
+    };
 
-    return {
+    const layout = containerBounds && containerBounds.width > 0 && containerBounds.height > 0
+        ? layoutFromPx(
+            pxFromLayout(fallbackLayout, containerBounds.width, containerBounds.height),
+            containerBounds.width,
+            containerBounds.height,
+            nextLayout.anchorX,
+            nextLayout.anchorY,
+            nextLayout.adapt,
+        )
+        : nextLayout;
+
+
+
+    const rawBorderRadius = parseFloat(fallbackStyle.borderRadius ?? '0');
+    const style: WidgetModel['style'] = {
         borderRadius: `${rawBorderRadius}px`,
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: buildTransformString(x, y, rotation),
         opacity: typeof draft['opacity'] === 'number' ? clamp(draft['opacity'], 0, 1) : (fallbackStyle.opacity ?? 1),
         backgroundColor: typeof draft['backgroundColor'] === 'string' ? draft['backgroundColor'] : fallbackStyle.backgroundColor ?? 'rgba(255, 255, 255, 0)',
         backgroundEffect: typeof draft['backgroundEffect'] === 'string' ? draft['backgroundEffect'] as WidgetModel['style']['backgroundEffect'] : (fallbackStyle.backgroundEffect ?? 'none'),
@@ -49,23 +54,33 @@ export const buildWidgetStyleFromDraft = (
         shadowRadius: typeof draft['shadowRadius'] === 'number' ? draft['shadowRadius'] : (fallbackStyle.shadowRadius ?? 0),
         shadowColor: typeof draft['shadowColor'] === 'string' ? draft['shadowColor'] : (fallbackStyle.shadowColor ?? 'rgba(0, 0, 0, 0.5)'),
     };
+
+    return { style, layout };
 };
 
-export const splitSettingsValues = (draft: WidgetSettingsDraft, widget: WidgetModel) => {
+export const splitSettingsValues = (
+    draft: WidgetSettingsDraft,
+    widget: WidgetModel,
+    containerBounds?: { width: number; height: number },
+): Omit<WidgetModel, 'id' | 'kind'> => {
     let props: Record<string, WidgetPropPrimitive> = {};
     for (const key in draft) {
-        if (WidgetStyleSettingsKeys.includes(key as any))
+        if (key === 'id')
+            continue;
+        if (WidgetStyleSettingsKeys.includes(key as any) || WidgetLayoutSettingsKeys.includes(key as any))
             continue;
         props[key] = draft[key] ?? widget.props[key] ?? '';
     }
     const label = typeof draft['label'] === 'string' ? draft['label'] : widget.label;
     const locked = typeof draft['locked'] === 'boolean' ? draft['locked'] : (widget.locked ?? false);
     const autoHide = typeof draft['autoHide'] === 'boolean' ? draft['autoHide'] : (widget.autoHide ?? false);
+    const { style, layout } = buildWidgetStyleFromDraft(draft, widget.style, widget.layout, containerBounds);
     return {
-        label: label,
-        locked: locked,
-        autoHide: autoHide,
-        style: buildWidgetStyleFromDraft(draft, widget.style, null),
+        label,
+        locked,
+        autoHide,
+        style,
         props,
+        layout,
     };
 };

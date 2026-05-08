@@ -9,23 +9,10 @@ import type {
     WidgetKind,
     WidgetFlatProps,
     WidgetPropPrimitive,
-    WidgetStyle
 } from '../types';
-
-export const DEFAULT_SETTINGS_WIDGET_STYLE: WidgetStyle = {
-    width: '700px',
-    height: '450px',
-    transform: 'translate(100px, 100px) rotate(0deg)',
-    borderRadius: '16px',
-};
 
 export const WidgetStyleSettingsKeys = [
     'opacity',
-    'width',
-    'height',
-    'x',
-    'y',
-    'rotation',
     'backgroundColor',
     'backgroundEffect',
     'backgroundImageUrl',
@@ -38,13 +25,16 @@ export const WidgetStyleSettingsKeys = [
 
 export type WidgetStyleSettingsKey = typeof WidgetStyleSettingsKeys[number];
 
+export const WidgetLayoutSettingsKeys = [
+    'anchorX',
+    'anchorY',
+    'adapt',
+] as const;
+
+export type WidgetLayoutSettingsKey = typeof WidgetLayoutSettingsKeys[number];
+
 export type WidgetStyleSettingsDraft = {
     opacity: number;
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-    rotation: number;
     backgroundColor: string;
     backgroundEffect: string;
     backgroundImageUrl: string;
@@ -75,46 +65,33 @@ const WIDGET_BASE_SETTINGS_SCHEMA = [
         type: 'boolean',
     },
     {
-        key: 'width',
-        label: '宽度',
-        type: 'number',
-        min: 0,
-        max: 4096,
-        step: 1,
+        key: 'anchorX',
+        label: '水平锚点',
+        type: 'enum',
+        options: [
+            { label: '左', value: 'left' },
+            { label: '中', value: 'center' },
+            { label: '右', value: 'right' },
+        ],
     },
     {
-        key: 'height',
-        label: '高度',
-        type: 'number',
-        min: 0,
-        max: 4096,
-        step: 1,
+        key: 'anchorY',
+        label: '垂直锚点',
+        type: 'enum',
+        options: [
+            { label: '上', value: 'top' },
+            { label: '中', value: 'center' },
+            { label: '下', value: 'bottom' },
+        ],
     },
     {
-        key: 'x',
-        label: 'X',
-        type: 'number',
-        min: 0,
-        max: 4096,
-        step: 1,
-    },
-    {
-        key: 'y',
-        label: 'Y',
-        type: 'number',
-        min: 0,
-        max: 4096,
-        step: 1,
-    },
-    {
-        key: 'rotation',
-        label: '旋转',
-        type: 'number',
-        min: -360,
-        max: 360,
-        step: 1,
-        suffix: 'degree',
-        modulo: 360,
+        key: 'adapt',
+        label: '适配策略',
+        type: 'enum',
+        options: [
+            { label: '固定', value: 'fixed' },
+            { label: '拉伸', value: 'stretch' },
+        ],
     },
 ] satisfies WidgetSettingsSchema;
 

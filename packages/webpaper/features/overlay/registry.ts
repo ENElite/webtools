@@ -3,6 +3,7 @@ import type {
     WidgetKind,
     WidgetModel,
     WidgetStyle,
+    WidgetLayout,
     WidgetRenderer,
     WidgetRendererMap,
 } from './types';
@@ -52,9 +53,6 @@ export const DEFAULT_OVERLAY_Z_INDEX = 4;
 export const DEFAULT_SNAP_THRESHOLD = 8;
 
 export const DEFAULT_WIDGET_STYLE = {
-    transform: 'translate(56px, 56px) rotate(0deg)',
-    width: '520px',
-    height: '128px',
     opacity: 1,
     backgroundColor: 'rgba(255, 255, 255, 0)',
     backgroundEffect: 'none',
@@ -67,11 +65,29 @@ export const DEFAULT_WIDGET_STYLE = {
     shadowColor: 'rgba(0, 0, 0, 0.5)',
 } satisfies Partial<WidgetStyle>;
 
+export const DEFAULT_WIDGET_LAYOUT = {
+    anchorX: 'left',
+    anchorY: 'top',
+    x: 5,
+    y: 5,
+    w: 40,
+    h: 16,
+    rotation: 0,
+    adapt: 'fixed',
+} satisfies Partial<WidgetLayout>;
+
 function createWidgetStyle(transform: Partial<WidgetStyle> = {}): WidgetStyle {
     return {
         ...DEFAULT_WIDGET_STYLE,
         ...transform,
     } as WidgetStyle;
+}
+
+function createWidgetLayout(layout: Partial<WidgetLayout> = {}): WidgetLayout {
+    return {
+        ...DEFAULT_WIDGET_LAYOUT,
+        ...layout,
+    } as WidgetLayout;
 }
 
 function encodeBase62(value: bigint): string {
@@ -93,7 +109,7 @@ function encodeBase62(value: bigint): string {
     return output;
 }
 
-function generateWidgetId(): string {
+export function generateWidgetId(): string {
     const seed = (BigInt(Date.now()) * 1000000n) + BigInt(Math.floor(Math.random() * 1000000));
     return encodeBase62(seed);
 }
@@ -111,7 +127,7 @@ function defaultWidgetLabel(kind: WidgetKind): string {
 
 export function createWidget(
     kind: WidgetKind,
-    transform: Partial<WidgetStyle> = {},
+    opts: { style?: Partial<WidgetStyle>; layout?: Partial<WidgetLayout> } = {},
 ): WidgetModel {
     const props = {
         text: DEFAULT_TEXT_WIDGET_PROPS,
@@ -128,7 +144,8 @@ export function createWidget(
         kind,
         label: defaultWidgetLabel(kind),
         props: props[kind],
-        style: createWidgetStyle(transform),
+        style: createWidgetStyle(opts.style || {}),
+        layout: createWidgetLayout(opts.layout || {}),
         autoHide: false,
     };
 }

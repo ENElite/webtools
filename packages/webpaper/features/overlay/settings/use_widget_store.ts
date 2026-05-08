@@ -2,16 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useOverlayStore as useOverlayRootStore } from '../store';
 import { splitSettingsValues } from './settings_utils';
-import { parseTransformString } from '../transform_utils';
 import type { WidgetModel, WidgetPropPrimitive } from '../types';
 
 export type WidgetSettingsDraft = Record<string, WidgetPropPrimitive>;
 
-function buildDraft(widget: WidgetModel): WidgetSettingsDraft {
-    const { x, y, rotation } = parseTransformString(widget.style.transform);
-    const width = Number.parseFloat(widget.style.width) || 0;
-    const height = Number.parseFloat(widget.style.height) || 0;
-    const borderRadius = Number.parseFloat(widget.style.borderRadius) || 0;
+export function buildWidgetSettingsDraft(widget: WidgetModel): WidgetSettingsDraft {
+    const anchorX = widget.layout?.anchorX ?? 'left';
+    const anchorY = widget.layout?.anchorY ?? 'top';
+    const adapt = widget.layout?.adapt ?? 'fixed';
 
     return {
         id: widget.id,
@@ -19,12 +17,9 @@ function buildDraft(widget: WidgetModel): WidgetSettingsDraft {
         locked: widget.locked ?? false,
         autoHide: widget.autoHide ?? false,
         ...widget.props,
-        width,
-        height,
-        x,
-        y,
-        rotation,
-        borderRadius,
+        anchorX,
+        anchorY,
+        adapt,
         opacity: widget.style.opacity ?? 1,
         backgroundColor: widget.style.backgroundColor ?? 'rgba(255, 255, 255, 0)',
         backgroundEffect: widget.style.backgroundEffect ?? 'none',
@@ -57,23 +52,19 @@ function draftEquals(a: WidgetSettingsDraft, b: WidgetSettingsDraft): boolean {
     return true;
 }
 
-export function buildWidgetSettingsDraft(widget: WidgetModel): WidgetSettingsDraft {
-    return buildDraft(widget);
-}
-
-export function useWidgetStore(widget: WidgetModel, onClose: () => void) {
+export function useWidgetStore(widget: WidgetModel, onClose: () => void, containerBounds?: { width: number; height: number }) {
     const updateWidget = useOverlayRootStore((state) => state.updateOverlayWidget);
-    const initialDraftRef = useRef<WidgetSettingsDraft>(buildDraft(widget));
+    const initialDraftRef = useRef<WidgetSettingsDraft>(buildWidgetSettingsDraft(widget));
 
-    const [draftValues, setDraftValues] = useState<WidgetSettingsDraft>(() => buildDraft(widget));
-    const [savedDraft, setSavedDraft] = useState<WidgetSettingsDraft>(() => buildDraft(widget));
+    const [draftValues, setDraftValues] = useState<WidgetSettingsDraft>(() => buildWidgetSettingsDraft(widget));
+    const [savedDraft, setSavedDraft] = useState<WidgetSettingsDraft>(() => buildWidgetSettingsDraft(widget));
     const [historyState, setHistoryState] = useState<{ past: WidgetSettingsDraft[]; future: WidgetSettingsDraft[] }>({
         past: [],
         future: [],
     });
 
     useEffect(() => {
-        const nextDraft = buildDraft(widget);
+        const nextDraft = buildWidgetSettingsDraft(widget);
         initialDraftRef.current = cloneDraft(nextDraft);
         setDraftValues(cloneDraft(nextDraft));
         setSavedDraft(cloneDraft(nextDraft));
@@ -140,25 +131,26 @@ export function useWidgetStore(widget: WidgetModel, onClose: () => void) {
     }, [draftValues]);
 
     const save = useCallback(() => {
-        const nextPatch = splitSettingsValues(draftValues, widget);
+        const nextPatch = splitSettingsValues(draftValues, widget, containerBounds);
         updateWidget(widget.id, nextPatch);
         setSavedDraft(cloneDraft(draftValues));
-    }, [draftValues, updateWidget, widget]);
+    }, [containerBounds, draftValues, updateWidget, widget]);
 
     const applyLivePatch = useCallback((nextDraft: WidgetSettingsDraft) => {
-        const nextPatch = splitSettingsValues(nextDraft, widget);
+        const nextPatch = splitSettingsValues(nextDraft, widget, containerBounds);
         updateWidget(widget.id, {
             props: nextPatch.props,
             style: nextPatch.style,
+            layout: nextPatch.layout,
         });
-    }, [updateWidget, widget]);
+    }, [containerBounds, updateWidget, widget]);
 
     const saveAndClose = useCallback(() => {
-        const nextPatch = splitSettingsValues(draftValues, widget);
+        const nextPatch = splitSettingsValues(draftValues, widget, containerBounds);
         updateWidget(widget.id, nextPatch);
         setSavedDraft(cloneDraft(draftValues));
         onClose();
-    }, [draftValues, onClose, updateWidget, widget]);
+    }, [containerBounds, draftValues, onClose, updateWidget, widget]);
 
     const discardAndClose = useCallback(() => {
         onClose();

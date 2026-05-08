@@ -4,10 +4,7 @@ export type WidgetId = string;
 export type WidgetKind = 'text' | 'image' | 'video' | 'clock' | 'canvas' | 'html' | 'iframe';
 
 export type WidgetStyle = {
-    transform: string;
-    width: string;
-    height: string;
-    borderRadius: string;
+    borderRadius?: string; // 仅通过 moveable 调整
     opacity?: number;
     backgroundColor?: string;
     backgroundEffect?: 'blur' | 'image' | 'none';
@@ -22,11 +19,27 @@ export type WidgetStyle = {
 export type WidgetPropPrimitive = string | number | boolean | null;
 export type WidgetFlatProps = Record<string, WidgetPropPrimitive>;
 
+export type WidgetHorizontalAnchor = 'left' | 'center' | 'right';
+export type WidgetVerticalAnchor = 'top' | 'center' | 'bottom';
+
+export type WidgetLayout = {
+    anchorX: WidgetHorizontalAnchor;
+    anchorY: WidgetVerticalAnchor;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    // 以度为单位的旋转角度（持久化）
+    rotation: number;
+    adapt: 'stretch' | 'fixed';
+};
+
 export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     id: WidgetId;
     kind: WidgetKind;
     label: string;
     style: WidgetStyle;
+    layout: WidgetLayout;
     props: TProps;
     locked?: boolean;
     autoHide?: boolean;
@@ -47,7 +60,7 @@ export type OverlayAction =
     | { type: 'move-widget-down'; widgetId: WidgetId }
     | { type: 'move-widget-to-top'; widgetId: WidgetId }
     | { type: 'move-widget-to-bottom'; widgetId: WidgetId }
-    | { type: 'copy-widget'; widgetId: WidgetId; style: WidgetStyle };
+    | { type: 'copy-widget'; widgetId: WidgetId; layout?: WidgetLayout };
 
 export type OverlayDispatch = Dispatch<OverlayAction>;
 
@@ -57,9 +70,9 @@ export type WidgetableActionEvent =
     | { type: 'move-widget-to-top'; widgetId: WidgetId }
     | { type: 'move-widget-to-bottom'; widgetId: WidgetId }
     | { type: 'remove-widget'; widgetId: WidgetId }
-    | { type: 'reset-widget-rotation'; widgetId: WidgetId; style: WidgetStyle }
+    | { type: 'reset-widget-rotation'; widgetId: WidgetId }
     | { type: 'toggle-widget-lock'; widgetId: WidgetId; locked: boolean }
-    | { type: 'copy-widget'; widgetId: WidgetId; style: WidgetStyle }
+    | { type: 'copy-widget'; widgetId: WidgetId; layout?: WidgetLayout }
     | { type: 'open-widget-settings'; widgetId: WidgetId };
 
 export type SnapAxis = 'x' | 'y';

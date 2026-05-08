@@ -13,8 +13,8 @@ export type WidgetableButtonType =
 
 type WidgetableProps = {
     locked: boolean;
-    onWidgetableMouseEnter?: () => void;
-    onWidgetableMouseLeave?: () => void;
+    onMouseEnter?: () => void;
+    onMouseLeave?: () => void;
     onWidgetableClicked?: (type: WidgetableButtonType) => void;
 };
 
@@ -36,8 +36,8 @@ export const Widgetable = {
     events: [],
     render(moveable: MoveableManagerInterface<WidgetableProps>, _: Renderer) {
         const onWidgetableClicked = moveable.props.onWidgetableClicked;
-        const onWidgetableMouseEnter = moveable.props.onWidgetableMouseEnter;
-        const onWidgetableMouseLeave = moveable.props.onWidgetableMouseLeave;
+        const onMouseEnter = moveable.props.onMouseEnter;
+        const onMouseLeave = moveable.props.onMouseLeave;
         const locked = moveable.props.locked;
         const WidgetableViewer = moveable.useCSS('div', `
             {
@@ -68,7 +68,7 @@ export const Widgetable = {
         const { pos3: pos } = moveable.state;
         return <WidgetableViewer key={"widgetable-viewer"} className='widgetable-viewer' style={{
             transform: `translate(${pos[0]}px, ${pos[1]}px) rotate(${rect.rotation}deg) translate(0px, 10px)`,
-        }} onMouseEnter={onWidgetableMouseEnter} onMouseLeave={onWidgetableMouseLeave}>
+        }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
             <Space.Compact key={"widgetable-buttons"}>
                 {buttons.map(({ type, title, iconClass }) => (
                     <Button

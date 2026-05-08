@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import Moveable from 'react-moveable';
 import { Button, Modal, Typography } from 'antd';
 
-import { Maximizable, toggleMaximizeTarget } from '../maximizable';
+import { Maximizable, toggleMaximizeByRequest } from '../maximizable';
 import { WidgetDynamicForm } from './widget_dynamic_form';
 import { resolveWidgetSettingsSchema } from './schema';
 import { useWidgetStore } from './use_widget_store';
@@ -16,13 +16,12 @@ type SettingsPanelProps = {
     onClose: () => void;
 };
 
-const DEFERRED_MODEL_KEYS = new Set(['label', 'locked', 'autoHide', 'width', 'height', 'x', 'y', 'rotation']);
-
 export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPanelProps) {
     const [panelHostElement, setPanelHostElement] = useState<HTMLDivElement | null>(null);
     const [headerElement, setHeaderElement] = useState<HTMLElement | null>(null);
     const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
     const [maximized, setMaximized] = useState(false);
+    const moveableRef = useRef<Moveable | null>(null);
     const {
         draftValues,
         isDirty,
@@ -70,7 +69,7 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
 
     const schema = useMemo((): WidgetSettingsSchema | null => {
         return resolveWidgetSettingsSchema(sourceWidget.kind);
-    }, [sourceWidget.kind, draftValues['width'], draftValues['height']]);
+    }, [sourceWidget.kind]);
 
     const widgetTitle = useMemo(() => {
         return `组件设置 - ${sourceWidget.label}`;
@@ -98,9 +97,12 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                 getContainer={() => container || document.body}
                 panelRef={setPanelHostElement}
                 open
+                className='left-0 top-0 '
                 width={760}
+                centered
                 style={{
                     height: '550px',
+                    minWidth: '450px',
                 }}
                 styles={{
                     container: {
@@ -111,10 +113,11 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                         padding: 0,
                         height: '100%',
                         paddingBottom: 30,
+                        overflow: 'hidden',
                     },
                 }}
                 mask={{
-                    closable: false,
+                    closable: true,
                 }}
                 keyboard={false}
                 destroyOnHidden
@@ -135,10 +138,10 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                                 size='small'
                                 title={maximized ? '还原' : '最大化'}
                                 onClick={() => {
-                                    if (!panelHostElement) {
+                                    if (!panelHostElement || !moveableRef.current) {
                                         return;
                                     }
-                                    const nextMaximized = toggleMaximizeTarget(panelHostElement, container);
+                                    const nextMaximized = toggleMaximizeByRequest(moveableRef.current.getManager(), panelHostElement, container);
                                     setMaximized(nextMaximized);
                                 }}
                             >
@@ -172,16 +175,15 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                 <WidgetDynamicForm
                     value={draftValues}
                     schema={schema}
-                    onChange={(nextDraft, changedKey) => {
+                    onChange={(nextDraft) => {
                         commitDraft(nextDraft);
-                        if (!DEFERRED_MODEL_KEYS.has(changedKey)) {
-                            applyLivePatch(nextDraft);
-                        }
+                        applyLivePatch(nextDraft);
                     }}
                 />
             </Modal>
 
             <Moveable
+                ref={moveableRef}
                 target={panelHostElement}
                 draggable
                 resizable={!maximized}
