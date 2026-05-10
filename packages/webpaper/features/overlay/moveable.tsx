@@ -1,10 +1,13 @@
 import Moveable from 'react-moveable';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 
-import { Widgetable } from './widgetable';
-import type { WidgetModel, WidgetableActionEvent } from './types';
+import { Widgetable } from './ables/widgetable';
+import type { WidgetModel } from './types';
 import { DEFAULT_SNAP_THRESHOLD } from './registry';
+import { Dimensionable } from './ables/dimensionable';
+import { useWidgetAction } from '@/store/widgetStore';
+import { WidgetActionEvent } from '@/store';
 
 type OverlayMoveableProps = {
     activeWidget: WidgetModel | null;
@@ -22,7 +25,7 @@ type OverlayMoveableProps = {
     };
     onWidgetableMouseEnter: (widgetId: string) => void;
     onWidgetableMouseLeave: (widgetId: string) => void;
-    onWidgetableAction: (event: WidgetableActionEvent) => void;
+    onWidgetSettingsClick: () => void;
     onWidgetLayoutChange: (widgetId: string, target: HTMLElement | null, container: HTMLElement | null) => void;
     onWidgetStyleChange: (widgetId: string, target: HTMLElement | null) => void;
 };
@@ -30,41 +33,21 @@ type OverlayMoveableProps = {
 export function OverlayMoveable({
     activeWidget,
     hoveredWidget,
-    widgetableVisibleWidgetId,
     overlayRef,
     widgetElementRef,
     widgets,
     widgetableConfig,
     onWidgetableMouseEnter,
     onWidgetableMouseLeave,
-    onWidgetableAction,
+    onWidgetSettingsClick,
     onWidgetLayoutChange,
     onWidgetStyleChange,
 }: OverlayMoveableProps) {
     const moveableRef = useRef<Moveable | null>(null);
-    const widgetableRef = useRef<Moveable | null>(null);
-    const activeWidgetIdRef = useRef<string | null>(null);
+    const hoverableRef = useRef<Moveable | null>(null);
+    // const activeWidgetIdRef = useRef<string | null>(null);
     const activeTarget = activeWidget ? widgetElementRef.current[activeWidget.id] : null;
     const hoveredTarget = hoveredWidget ? widgetElementRef.current[hoveredWidget.id] : null;
-
-    useLayoutEffect(() => {
-        if (!activeWidget || !activeTarget) {
-            return;
-        }
-
-        if (activeWidgetIdRef.current === activeWidget.id) {
-            return;
-        }
-
-        activeWidgetIdRef.current = activeWidget.id;
-        moveableRef.current?.updateRect();
-    }, [activeWidget, activeTarget]);
-
-    useLayoutEffect(() => {
-        if (!activeWidget) {
-            activeWidgetIdRef.current = null;
-        }
-    }, [activeWidget]);
 
     const elementGuidelines = useMemo(() => {
         if (!activeWidget) {
@@ -83,62 +66,51 @@ export function OverlayMoveable({
     const roundable = widgetableConfig?.roundable ?? !locked;
     const resizable = widgetableConfig?.resizable ?? !locked;
     const draggable = !locked;
-    const dragTarget = widgetableConfig?.dragTarget ?? activeTarget ?? undefined;
 
-    const widgetableWidget = widgetableVisibleWidgetId
-        ? (activeWidget?.id === widgetableVisibleWidgetId ? activeWidget : hoveredWidget?.id === widgetableVisibleWidgetId ? hoveredWidget : null)
-        : null;
-    const widgetableTarget = widgetableVisibleWidgetId
-        ? (activeWidget?.id === widgetableVisibleWidgetId ? activeTarget : hoveredWidget?.id === widgetableVisibleWidgetId ? hoveredTarget : null)
-        : null;
-    const widgetableLocked = widgetableWidget?.locked ?? false;
-
+    const widgetableLocked = activeWidget?.locked ?? false;
+    const {
+        toggleLock, resetRotation,
+        moveUp, moveDown, moveToTop, moveToBottom,
+        remove, copy,
+    } = useWidgetAction();
+    const callbacks = {
+        'toggle-widget-lock': toggleLock,
+        'copy-widget': copy,
+        'move-widget-up': moveUp,
+        'move-widget-down': moveDown,
+        'move-widget-to-top': moveToTop,
+        'move-widget-to-bottom': moveToBottom,
+        'remove-widget': remove,
+        'reset-widget-rotation': resetRotation,
+    }
     const onWidgetableClicked = (type: string) => {
-        if (!widgetableWidget || !widgetableTarget) {
+        const widgetableWidget = activeWidget || hoveredWidget;
+        if (!widgetableWidget) {
             return;
         }
-
-        if (!overlayRef.current) {
-            return;
-        }
-
-        const actionType = type as WidgetableActionEvent['type'];
+        const actionType = type as WidgetActionEvent['type'];
 
         if (actionType === 'toggle-widget-lock') {
-            onWidgetableAction({
-                type: actionType,
-                widgetId: widgetableWidget.id,
-                locked: !widgetableWidget.locked,
-            });
+            toggleLock(widgetableWidget.id, !widgetableWidget.locked);
             return;
         }
 
-        if (actionType === 'copy-widget') {
-            const layout = widgetableWidget.layout;
-
-            onWidgetableAction({
-                type: actionType,
-                widgetId: widgetableWidget.id,
-                layout,
-            });
+        if (actionType === 'open-widget-settings') {
+            onWidgetSettingsClick?.();
             return;
         }
 
-        onWidgetableAction({
-            type: actionType,
-            widgetId: widgetableWidget.id,
-        } as WidgetableActionEvent);
+        callbacks[actionType](widgetableWidget.id);
     };
 
     return (
         <>
-            {activeTarget && activeWidget
+            {activeWidget
                 ? (
                     <Moveable
                         ref={moveableRef}
                         target={activeTarget}
                         draggable={draggable}
-                        dragTarget={dragTarget}
                         rotatable={rotatable}
                         roundable={roundable}
                         useMutationObserver={true}
@@ -161,11 +133,14 @@ export function OverlayMoveable({
                         origin={false}
                         edge={false}
                         preventClickEventOnDrag
-                        ables={[Widgetable]}
+                        ables={[Widgetable, Dimensionable]}
                         props={{
                             widgetable,
                             locked: widgetableLocked,
                             onWidgetableClicked,
+                            dimensionable: true,
+                            position: 'top-right',
+                            padding: 2,
                         }}
                         onDrag={({ target, transform }) => {
                             target.style.transform = transform;
@@ -189,11 +164,11 @@ export function OverlayMoveable({
                 )
                 : null}
 
-            {(!activeTarget || !activeWidget) && widgetableTarget && widgetableWidget
+            {(!activeWidget) && hoveredWidget
                 ? (
                     <Moveable
-                        ref={widgetableRef}
-                        target={widgetableTarget}
+                        ref={hoverableRef}
+                        target={hoveredTarget}
                         draggable={false}
                         rotatable={false}
                         resizable={false}
@@ -202,12 +177,13 @@ export function OverlayMoveable({
                         edge={false}
                         hideDefaultLines
                         renderDirections={[]}
-                        ables={[Widgetable]}
+                        ables={[Widgetable, Dimensionable]}
                         props={{
                             widgetable,
+                            dimensionable: true,
                             locked: widgetableLocked,
-                            onWidgetableMouseEnter: () => onWidgetableMouseEnter(widgetableWidget.id),
-                            onWidgetableMouseLeave: () => onWidgetableMouseLeave(widgetableWidget.id),
+                            onMouseEnter: () => onWidgetableMouseEnter(hoveredWidget.id),
+                            onMouseLeave: () => onWidgetableMouseLeave(hoveredWidget.id),
                             onWidgetableClicked,
                         }}
                     />
