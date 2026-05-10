@@ -1,22 +1,19 @@
 export {
-    useOverlayStore as useAppStore,
-    useAppSelector,
     useOverlayStore,
-    useOverlaySelector,
-    createDefaultOverlayState,
-} from './overlay_state_store';
-
+} from './overlayStore';
 
 export {
-    useWebpaperStore,
-    DEFAULT_SHARED_SETTINGS,
-} from './webpaper_settings_store';
+    usePaperStore,
+} from './paperStore';
+
+export {
+    useRecordStore
+} from './recordStore';
+
+export {
+    useWidgetStore,
+} from './widgetStore';
 
 export type {
-    SharedSettings,
-    WebpaperProvider,
-} from './webpaper_settings_store';
-
-export {
-    useOverlayWidgetStore,
-} from './overlay_widget_store';
+    WidgetActionEvent,
+} from './widgetStore';
