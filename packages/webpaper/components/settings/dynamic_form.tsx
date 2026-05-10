@@ -283,8 +283,9 @@ export function SettingsDynamicForm<TValues extends SettingsValues>({ value, sch
         return null;
     };
 
-    const groups: Array<{ key: string; label: string; fields: SettingsFieldSchema<TValues>[] }> = [];
+    const groups: Array<{ key: string; label: string; fields: SettingsFieldSchema<TValues>[]; default?: boolean; }> = [];
     let currentLabel = '设置';
+    let defaultKey: string = `group-0`;
     let currentFields: SettingsFieldSchema<TValues>[] = [];
 
     for (const field of schema) {
@@ -298,6 +299,7 @@ export function SettingsDynamicForm<TValues extends SettingsValues>({ value, sch
             }
 
             currentLabel = field.label || `分组 ${groups.length + 1}`;
+            defaultKey = field.default ? `group-${groups.length}` : defaultKey;
             currentFields = [];
             continue;
         }
@@ -323,7 +325,7 @@ export function SettingsDynamicForm<TValues extends SettingsValues>({ value, sch
             tabBarGutter={8}
             tabPlacement='start'
             indicator={{ align: 'start' }}
-            defaultActiveKey={groups[groups.length - 1]?.key}
+            defaultActiveKey={defaultKey}
             items={groups.map((group) => ({
                 key: group.key,
                 label: group.label,

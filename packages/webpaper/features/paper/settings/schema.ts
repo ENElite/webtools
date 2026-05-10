@@ -99,25 +99,13 @@ const PAPER_SHARED_SETTINGS_SCHEMA: SettingsSchema<PaperSettingsValues> = [
 ];
 
 export const PAPER_SETTINGS_SCHEMA: SettingsSchema<PaperSettingsValues> = [
-    {
-        type: 'divider',
-        label: '共享设置',
-    },
+    { type: 'divider', label: '共享设置', default: true, },
     ...PAPER_SHARED_SETTINGS_SCHEMA,
-    {
-        type: 'divider',
-        label: 'Konachan 设置',
-    },
+    { type: 'divider', label: 'Konachan 设置', },
     ...PROVIDER_KONACHAN_SCHEMA,
-    {
-        type: 'divider',
-        label: 'BirdPaper 设置',
-    },
+    { type: 'divider', label: 'BirdPaper 设置', },
     ...PROVIDER_BIRD_SCHEMA,
-    {
-        type: 'divider',
-        label: 'Json 设置',
-    },
+    { type: 'divider', label: 'Json 设置', },
     ...PROVIDER_JSON_SCHEMA,
 ];
 

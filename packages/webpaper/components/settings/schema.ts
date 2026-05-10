@@ -100,6 +100,7 @@ export type SettingsFieldSchema<T extends SettingsValues = SettingsValues> =
     | {
         type: 'divider';
         label?: string;
+        default?: boolean;
     };
 
 export type SettingsSchema<T extends SettingsValues = SettingsValues> = ReadonlyArray<SettingsFieldSchema<T>>;
