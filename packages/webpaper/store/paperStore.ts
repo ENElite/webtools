@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { DEFAULT_KONACHAN_SETTINGS, type KonachanProviderSettings } from '@/providers/konachan/schema';
 import { DEFAULT_JSON_SETTINGS, type JsonProviderSettings } from '@/providers/json/schema';
 import { DEFAULT_BIRD_PROVIDER_SETTINGS, type BirdProviderSettings } from '@/providers/bird/schema';
-import { DEFAULT_SHARED_SETTINGS, type SharedSettings } from '@/features/paper'
+import { DEFAULT_SHARED_SETTINGS, type SharedSettings } from '@/features/paper/settings/schema';
 
 
 type PaperState = {

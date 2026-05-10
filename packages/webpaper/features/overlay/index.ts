@@ -8,9 +8,14 @@ export {
     defaultWidgetLabel
 } from './registry';
 
-export { buildTransformString, normalizeSizeToPx, parseTransformString } from './transform_utils';
+export {
+    buildTransformString,
+    normalizeSizeToPx,
+    parseTransformString
+} from './transform_utils';
 
 export type {
+    WidgetKind,
     WidgetModel,
     WidgetRendererMap,
 } from './types';

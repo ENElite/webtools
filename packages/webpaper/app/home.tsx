@@ -3,7 +3,7 @@
 import 'antd/dist/reset.css';
 import './globals.css';
 
-import { App as AntApp, ConfigProvider } from 'antd';
+import { App, ConfigProvider } from 'antd';
 
 import { Webpaper } from './webpaper';
 
@@ -17,9 +17,9 @@ export function Home() {
                 },
             }}
         >
-            <AntApp>
+            <App>
                 <Webpaper />
-            </AntApp>
+            </App>
         </ConfigProvider>
     );
 }

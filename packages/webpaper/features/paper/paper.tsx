@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
-import { ImageHero } from './hero/image';
+import { ImageHero, ImageHeroMode } from './hero/image';
 import { PaperSettingsPanel } from '@/features/paper/settings';
 import { usePaperStore } from '@/store/paperStore';
 import { useRecordStore } from '@/store/recordStore';
 import { buildKonachanQuery } from '@/providers/konachan/schema';
 
-export function Paper() {
+export interface PaperProps {
+    mode?: ImageHeroMode;
+}
+
+export function Paper({ mode = 'previewAsync' }: PaperProps) {
     const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
 
     const provider = usePaperStore((state) => state.sharedSettings.provider);
@@ -77,7 +81,7 @@ export function Paper() {
                 <ImageHero
                     imageUrl={record.url}
                     previewUrl={record.url || record.preview}
-                    mode='previewAsync'
+                    mode={mode}
                     objectFit={sharedSettings.objectFit}
                     trackScale={sharedSettings.trackScale}
                     trackIntensity={sharedSettings.trackIntensity}
