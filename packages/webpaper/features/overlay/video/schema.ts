@@ -1,4 +1,4 @@
-import type { WidgetSettingsSchema } from '../settings/schema';
+import type { WidgetSettingsSchema } from '../schema';
 
 export type VideoWidgetProps = {
     videoUrl: string;

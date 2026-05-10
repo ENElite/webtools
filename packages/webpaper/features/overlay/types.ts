@@ -45,11 +45,6 @@ export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     autoHide?: boolean;
 };
 
-export type OverlayState = {
-    widgets: WidgetModel[];
-    activeWidgetId: WidgetId | null;
-};
-
 export type OverlayAction =
     | { type: 'set-active'; widgetId: WidgetId | null }
     | { type: 'set-widgets'; widgets: WidgetModel[] }
@@ -63,17 +58,6 @@ export type OverlayAction =
     | { type: 'copy-widget'; widgetId: WidgetId; layout?: WidgetLayout };
 
 export type OverlayDispatch = Dispatch<OverlayAction>;
-
-export type WidgetableActionEvent =
-    | { type: 'move-widget-up'; widgetId: WidgetId }
-    | { type: 'move-widget-down'; widgetId: WidgetId }
-    | { type: 'move-widget-to-top'; widgetId: WidgetId }
-    | { type: 'move-widget-to-bottom'; widgetId: WidgetId }
-    | { type: 'remove-widget'; widgetId: WidgetId }
-    | { type: 'reset-widget-rotation'; widgetId: WidgetId }
-    | { type: 'toggle-widget-lock'; widgetId: WidgetId; locked: boolean }
-    | { type: 'copy-widget'; widgetId: WidgetId; layout?: WidgetLayout }
-    | { type: 'open-widget-settings'; widgetId: WidgetId };
 
 export type SnapAxis = 'x' | 'y';
 export type SnapSource = 'edge' | 'widget';

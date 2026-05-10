@@ -5,17 +5,12 @@ export {
 export {
     createOverlayRendererMap,
     createWidget,
+    defaultWidgetLabel
 } from './registry';
 
 export { buildTransformString, normalizeSizeToPx, parseTransformString } from './transform_utils';
 
-export {
-    useOverlayStore,
-    useOverlayWidgetStore,
-} from './store';
-
 export type {
     WidgetModel,
     WidgetRendererMap,
-    WidgetableActionEvent,
 } from './types';

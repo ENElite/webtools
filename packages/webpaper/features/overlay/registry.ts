@@ -73,7 +73,7 @@ export const DEFAULT_WIDGET_LAYOUT = {
     w: 40,
     h: 16,
     rotation: 0,
-    adapt: 'fixed',
+    adapt: 'stretch',
 } satisfies Partial<WidgetLayout>;
 
 function createWidgetStyle(transform: Partial<WidgetStyle> = {}): WidgetStyle {
@@ -114,7 +114,7 @@ export function generateWidgetId(): string {
     return encodeBase62(seed);
 }
 
-function defaultWidgetLabel(kind: WidgetKind): string {
+export function defaultWidgetLabel(kind: WidgetKind): string {
     return {
         text: '文本组件',
         html: 'HTML 组件',
