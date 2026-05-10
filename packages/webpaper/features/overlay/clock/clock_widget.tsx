@@ -218,19 +218,19 @@ export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
 
     const gapValue = Math.min(widget.props.dateGap, 1.1);
 
-    const dateNode = !finalDateDisplay
+    const dateElement = !finalDateDisplay
         ? null
-        : <div style={dateStyle}>{finalDateDisplay}</div>;
+        : mounted
+            ? <div key='date' style={dateStyle}>{finalDateDisplay}</div>
+            : <div key='date' style={dateStyle}>&nbsp;</div>;
 
-    // To avoid SSR/CSR hydration mismatch, render a stable placeholder on the server
-    // and only render the real time content after client mount.
     const timeElement = mounted
         ? <div key='time' style={textStyle}>{amPmDisplay}</div>
         : <div key='time' style={textStyle}>&nbsp;</div>;
 
     const content = displayOrder === 'date-first'
-        ? [dateNode, timeElement]
-        : [timeElement, dateNode];
+        ? [dateElement, timeElement]
+        : [timeElement, dateElement];
 
     return (
         <div
