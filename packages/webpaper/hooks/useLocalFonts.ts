@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import type { FontFamilyOption } from '@/features/overlay/settings/font_picker';
+export type FontFamilyOption = {
+    label: string;
+    value: string;
+};
 
 type LocalFontData = {
     family?: string;
@@ -9,6 +12,16 @@ type LocalFontData = {
 type LocalFontQueryWindow = Window & {
     queryLocalFonts?: () => Promise<LocalFontData[]>;
 };
+
+export const DEFAULT_FONT_FAMILIES: FontFamilyOption[] = [
+    { label: 'System UI', value: 'system-ui, sans-serif' },
+    { label: 'Arial', value: 'Arial, sans-serif' },
+    { label: 'Inter', value: 'Inter, system-ui, sans-serif' },
+    { label: 'PingFang SC', value: '"PingFang SC", "Microsoft YaHei", sans-serif' },
+    { label: 'Georgia', value: 'Georgia, serif' },
+    { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+    { label: 'SF Mono', value: '"SFMono-Regular", Consolas, "Liberation Mono", monospace' },
+];
 
 function buildFontOptions(localFonts: LocalFontData[]): FontFamilyOption[] {
     const seen = new Set<string>();
@@ -111,7 +124,7 @@ async function queryLocalFonts(candidates: FontFamilyOption[]): Promise<FontFami
     }
 }
 
-export function useLocalFonts(candidates: FontFamilyOption[]): FontFamilyOption[] {
+export function useLocalFonts(candidates: FontFamilyOption[] = DEFAULT_FONT_FAMILIES): FontFamilyOption[] {
     const [availableFonts, setAvailableFonts] = useState<FontFamilyOption[]>(candidates);
 
     useEffect(() => {

@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { Button, Form, Popover, Radio, Select, InputNumber, Slider } from 'antd';
-import useLocalFonts from '@/hooks/useLocalFonts';
+import { Button, Form, InputNumber, Popover, Radio, Select, Slider } from 'antd';
+
+
+import { useLocalFonts, FontFamilyOption } from '@/hooks/useLocalFonts';
 
 export type FontPickerValue = {
     style: 'normal' | 'italic' | 'oblique';
@@ -11,41 +13,27 @@ export type FontPickerValue = {
     family: string;
 };
 
-export type FontFamilyOption = {
-    label: string;
-    value: string;
-};
+
 
 export type FontPickerProps = {
     value?: string;
     onChange: (next: string) => void;
     fonts?: FontFamilyOption[];
-    previewText?: string;
 };
 
-const FONT_STYLE_OPTIONS: Array<{ label: string; value: FontPickerValue['style'] }> = [
+
+const FONT_STYLE_OPTIONS: Array<{ label: string; value: string }> = [
     { label: '常规', value: 'normal' },
     { label: '斜体', value: 'italic' },
 ];
 
-
-
-export const DEFAULT_FONT_FAMILIES: FontFamilyOption[] = [
-    { label: 'System UI', value: 'system-ui, sans-serif' },
-    { label: 'Arial', value: 'Arial, sans-serif' },
-    { label: 'Inter', value: 'Inter, system-ui, sans-serif' },
-    { label: 'PingFang SC', value: '"PingFang SC", "Microsoft YaHei", sans-serif' },
-    { label: 'Georgia', value: 'Georgia, serif' },
-    { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
-    { label: 'SF Mono', value: '"SFMono-Regular", Consolas, "Liberation Mono", monospace' },
-];
 
 const DEFAULT_FONT_VALUE: FontPickerValue = {
     style: 'normal',
     weight: 400,
     size: 16,
     lineHeight: 1.25,
-    family: DEFAULT_FONT_FAMILIES[0]?.value ?? 'system-ui, sans-serif',
+    family: 'system-ui, sans-serif',
 };
 
 const FONT_TOKEN_REGEX = /"[^"]*"|'[^']*'|[^\s]+/g;
@@ -69,7 +57,6 @@ export function parseFontString(font?: string): FontPickerValue {
     const sizeTokenIndex = tokens.findIndex((entry) => {
         if (!FONT_SIZE_REGEX.test(entry.token)) return false;
         const tokenLower = entry.token.toLowerCase();
-        // 字号必须有单位 (px|rem|em|%) 或者包含 / (如 24/1.5)
         return /px|rem|em|%/.test(tokenLower) || tokenLower.includes('/');
     });
 
@@ -154,11 +141,11 @@ export function buildFontString(value: FontPickerValue): string {
     ].join(' ');
 }
 
-export function FontPicker({ value, onChange, fonts = DEFAULT_FONT_FAMILIES }: FontPickerProps) {
+export function FontPicker({ value, onChange }: FontPickerProps) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<FontPickerValue>(() => parseFontString(value));
     const pendingChangeRef = useRef<string | null>(null);
-    const availableFonts = useLocalFonts(fonts);
+    const availableFonts = useLocalFonts();
 
     const commitDraft = useCallback((updater: (current: FontPickerValue) => FontPickerValue) => {
         setDraft((current) => {

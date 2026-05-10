@@ -1,46 +1,177 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
-import Moveable from 'react-moveable';
 import { Button, Modal, Typography } from 'antd';
+import Moveable from 'react-moveable';
 
-import { Maximizable, toggleMaximizeByRequest } from '../maximizable';
-import { WidgetDynamicForm } from './widget_dynamic_form';
-import { resolveWidgetSettingsSchema } from './schema';
-import { useWidgetStore } from './use_widget_store';
-import type { WidgetSettingsSchema } from './schema';
-import type { WidgetModel } from '../types';
+import { SettingsDynamicForm } from './dynamic_form';
+import { useMaximize } from './useMaximize';
+import type { SettingsSchema, SettingsValues } from './schema';
 
-type SettingsPanelProps = {
-    sourceWidget: WidgetModel;
+type SettingsPanelProps<TValues extends SettingsValues = SettingsValues> = {
+    panelKey: string | number;
+    title: string;
+    value: TValues;
+    schema: SettingsSchema<TValues>;
     container: HTMLElement;
+    onChange: (next: TValues) => void;
     onClose: () => void;
+    onSave?: (next: TValues) => void;
+    emptyState?: ReactNode;
 };
 
-export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPanelProps) {
+type HistoryState<TValues extends SettingsValues> = {
+    past: TValues[];
+    future: TValues[];
+};
+
+function cloneValue<TValues extends SettingsValues>(value: TValues): TValues {
+    return { ...value };
+}
+
+function valuesEqual<TValues extends SettingsValues>(a: TValues, b: TValues): boolean {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) {
+        return false;
+    }
+
+    for (const key of aKeys) {
+        if (a[key] !== b[key]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+export function SettingsFormPanel<TValues extends SettingsValues>({
+    panelKey,
+    title,
+    value,
+    schema,
+    container,
+    onChange,
+    onClose,
+    onSave,
+    emptyState,
+}: SettingsPanelProps<TValues>) {
     const [panelHostElement, setPanelHostElement] = useState<HTMLDivElement | null>(null);
     const [headerElement, setHeaderElement] = useState<HTMLElement | null>(null);
     const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
-    const [maximized, setMaximized] = useState(false);
     const moveableRef = useRef<Moveable | null>(null);
-    const {
-        draftValues,
-        isDirty,
-        canUndo,
-        canRedo,
-        commitDraft,
-        undo,
-        redo,
-        resetToInitial,
-        save,
-        saveAndClose,
-        discardAndClose,
-        closeWithoutSave,
-        applyLivePatch,
-    } = useWidgetStore(sourceWidget, onClose);
+
+    const [draftValues, setDraftValues] = useState<TValues>(() => cloneValue(value));
+    const [savedValues, setSavedValues] = useState<TValues>(() => cloneValue(value));
+    const [historyState, setHistoryState] = useState<HistoryState<TValues>>({
+        past: [],
+        future: [],
+    });
+    const initialValuesRef = useRef<TValues>(cloneValue(value));
+
+    const resetPanelState = (nextValue: TValues) => {
+        const nextDraft = cloneValue(nextValue);
+        initialValuesRef.current = cloneValue(nextDraft);
+        setDraftValues(nextDraft);
+        setSavedValues(cloneValue(nextDraft));
+        setHistoryState({ past: [], future: [] });
+        setCloseConfirmOpen(false);
+    };
 
     useEffect(() => {
-        setCloseConfirmOpen(false);
-    }, [sourceWidget.id]);
+        resetPanelState(value);
+    }, [panelKey]);
+
+    const commitDraft = (nextDraft: TValues) => {
+        if (valuesEqual(draftValues, nextDraft)) {
+            return;
+        }
+
+        setHistoryState((current) => ({
+            past: [...current.past, cloneValue(draftValues)],
+            future: [],
+        }));
+
+        const nextValue = cloneValue(nextDraft);
+        setDraftValues(nextValue);
+        onChange(nextValue);
+    };
+
+    const undo = () => {
+        setHistoryState((current) => {
+            const previous = current.past[current.past.length - 1];
+            if (!previous) {
+                return current;
+            }
+
+            const nextFuture = [cloneValue(draftValues), ...current.future];
+            const nextDraft = cloneValue(previous);
+            setDraftValues(nextDraft);
+            onChange(nextDraft);
+
+            return {
+                past: current.past.slice(0, -1),
+                future: nextFuture,
+            };
+        });
+    };
+
+    const redo = () => {
+        setHistoryState((current) => {
+            const next = current.future[0];
+            if (!next) {
+                return current;
+            }
+
+            const nextDraft = cloneValue(next);
+            setDraftValues(nextDraft);
+            onChange(nextDraft);
+
+            return {
+                past: [...current.past, cloneValue(draftValues)],
+                future: current.future.slice(1),
+            };
+        });
+    };
+
+    const resetToInitial = () => {
+        const initialValues = initialValuesRef.current;
+        if (valuesEqual(draftValues, initialValues)) {
+            return;
+        }
+
+        setHistoryState((current) => ({
+            past: [...current.past, cloneValue(draftValues)],
+            future: [],
+        }));
+
+        const nextDraft = cloneValue(initialValues);
+        setDraftValues(nextDraft);
+        onChange(nextDraft);
+    };
+
+    const save = () => {
+        const nextSaved = cloneValue(draftValues);
+        setSavedValues(nextSaved);
+        onSave?.(nextSaved);
+    };
+
+    const saveAndClose = () => {
+        save();
+        onClose();
+    };
+
+    const discardAndClose = () => {
+        onClose();
+    };
+
+    const closeWithoutSave = () => {
+        onClose();
+    };
+
+    const isDirty = useMemo(() => !valuesEqual(draftValues, savedValues), [draftValues, savedValues]);
+    const canUndo = historyState.past.length > 0;
+    const canRedo = historyState.future.length > 0;
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -67,14 +198,6 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
         };
     }, [redo, undo]);
 
-    const schema = useMemo((): WidgetSettingsSchema | null => {
-        return resolveWidgetSettingsSchema(sourceWidget.kind);
-    }, [sourceWidget.kind]);
-
-    const widgetTitle = useMemo(() => {
-        return `组件设置 - ${sourceWidget.label}`;
-    }, [sourceWidget.label]);
-
     const requestClose = () => {
         if (!isDirty) {
             closeWithoutSave();
@@ -84,20 +207,19 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
         setCloseConfirmOpen(true);
     };
 
-    if (!schema) {
-        return (
-            <div className='flex items-center justify-center w-full h-full text-gray-400'>
-                无法加载设置面板
-            </div>
-        );
-    }
+    const { maximized, toggle } = useMaximize({
+        target: panelHostElement,
+        container,
+        moveableRef,
+    });
+
     return (
         <>
             <Modal
                 getContainer={() => container || document.body}
                 panelRef={setPanelHostElement}
                 open
-                className='left-0 top-0 '
+                className='left-0 top-0 overflow-hidden'
                 width={760}
                 centered
                 style={{
@@ -113,7 +235,6 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                         padding: 0,
                         height: '100%',
                         paddingBottom: 30,
-                        overflow: 'hidden',
                     },
                 }}
                 mask={{
@@ -130,20 +251,14 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                         className='flex items-center justify-between gap-3 py-1 cursor-move select-none'
                     >
                         <Typography.Text strong className='text-sm'>
-                            {widgetTitle}
+                            {title}
                         </Typography.Text>
                         <div className='flex items-center gap-1'>
                             <Button
                                 type='text'
                                 size='small'
                                 title={maximized ? '还原' : '最大化'}
-                                onClick={() => {
-                                    if (!panelHostElement || !moveableRef.current) {
-                                        return;
-                                    }
-                                    const nextMaximized = toggleMaximizeByRequest(moveableRef.current.getManager(), panelHostElement, container);
-                                    setMaximized(nextMaximized);
-                                }}
+                                onClick={toggle}
                             >
                                 <span
                                     aria-hidden='true'
@@ -172,14 +287,21 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                     </div>
                 )}
             >
-                <WidgetDynamicForm
-                    value={draftValues}
-                    schema={schema}
-                    onChange={(nextDraft) => {
-                        commitDraft(nextDraft);
-                        applyLivePatch(nextDraft);
-                    }}
-                />
+                {schema.length > 0
+                    ? (
+                        <SettingsDynamicForm
+                            value={draftValues}
+                            schema={schema}
+                            onChange={(nextDraft) => {
+                                commitDraft(nextDraft);
+                            }}
+                        />
+                    )
+                    : emptyState ?? (
+                        <div className='flex items-center justify-center w-full h-full text-gray-400'>
+                            无法加载设置面板
+                        </div>
+                    )}
             </Modal>
 
             <Moveable
@@ -194,25 +316,17 @@ export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPane
                 hideDefaultLines
                 useMutationObserver
                 useResizeObserver
-                container={container || document.body}
+                container={container}
                 renderDirections={[]}
-                ables={[Maximizable]}
-                props={{
-                    maximizable: true,
-                    maximizableThreshold: 2,
-                    onMaximizeChange: (nextMaximized: boolean) => {
-                        setMaximized(nextMaximized);
-                    },
-                }}
                 snappable
                 snapDirections={{ left: true, top: true, right: true, bottom: true, center: true, middle: true }}
                 bounds={{ position: 'css', left: 0, top: 0, right: 0, bottom: 0 }}
                 onDrag={({ target, transform }) => {
                     target.style.transform = transform;
                 }}
-                onResize={({ target, width, height, drag }) => {
-                    target.style.width = `${width}px`;
-                    target.style.height = `${height}px`;
+                onResize={({ target, width: nextWidth, height: nextHeight, drag }) => {
+                    target.style.width = `${nextWidth}px`;
+                    target.style.height = `${nextHeight}px`;
                     target.style.transform = drag.transform;
                 }}
             />

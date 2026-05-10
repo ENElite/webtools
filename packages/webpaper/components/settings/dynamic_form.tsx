@@ -2,34 +2,36 @@ import React from 'react';
 import { useRef, useState } from 'react';
 
 import { Button, ColorPicker, Form, Input, InputNumber, Radio, Switch, Tabs } from 'antd';
+
 import { AiEditorPanel } from '@/features/editor';
 
+import { TagsInput } from './tags';
 import { FontPicker } from './font_picker';
-import type { WidgetPropPrimitive } from '../types';
-import type { WidgetSettingsSchema } from './schema';
+import { CombinerPicker } from './combiner';
+import type { SettingsFieldSchema, SettingsSchema, SettingsValuePrimitive, SettingsValues } from './schema';
 
-type WidgetDynamicFormProps = {
-    value: Record<string, WidgetPropPrimitive>;
-    schema: WidgetSettingsSchema;
-    onChange: (next: Record<string, WidgetPropPrimitive>, changedKey: string) => void;
+type SettingsDynamicFormProps<TValues extends SettingsValues = SettingsValues> = {
+    value: TValues;
+    schema: SettingsSchema<TValues>;
+    onChange: (next: TValues, changedKey: keyof TValues & string) => void;
 };
 
-export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicFormProps) {
+export function SettingsDynamicForm<TValues extends SettingsValues>({ value, schema, onChange }: SettingsDynamicFormProps<TValues>) {
     const [draggingField, setDraggingField] = useState<string | null>(null);
     const inputRefMap = useRef<Record<string, HTMLInputElement | null>>({});
 
-    const updateField = (key: string, nextValue: WidgetPropPrimitive) => {
+    const updateField = (key: keyof TValues & string, nextValue: SettingsValuePrimitive) => {
         onChange({
             ...value,
             [key]: nextValue,
-        }, key);
+        } as TValues, key);
     };
 
-    const shouldShowField = (key: string, expected: WidgetPropPrimitive) => {
+    const shouldShowField = (key: keyof TValues & string, expected: SettingsValuePrimitive) => {
         return value[key] === expected;
     };
 
-    const readImageAsDataUrl = (file: File, fieldKey: string) => {
+    const readImageAsDataUrl = (file: File, fieldKey: keyof TValues & string) => {
         const reader = new FileReader();
         reader.onload = () => {
             if (typeof reader.result === 'string') {
@@ -39,14 +41,14 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
         reader.readAsDataURL(file);
     };
 
-    const handleImageFile = (file: File | null, fieldKey: string) => {
+    const handleImageFile = (file: File | null, fieldKey: keyof TValues & string) => {
         if (!file || !file.type.startsWith('image/')) {
             return;
         }
         readImageAsDataUrl(file, fieldKey);
     };
 
-    const renderField = (field: WidgetSettingsSchema[number]) => {
+    const renderField = (field: SettingsFieldSchema<TValues>) => {
         if (field.type === 'divider') {
             return null;
         }
@@ -207,6 +209,7 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
                             value={typeof currentValue === 'string' ? currentValue : ''}
                             language={field.language ?? 'html'}
                             height={field.height ?? '100%'}
+                            chat={field.chat ?? true}
                             onChange={(nextContent) => {
                                 updateField(field.key, nextContent);
                             }}
@@ -230,12 +233,59 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
             );
         }
 
+        if (field.type === 'combiner') {
+            const operatorValue = value[field.operatorKey] as string | number | null | undefined;
+            const combinerValue = value[field.valueKey] as string | number | null | undefined;
+
+            const handleCombinerChange = (nextOperator: string | number | null, nextValue: string | number | null): boolean => {
+                const updates = {
+                    ...value,
+                    [field.operatorKey]: nextOperator,
+                    [field.valueKey]: nextValue,
+                } as TValues;
+                onChange(updates, field.key);
+                return true;
+            };
+
+            return (
+                <Form.Item key={field.key} label={field.label}>
+                    <CombinerPicker
+                        operatorValue={operatorValue as string | null}
+                        valueValue={combinerValue as string | number | null}
+                        operatorOptions={field.operatorOptions}
+                        valueOptions={field.valueOptions}
+                        label={field.label}
+                        onChange={handleCombinerChange}
+                    />
+                </Form.Item>
+            );
+        }
+
+        if (field.type === 'tags') {
+            const splitter = field.splitter ?? ',';
+            let tags: string[] = [];
+            if (typeof currentValue === 'string') {
+                tags = currentValue
+                    .split(splitter)
+                    .map((tag) => tag.trim())
+                    .filter((tag) => tag.length > 0);
+            }
+            return (
+                <Form.Item key={field.key} label={field.label}>
+                    <TagsInput
+                        value={tags}
+                        onChange={(nextValue) => updateField(field.key, nextValue.join(splitter))}
+                    />
+                </Form.Item>
+            );
+        }
+
         return null;
     };
 
-    const groups: Array<{ key: string; label: string; fields: WidgetSettingsSchema }> = [];
+    const groups: Array<{ key: string; label: string; fields: SettingsFieldSchema<TValues>[] }> = [];
     let currentLabel = '设置';
-    let currentFields: WidgetSettingsSchema[number][] = [];
+    let currentFields: SettingsFieldSchema<TValues>[] = [];
 
     for (const field of schema) {
         if (field.type === 'divider') {
@@ -266,8 +316,6 @@ export function WidgetDynamicForm({ value, schema, onChange }: WidgetDynamicForm
     return (
         <Tabs
             classNames={{
-                // custom-tabs 用于覆盖 antd 默认的 height 样式，确保内容区能够正确撑满高度并显示滚动条。
-                // 该样式在 global.css 中定义。
                 root: 'h-full min-h-0 custom-tabs',
                 header: 'mb-0',
                 content: 'h-full overflow-y-auto pr-2',
