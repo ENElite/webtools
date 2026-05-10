@@ -9,6 +9,7 @@ export type AiEditorPanelProps = {
     value: string;
     language?: string;
     height?: string | number;
+    chat?: boolean;
     onChange?: (content: string) => void;
 };
 
@@ -16,6 +17,7 @@ export function AiEditorPanel({
     value,
     language = 'html',
     height = 420,
+    chat = true,
     onChange,
 }: AiEditorPanelProps) {
     const editorRef = useRef<AutoEditorHandle | null>(null);
@@ -43,13 +45,15 @@ export function AiEditorPanel({
                 </div>
             </Card>
 
-            <div style={{ width: 360, minWidth: 320, maxWidth: 420, height: '100%', minHeight: 0 }}>
-                <AgentDialog
-                    editorRef={editorRef}
-                    currentCode={code}
-                    onCodeChange={setCode}
-                />
-            </div>
-        </div>
+            {chat && (
+                <div style={{ width: 360, minWidth: 320, maxWidth: 420, height: '100%', minHeight: 0 }}>
+                    <AgentDialog
+                        editorRef={editorRef}
+                        currentCode={code}
+                        onCodeChange={setCode}
+                    />
+                </div>
+            )}
+        </div >
     );
 }

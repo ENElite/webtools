@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 
 import { Button, ColorPicker, Form, Input, InputNumber, Radio, Switch, Tabs } from 'antd';
 
-import { AiEditorPanel } from '@/features/editor';
+import { AiEditorPanel } from '@/components/editor';
 
 import { TagsInput } from './tags';
 import { FontPicker } from './font_picker';
