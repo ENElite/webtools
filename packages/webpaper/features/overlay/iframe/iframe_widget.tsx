@@ -1,12 +1,12 @@
 import type { WidgetRendererProps } from '../types';
 import type { IframeWidgetProps } from './schema';
 
-export function IframeWidget({ widget, active = false }: WidgetRendererProps<IframeWidgetProps>) {
+export function IframeWidget({ widget }: WidgetRendererProps<IframeWidgetProps>) {
     const url = typeof widget.props.url === 'string' ? widget.props.url.trim() : '';
     const sandbox = typeof widget.props.sandbox === 'string' && widget.props.sandbox.trim().length > 0
         ? widget.props.sandbox.trim()
         : undefined;
-    const interactive = widget.locked === true && active;
+    const interactive = widget.locked === true;
 
     return (
         <iframe

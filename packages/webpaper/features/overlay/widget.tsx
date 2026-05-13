@@ -11,7 +11,6 @@ function combineClassNames(...names: Array<string | undefined | false>) {
 type WidgetProps = {
     children?: ReactNode;
     widget: WidgetModel;
-    active?: boolean;
     containerBounds?: {
         width: number;
         height: number;

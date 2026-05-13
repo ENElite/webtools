@@ -137,6 +137,7 @@ function assertLayoutMatchesTarget(layout: WidgetLayout, target: HTMLElement, co
 export function createDefaultWidgets(): WidgetModel[] {
     return [
         createWidget('text'),
+        createWidget('live2d', { layout: { anchorX: 'right', anchorY: 'bottom', x: 0, y: 0, w: 16, h: 40, rotation: 0, adapt: 'stretch' } }),
         createWidget('clock', { layout: { anchorX: 'left', anchorY: 'bottom', x: 0, y: -10, w: 40, h: 16, rotation: 0, adapt: 'stretch' } }),
     ];
 }

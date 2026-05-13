@@ -5,11 +5,14 @@ import { VIDEO_WIDGET_SETTINGS_SCHEMA } from './video';
 import { TEXT_WIDGET_SETTINGS_SCHEMA } from './text';
 import { HTML_WIDGET_SETTINGS_SCHEMA } from './html';
 import { IFRAME_WIDGET_SETTINGS_SCHEMA } from './iframe';
+import { LIVE2D_WIDGET_SETTINGS_SCHEMA } from './live2d';
 import type {
     WidgetKind,
     WidgetFlatProps,
     WidgetPropPrimitive,
 } from './types';
+
+import type { SettingsFieldSchema } from '@/components/settings';
 
 export const WidgetStyleSettingsKeys = [
     'opacity',
@@ -46,7 +49,7 @@ export type WidgetStyleSettingsDraft = {
 };
 
 
-export type WidgetSettingsSchema<T extends Record<string, WidgetPropPrimitive> = WidgetFlatProps> = ReadonlyArray<WidgetFieldSchema<T>>;
+export type WidgetSettingsSchema<T extends Record<string, WidgetPropPrimitive> = WidgetFlatProps> = ReadonlyArray<SettingsFieldSchema<T>>;
 
 const WIDGET_BASE_SETTINGS_SCHEMA = [
     {
@@ -178,6 +181,7 @@ const WIDGET_SETTINGS_SCHEMAS: Partial<Record<WidgetKind, WidgetSettingsSchema>>
     text: TEXT_WIDGET_SETTINGS_SCHEMA,
     html: HTML_WIDGET_SETTINGS_SCHEMA,
     iframe: IFRAME_WIDGET_SETTINGS_SCHEMA,
+    live2d: LIVE2D_WIDGET_SETTINGS_SCHEMA,
 };
 
 export function resolveWidgetSettingsSchema(kind: WidgetKind): WidgetSettingsSchema | null {
@@ -190,85 +194,7 @@ export function resolveWidgetSettingsSchema(kind: WidgetKind): WidgetSettingsSch
         ...WIDGET_BASE_SETTINGS_SCHEMA,
         { type: 'divider', label: '样式设置' },
         ...WIDGET_STYLE_SETTINGS_SCHEMA,
-        { type: 'divider', label: '组件设置' },
+        { type: 'divider', label: '组件设置', default: true },
         ...schema,
     ];
 }
-
-export type WidgetFieldKey<T extends Record<string, WidgetPropPrimitive>> = Extract<keyof T, string>;
-
-export type WidgetFieldVisibility<T extends Record<string, WidgetPropPrimitive> = WidgetFlatProps> = {
-    key: WidgetFieldKey<T>;
-    equals: string | number | boolean | null;
-};
-
-export type WidgetFieldSchema<T extends Record<string, WidgetPropPrimitive> = WidgetFlatProps> =
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'string';
-        placeholder?: string;
-        readOnly?: boolean;
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'number';
-        min?: number;
-        max?: number;
-        step?: number;
-        suffix?: string;
-        modulo?: number;
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'boolean';
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'enum';
-        options: Array<{
-            label: string;
-            value: string | number;
-        }>;
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'color';
-        alpha?: boolean;
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'font';
-        /** optional UI options for font picker */
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'image';
-        placeholder?: string;
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        key: WidgetFieldKey<T>;
-        label: string;
-        type: 'editor';
-        language?: string;
-        height?: string | number;
-        saveButtonText?: string;
-        visibleWhen?: WidgetFieldVisibility<T>;
-    }
-    | {
-        type: 'divider';
-        label?: string;
-    };

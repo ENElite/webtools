@@ -1,7 +1,7 @@
 import type { ComponentType, Dispatch } from 'react';
 
 export type WidgetId = string;
-export type WidgetKind = 'text' | 'image' | 'video' | 'clock' | 'canvas' | 'html' | 'iframe';
+export type WidgetKind = 'text' | 'image' | 'video' | 'clock' | 'canvas' | 'html' | 'iframe' | 'live2d';
 
 export type WidgetStyle = {
     borderRadius?: string; // 仅通过 moveable 调整
@@ -70,7 +70,6 @@ export type SnapGuideline = {
 
 export type WidgetRendererProps<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     widget: WidgetModel<TProps>;
-    active: boolean;
 };
 
 export type WidgetRenderer<TProps extends WidgetFlatProps = WidgetFlatProps> = ComponentType<WidgetRendererProps<TProps>>;

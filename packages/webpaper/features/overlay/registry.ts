@@ -14,6 +14,7 @@ import { VideoWidget, DEFAULT_VIDEO_WIDGET_PROPS } from './video';
 import { HtmlWidget, DEFAULT_HTML_WIDGET_PROPS } from './html';
 import { IframeWidget, DEFAULT_IFRAME_WIDGET_PROPS } from './iframe';
 import { TextWidget, DEFAULT_TEXT_WIDGET_PROPS } from './text';
+import { Live2dWidget, DEFAULT_LIVE2D_WIDGET_PROPS } from './live2d';
 
 export function createWidgetRegistry(initial?: WidgetRendererMap): WidgetRendererMap {
     return { ...(initial || {}) };
@@ -46,7 +47,8 @@ export function createOverlayRendererMap(): WidgetRendererMap {
         text: TextWidget,
         html: HtmlWidget,
         iframe: IframeWidget,
-    } as WidgetRendererMap);
+        live2d: Live2dWidget,
+    });
 }
 
 export const DEFAULT_OVERLAY_Z_INDEX = 4;
@@ -122,6 +124,7 @@ export function defaultWidgetLabel(kind: WidgetKind): string {
         image: '图片组件',
         video: '视频组件',
         iframe: 'URL 组件',
+        live2d: 'Live2D 组件',
     }[kind];
 }
 
@@ -136,6 +139,7 @@ export function createWidget(
         image: DEFAULT_IMAGE_WIDGET_PROPS,
         video: DEFAULT_VIDEO_WIDGET_PROPS,
         iframe: DEFAULT_IFRAME_WIDGET_PROPS,
+        live2d: DEFAULT_LIVE2D_WIDGET_PROPS,
     };
 
     const id = generateWidgetId();

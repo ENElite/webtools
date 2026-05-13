@@ -351,6 +351,12 @@ export function Webpaper() {
                         icon: makeItemIcon('icon-[octicon--code-16]'),
                         onClick: () => tryCreateWidget('iframe'),
                     },
+                    {
+                        key: 'create-live2d-widget',
+                        label: defaultWidgetLabel('live2d'),
+                        icon: makeItemIcon('icon-[octicon--person-16]'),
+                        onClick: () => tryCreateWidget('live2d'),
+                    }
                 ],
             },
         ];

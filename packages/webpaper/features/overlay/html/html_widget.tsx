@@ -1,9 +1,9 @@
 import type { WidgetRendererProps } from '../types';
 import type { HtmlWidgetProps } from './schema';
 
-export function HtmlWidget({ widget, active = false }: WidgetRendererProps<HtmlWidgetProps>) {
+export function HtmlWidget({ widget }: WidgetRendererProps<HtmlWidgetProps>) {
     const html = typeof widget.props.html === 'string' ? widget.props.html : '';
-    const interactive = widget.locked === true && active;
+    const interactive = widget.locked === true;
 
     return (
         <iframe

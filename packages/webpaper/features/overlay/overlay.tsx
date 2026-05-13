@@ -124,7 +124,6 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     <Widget
                         key={widget.id}
                         widget={widget}
-                        active={widget.id === activeWidgetId}
                         containerBounds={{
                             width: overlayBounds[0],
                             height: overlayBounds[1],
@@ -155,7 +154,6 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     >
                         <WidgetRenderer
                             widget={widget}
-                            active={widget.id === activeWidgetId}
                         />
                     </Widget>
                 );
