@@ -1,7 +1,8 @@
 import type { SettingsSchema } from '@/components/settings';
 import { KonachanQueryParams } from './types';
 
-export type QualityKey = 'file_url' | 'jpeg_url' | 'sample_url' | 'preview_url';
+const QualityKeyOptions = ['file_url', 'jpeg_url', 'sample_url', 'preview_url'] as const;
+export type QualityKey = typeof QualityKeyOptions[number];
 type SizeOperator = 'gte' | 'eq' | 'lte';
 /**
  * Konachan Provider 的扁平化设置值（用于 SettingsPanel）
@@ -202,7 +203,10 @@ export function buildKonachanPreviewUrl(settings: KonachanProviderSettings): str
 /**
  * 从图片对象中提取指定质量的 URL
  */
-export function pickKonachanUrl(image: Record<string, unknown>, quality: QualityKey): string {
+export function pickKonachanUrl(image: Record<string, unknown>, quality: string | undefined = 'file_url'): string {
+    if (!quality || !QualityKeyOptions.includes(quality as QualityKey)) {
+        quality = 'file_url';
+    }
     const candidate = image[quality];
     const fallback = image['file_url'];
     return typeof candidate === 'string' && candidate.length > 0

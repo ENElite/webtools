@@ -1,6 +1,7 @@
 import type { ProviderRecord } from '@/providers/types';
 import { ApiAdapter } from "../types";
 import { KonachanResponse } from "./types";
+import { pickKonachanUrl } from './schema';
 
 function asyncDelay(milliseconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(() => resolve(), milliseconds));
@@ -42,7 +43,7 @@ async function fetchKonachan(url: string, retry = 3): Promise<KonachanResponse> 
     throw lastError instanceof Error ? lastError : new Error('Request failed');
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export const KonachanAdapter: ApiAdapter = {
     provider: 'Konachan',
@@ -56,7 +57,7 @@ export const KonachanAdapter: ApiAdapter = {
         console.log('[KonachanAdapter] fetching:', { url, page, params });
         const raw = await fetchKonachan(url);
         console.log('[KonachanAdapter] raw response:', { length: Array.isArray(raw) ? raw.length : 'not-array', isArray: Array.isArray(raw), sampleIds: Array.isArray(raw) ? raw.slice(0, 3).map(r => r.id) : [] });
-        const normalized = KonachanAdapter.normalize(raw);
+        const normalized = KonachanAdapter.normalize(raw, params);
         console.log('[KonachanAdapter] normalized:', { length: normalized.length, sampleIds: normalized.slice(0, 3).map(r => r.id) });
         const hasMore = KonachanAdapter.hasMore(raw, page);
         console.log('[KonachanAdapter] hasMore:', hasMore);
@@ -65,13 +66,13 @@ export const KonachanAdapter: ApiAdapter = {
             hasMore,
         };
     },
-    normalize: (raw: KonachanResponse): ProviderRecord[] => {
+    normalize: (raw: KonachanResponse, params): ProviderRecord[] => {
         if (!Array.isArray(raw)) return [];
         return raw.map(item => ({
             id: `Konachan-${item.id}`,
             provider: 'Konachan',
             type: 'image',
-            url: item.file_url,
+            url: pickKonachanUrl(item, String(params?.['quality'])),
             preview: item.preview_url,
             raw: item,
         }));

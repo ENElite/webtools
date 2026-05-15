@@ -61,7 +61,7 @@ export interface ApiAdapter<P = Record<string, unknown>> {
      * 从原始响应体中提取实体列表
      * fetch 内部调用，也可单独用于处理 websocket 推送等场景
      */
-    normalize: (raw: any) => ProviderRecord[]
+    normalize: (raw: any, params?: P) => ProviderRecord[]
 
     /**
      * 判断是否还有下一页
