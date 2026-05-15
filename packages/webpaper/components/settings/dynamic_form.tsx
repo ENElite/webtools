@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRef, useState } from 'react';
 
-import { Button, ColorPicker, Form, Input, InputNumber, Radio, Switch, Tabs } from 'antd';
+import { Button, ColorPicker, Form, Input, InputNumber, Radio, Switch, Tabs, TreeSelect } from 'antd';
 
 import { AiEditorPanel } from '@/components/editor';
 
@@ -228,6 +228,23 @@ export function SettingsDynamicForm<TValues extends SettingsValues>({ value, sch
                         onChange={(event) => updateField(field.key, event.target.value)}
                         optionType='button'
                         buttonStyle='solid'
+                    />
+                </Form.Item>
+            );
+        }
+
+        if (field.type === 'treeSelect') {
+            return (
+                <Form.Item key={field.key} label={field.label}>
+                    <TreeSelect
+                        style={{ width: '100%' }}
+                        value={typeof currentValue === 'string' ? currentValue : undefined}
+                        treeData={field.treeData}
+                        placeholder={field.placeholder}
+                        allowClear={field.allowClear ?? true}
+                        showSearch
+                        treeDefaultExpandAll={false}
+                        onChange={(nextValue) => updateField(field.key, typeof nextValue === 'string' ? nextValue : '')}
                     />
                 </Form.Item>
             );

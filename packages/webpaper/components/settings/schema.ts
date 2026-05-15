@@ -7,6 +7,13 @@ export type SettingsFieldVisibility<T extends SettingsValues = SettingsValues> =
     equals: SettingsValuePrimitive;
 };
 
+export type SettingsTreeDataNode = {
+    title: string;
+    value: string;
+    children?: SettingsTreeDataNode[];
+    selectable?: boolean;
+};
+
 export type SettingsFieldSchema<T extends SettingsValues = SettingsValues> =
     | {
         key: Extract<keyof T, string>;
@@ -41,6 +48,15 @@ export type SettingsFieldSchema<T extends SettingsValues = SettingsValues> =
             label: string;
             value: string | number;
         }>;
+        visibleWhen?: SettingsFieldVisibility<T>;
+    }
+    | {
+        key: Extract<keyof T, string>;
+        label: string;
+        type: 'treeSelect';
+        treeData: SettingsTreeDataNode[];
+        placeholder?: string;
+        allowClear?: boolean;
         visibleWhen?: SettingsFieldVisibility<T>;
     }
     | {

@@ -6,6 +6,7 @@ export { CombinerPicker } from './combiner';
 export type {
     SettingsFieldSchema,
     SettingsFieldVisibility,
+    SettingsTreeDataNode,
     SettingsSchema,
     SettingsValuePrimitive,
     SettingsValues,
