@@ -9,7 +9,7 @@ import {
 } from '@reactuses/core';
 import { useShallow } from 'zustand/react/shallow';
 
-import { usePlaybackScheduler } from '@/hooks/usePlaybackScheduler';
+import { usePreloadImage } from '@/hooks/usePreloadImage';
 import { Paper, HistoryDrawer, buildDescriptionItems, type ImageHeroMode } from '@/features/paper';
 import { usePaperStore, useOverlayStore, useRecordStore } from '@/store';
 import {
@@ -31,27 +31,24 @@ export function Webpaper() {
     const currentRecord = useRecordStore(useShallow((state) => state.currentRecord()));
     const history = useRecordStore(useShallow((state) => state.getHistory()));
     const hasMore = useRecordStore((state) => state.hasMore());
+    const next = useRecordStore((state) => state.next);
+    const enterHistoryMode = useRecordStore((state) => state.enterHistoryMode);
+    const isHistoryMode = useRecordStore((state) => state.isHistoryMode);
     const navigate = useRecordStore((state) => state.navigate);
     const goToHistory = useRecordStore((state) => state.goToHistory);
-    const loadMore = useRecordStore((state) => state.loadMore);
+    const autoPlay = useRecordStore((state) => state.autoPlay);
+    const enableAutoPlay = useRecordStore((state) => state.enableAutoPlay);
+    const disableAutoPlay = useRecordStore((state) => state.disableAutoPlay);
+    const pendingPreloadUrl = useRecordStore((state) => state.pendingPreloadUrl);
 
     const [historySearch, setHistorySearch] = useState('');
     const [historyVisible, setHistoryVisible] = useState(false);
-    const [isRunning, setIsRunning] = useState(false);
     const [contextMenuOpen, setContextMenuOpen] = useState(false);
-    const [autoSwitchTick, setAutoSwitchTick] = useState(0);
     const [mode, setMode] = useState<ImageHeroMode>('allSync');
     const isFirstLoadRef = useRef(true);
+    const isAutoPlaying = autoPlay !== 'stop';
 
     const [, fullscreenActions] = useFullscreen(() => document.documentElement);
-    const {
-        effectiveIntervalSec,
-        markCycleStart,
-        markCycleComplete,
-    } = usePlaybackScheduler({
-        desiredIntervalSec: sharedSettings.interval,
-        isRunning,
-    });
     const {
         isActive: wakeLockActive,
         request: requestWakeLock,
@@ -59,13 +56,13 @@ export function Webpaper() {
         isSupported: wakeLockSupported,
     } = useWakeLock();
 
-    const autoSwitchInFlightRef = useRef(false);
-    const autoSkipFirstTickRef = useRef(true);
     const notifyRef = useRef(api);
     const overlayRenderers = useMemo(() => createOverlayRendererMap(), []);
     const overlayState = useOverlayStore((state) => state);
     const addOverlayWidget = useOverlayStore((state) => state.addWidget);
     const requestOverlayWidgetSettings = useOverlayStore((state) => state.requestWidgetSettings);
+
+    usePreloadImage(pendingPreloadUrl);
 
     useEffect(() => {
         notifyRef.current = api;
@@ -98,88 +95,48 @@ export function Webpaper() {
         fullscreenActions.toggleFullscreen();
     }, [fullscreenActions]);
 
-    const loadNextImage = useCallback((reason: 'manual' | 'auto') => {
-        if (reason === 'manual') {
-            autoSwitchInFlightRef.current = false;
-            setMode('previewAsync');
-        } else if (reason === 'auto') {
-            setMode('imageAsync');
-        }
+    const loadNextImage = useCallback(() => {
+        setMode('previewAsync');
 
         if (isFirstLoadRef.current) {
             isFirstLoadRef.current = false;
         }
 
-        if (history.length === 0) {
-            void loadMore();
-            return;
-        }
-
-        void navigate();
-    }, [history.length, loadMore, navigate]);
+        void next();
+    }, [next]);
 
     useEffect(() => {
-        if (!isRunning) {
-            autoSkipFirstTickRef.current = true;
+        if (!isAutoPlaying) {
             return;
         }
 
-        const intervalMs = Math.max(1, Math.round(effectiveIntervalSec * 1000));
-        const intervalId = window.setInterval(() => {
-            setAutoSwitchTick((value) => value + 1);
-        }, intervalMs);
+        enableAutoPlay(sharedSettings.interval);
+    }, [enableAutoPlay, isAutoPlaying, sharedSettings.interval]);
 
+    useEffect(() => {
         return () => {
-            window.clearInterval(intervalId);
+            disableAutoPlay();
         };
-    }, [effectiveIntervalSec, isRunning]);
+    }, [disableAutoPlay]);
 
     useEffect(() => {
-        if (!isRunning) {
-            autoSkipFirstTickRef.current = true;
+        if (!isAutoPlaying) {
             return;
         }
 
-        if (currentRecord?.type === 'video') {
-            return;
-        }
-
-        if (autoSkipFirstTickRef.current) {
-            autoSkipFirstTickRef.current = false;
-            return;
-        }
-
-        if (autoSwitchInFlightRef.current) {
-            return;
-        }
-
-        autoSwitchInFlightRef.current = true;
-        void Promise.resolve(loadNextImage('auto')).finally(() => {
-            autoSwitchInFlightRef.current = false;
-            markCycleComplete();
-        });
-    }, [autoSwitchTick, currentRecord?.type, isRunning, loadNextImage, markCycleComplete]);
+        setMode('imageAsync');
+    }, [currentRecord?.id, isAutoPlaying]);
 
     const togglePlay = useCallback(() => {
-        if (isRunning) {
-            setIsRunning(false);
-            autoSwitchInFlightRef.current = false;
-            autoSkipFirstTickRef.current = true;
-            notify('info', '自动切换已暂停', `间隔 ${sharedSettings.interval} 秒`);
+        if (isAutoPlaying) {
+            disableAutoPlay();
+            notify('info', '自动切换已暂停', `当前间隔 ${typeof autoPlay === 'number' ? autoPlay : sharedSettings.interval} 秒`);
             return;
         }
 
-        autoSkipFirstTickRef.current = true;
-        markCycleStart();
-        setIsRunning(true);
+        enableAutoPlay(sharedSettings.interval);
         notify('success', '自动切换已启动', `间隔 ${sharedSettings.interval} 秒`);
-    }, [isRunning, markCycleStart, notify, sharedSettings.interval]);
-
-    useEffect(() => {
-        if (isRunning) {
-            autoSkipFirstTickRef.current = true;
-        }
-    }, [isRunning]);
+    }, [autoPlay, disableAutoPlay, enableAutoPlay, isAutoPlaying, notify, sharedSettings.interval]);
 
     const resetAllSettings = useCallback(() => {
         resetSettings();
@@ -208,21 +165,26 @@ export function Webpaper() {
 
     const currentRecordIndex = useMemo(() => {
         if (!currentRecord) return -1
-        return history.findIndex((item) => String(item.id) === String(currentRecord.id))
+        return history.findIndex((item) => item.id === currentRecord.id)
     }, [currentRecord, history]);
 
     const hasHistory = history.length > 0
-    const canGoPrevious = currentRecordIndex > 0
+    const inHistoryMode = isHistoryMode()
+    const canGoPrevious = inHistoryMode || currentRecordIndex > 0
 
-    const goToPreviousHistory = useCallback(() => {
-        if (currentRecordIndex <= 0) return
-        void goToHistory(currentRecordIndex - 1)
-    }, [currentRecordIndex, goToHistory])
+    const goToPreviousHistory = useCallback(async () => {
+        if (!inHistoryMode && currentRecordIndex <= 0) return
+        if (!inHistoryMode) {
+            enterHistoryMode()
+        }
+        await navigate(-1)
+    }, [inHistoryMode, currentRecordIndex, enterHistoryMode, navigate])
 
-    const returnToLatestHistory = useCallback(() => {
+    const returnToLatestHistory = useCallback(async () => {
         if (history.length === 0) return
-        void goToHistory(history.length - 1)
-    }, [history.length, goToHistory])
+        // enterHistoryMode() already sets cursor to history.length - 1
+        enterHistoryMode()
+    }, [history.length, enterHistoryMode])
 
     const rightClickMenuItems = useMemo<MenuProps['items']>(() => {
         const makeItemIcon = (iconClass: string) => (
@@ -232,8 +194,8 @@ export function Webpaper() {
         return [
             {
                 key: 'toggle-play',
-                label: isRunning ? '暂停自动切换' : '开始自动切换',
-                icon: makeItemIcon(isRunning ? 'icon-[octicon--pause-16]' : 'icon-[octicon--play-16]'),
+                label: isAutoPlaying ? '暂停自动切换' : '开始自动切换',
+                icon: makeItemIcon(isAutoPlaying ? 'icon-[octicon--pause-16]' : 'icon-[octicon--play-16]'),
                 onClick: togglePlay,
             },
             {
@@ -266,7 +228,7 @@ export function Webpaper() {
                 label: '下一张',
                 disabled: !hasMore && currentRecordIndex >= history.length - 1,
                 icon: makeItemIcon('icon-[octicon--arrow-right-16]'),
-                onClick: () => void loadNextImage('manual'),
+                onClick: () => void loadNextImage(),
             },
             {
                 key: 'previous-image',
@@ -360,7 +322,7 @@ export function Webpaper() {
                 ],
             },
         ];
-    }, [canGoPrevious, currentRecord, currentRecordIndex, history.length, fullScreen, goToPreviousHistory, hasHistory, hasMore, isRunning, loadNextImage, resetAllSettings, returnToLatestHistory, toggleSettings, togglePlay]);
+    }, [canGoPrevious, currentRecord, currentRecordIndex, history.length, fullScreen, goToPreviousHistory, hasHistory, hasMore, isAutoPlaying, loadNextImage, resetAllSettings, returnToLatestHistory, toggleSettings, togglePlay]);
 
     return (
         <Dropdown
@@ -382,7 +344,9 @@ export function Webpaper() {
                     onSearchChange={setHistorySearch}
                     onSetCurrent={(record: ProviderRecord) => {
                         const nextIndex = history.findIndex((item) => String(item.id) === String(record.id))
-                        if (nextIndex >= 0) void goToHistory(nextIndex)
+                        if (nextIndex >= 0) {
+                            void goToHistory(nextIndex)
+                        }
                     }}
                     onClose={() => setHistoryVisible(false)}
                 />

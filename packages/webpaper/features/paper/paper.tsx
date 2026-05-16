@@ -6,6 +6,7 @@ import { PaperSettingsPanel } from '@/features/paper/settings';
 import { usePaperStore } from '@/store/paperStore';
 import { useRecordStore } from '@/store/recordStore';
 import { buildKonachanQuery } from '@/providers/konachan/schema';
+import type { ProviderRecord } from '@/providers';
 
 export interface PaperProps {
     mode?: ImageHeroMode;
@@ -13,6 +14,7 @@ export interface PaperProps {
 
 export function Paper({ mode = 'previewAsync' }: PaperProps) {
     const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
+    const [heroMode, setHeroMode] = useState<ImageHeroMode>(mode);
 
     const provider = usePaperStore((state) => state.sharedSettings.provider);
     const settingsVisible = usePaperStore((state) => state.settingsVisible);
@@ -22,15 +24,11 @@ export function Paper({ mode = 'previewAsync' }: PaperProps) {
     const jsonSettings = usePaperStore((state) => state.jsonSettings);
     const toggleSettings = usePaperStore((state) => state.toggleSettings);
 
-    const record = useRecordStore(useShallow((state) => state.currentRecord()));
-    const history = useRecordStore(useShallow((state) => state.getHistory()));
+    const currentRecord = useRecordStore(useShallow((state) => state.currentRecord()));
     const switchQuery = useRecordStore((state) => state.switchQuery);
-    const navigate = useRecordStore((state) => state.navigate);
+    const next = useRecordStore((state) => state.next);
     const loadMore = useRecordStore((state) => state.loadMore);
-
-    useEffect(() => {
-        console.log('[Paper] record/history changed:', { record: record?.id, historyCount: history.length });
-    }, [record, history]);
+    const [visibleRecord, setVisibleRecord] = useState<ProviderRecord | null>(null);
 
     const queryConfig = useMemo(() => {
         switch (provider) {
@@ -57,16 +55,29 @@ export function Paper({ mode = 'previewAsync' }: PaperProps) {
     }, [birdSettings, jsonSettings, konachanSettings, provider]);
 
     useEffect(() => {
+        setHeroMode(mode);
+    }, [mode]);
+
+    useEffect(() => {
+        setHeroMode('previewAsync');
         switchQuery(queryConfig.provider, queryConfig.api, queryConfig.params);
     }, [queryConfig, switchQuery]);
 
+    useEffect(() => {
+        if (currentRecord) {
+            setVisibleRecord(currentRecord);
+        }
+    }, [currentRecord]);
+
+    const record = currentRecord ?? visibleRecord;
+
     const handleAdvance = useCallback(() => {
         if (record) {
-            void navigate(1)
+            void next()
             return
         }
         void loadMore()
-    }, [record, loadMore, navigate])
+    }, [record, loadMore, next])
 
     return (
         <div ref={setContainerElement} className='relative h-full w-full overflow-hidden'>
@@ -79,9 +90,9 @@ export function Paper({ mode = 'previewAsync' }: PaperProps) {
 
             {record && record.type === 'image' ? (
                 <ImageHero
-                    imageUrl={record.url}
-                    previewUrl={record.url || record.preview}
-                    mode={mode}
+                    url={record.url}
+                    preview={record.preview}
+                    mode={heroMode}
                     objectFit={sharedSettings.objectFit}
                     trackScale={sharedSettings.trackScale}
                     trackIntensity={sharedSettings.trackIntensity}

@@ -40,8 +40,8 @@ function normalizeUrl(url: string): string {
 }
 
 type ImageHeroProps = {
-    imageUrl: string;
-    previewUrl?: string | null;
+    url: string;
+    preview?: string | null;
     mode: ImageHeroMode;
     objectFit: 'contain' | 'cover';
     trackScale: number;
@@ -51,8 +51,8 @@ type ImageHeroProps = {
 };
 
 export function ImageHero({
-    imageUrl,
-    previewUrl,
+    url,
+    preview,
     mode,
     objectFit,
     trackScale,
@@ -87,7 +87,7 @@ export function ImageHero({
     })();
 
     useEffect(() => {
-        if (!imageUrl) {
+        if (!url) {
             setBackgroundSrc('');
             setForegroundSrc('');
             allSyncPendingRef.current = null;
@@ -97,7 +97,7 @@ export function ImageHero({
         loadTokenRef.current += 1;
         const token = loadTokenRef.current;
         allSyncPendingRef.current = null;
-        const backgroundUrl = resolvePreviewUrl(previewUrl, imageUrl);
+        const backgroundUrl = resolvePreviewUrl(preview, url);
 
         if (mode !== 'previewAsync') {
             setBackgroundSrc('');
@@ -121,8 +121,8 @@ export function ImageHero({
                     return;
                 }
 
-                setBackgroundSrc(imageUrl);
-                setForegroundSrc(imageUrl);
+                setBackgroundSrc(url);
+                setForegroundSrc(url);
             });
             return;
         }
@@ -130,7 +130,7 @@ export function ImageHero({
         if (mode === 'imageAsync') {
             setForegroundSrc('');
 
-            void loadImage(imageUrl).then((loaded) => {
+            void loadImage(url).then((loaded) => {
                 if (loadTokenRef.current !== token) {
                     return;
                 }
@@ -140,8 +140,8 @@ export function ImageHero({
                     return;
                 }
 
-                setBackgroundSrc(imageUrl);
-                setForegroundSrc(imageUrl);
+                setBackgroundSrc(url);
+                setForegroundSrc(url);
             });
 
             return;
@@ -156,7 +156,7 @@ export function ImageHero({
                 setBackgroundSrc(backgroundUrl);
             });
 
-            void loadImage(imageUrl).then((loaded) => {
+            void loadImage(url).then((loaded) => {
                 if (loadTokenRef.current !== token) {
                     return;
                 }
@@ -166,14 +166,15 @@ export function ImageHero({
                     return;
                 }
 
-                setForegroundSrc(imageUrl);
+                setForegroundSrc(url);
             });
             return;
         }
 
         if (mode === 'previewAsync') {
-            void loadImage(imageUrl);
+            console.log('[previewAsync] Loading preview image:', backgroundUrl);
             void loadImage(backgroundUrl).then((loaded) => {
+                console.log('[previewAsync] Preview image loaded:', backgroundUrl, 'loaded:', loaded);
                 if (loadTokenRef.current !== token) {
                     return;
                 }
@@ -184,10 +185,12 @@ export function ImageHero({
                 }
 
                 setBackgroundSrc(backgroundUrl);
-                setForegroundSrc(imageUrl);
+                setForegroundSrc(url);
+                console.log('[previewAsync] Set preview and main image:', backgroundUrl, url);
             });
             return;
         }
+        void loadImage(url);
 
         void Promise.resolve().then(() => {
             if (loadTokenRef.current !== token) {
@@ -198,14 +201,14 @@ export function ImageHero({
             allSyncPendingRef.current = {
                 token,
                 backgroundUrl,
-                foregroundUrl: imageUrl,
+                foregroundUrl: url,
             };
         });
 
-        void loadImage(imageUrl);
-    }, [imageUrl, mode, previewUrl]);
+        void loadImage(url);
+    }, [url, mode, preview]);
 
-    if (!imageUrl) {
+    if (!url) {
         return (
             <section className='absolute left-4 top-4' style={{ width: 'min(720px, calc(100% - 2rem))' }}>
                 <Alert

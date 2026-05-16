@@ -15,9 +15,12 @@ interface QueryState {
     params: Record<string, unknown>
     ids: string[]
     deletedIds: Set<string>
-    nextPage: number
+    baseIndex: number
+    pageSize: number
+    canLoadPrev: boolean
     hasMore: boolean
     loading: boolean
+    loadingPrev: boolean
     error: string | null
     loadedAt: number | null
     requestId: number
@@ -33,7 +36,16 @@ interface RecordState {
     cursor: number
     // 历史浏览
     history: ProviderRecord[]
-    historyCursor: number | null
+    // 历史游标，-1 表示未进入历史模式
+    historyCursor: number
+    // 自动切换
+    autoPlay: number | 'stop'
+    autoPlayTimerId: number | null
+    autoPlayInFlight: boolean
+    pendingPreloadUrl: string | null
+    // 查询切换过渡态（仅用于保证 currentRecord 输出稳定）
+    querySwitching: boolean
+    queryTransitionRecord: ProviderRecord | null
 
     // 派生数据（selectors）
     currentQuery: () => QueryState | null
@@ -41,6 +53,9 @@ interface RecordState {
     getHistory: () => ProviderRecord[]
     goToHistory: (pos: number) => void
     returnToCurrent: () => void
+    enterHistoryMode: () => void
+    leaveHistoryMode: () => void
+    isHistoryMode: () => boolean
 
     // 查询管理
     switchQuery: (provider: Provider, api: string, params: Record<string, unknown>) => void
@@ -49,11 +64,19 @@ interface RecordState {
 
     // 数据加载
     hasMore: () => boolean
+    hasPrev: () => boolean
     loadMore: () => Promise<void>
+    // internal: 向前加载上一页，已内部化为 `_loadPrevious`
+    _loadPrevious: () => Promise<void>
     // loadAll: () => Promise<void>
 
-    // 导航
-    navigate: (delta?: number) => Promise<void>
+    // 导航：navigate 接受相对 delta（整数），0 表示刷新当前
+    navigate: (delta: number) => Promise<void>
+    next: () => Promise<void>
+    // internal: 便捷向后导航（已内部化为 `_prev`）
+    _prev: () => Promise<void>
+    enableAutoPlay: (intervalSec: number) => void
+    disableAutoPlay: () => void
     peek: (delta?: number) => Promise<ProviderRecord | null>
     goToFirst: () => void
     // goToLast: () => Promise<void>
@@ -67,22 +90,30 @@ interface RecordState {
     _buildKey: (provider: Provider, api: string, params: Record<string, unknown>) => string
     _fixCursor: (deletedLocalIdx: number) => void
     _ensureLoaded: (globalIdx: number) => Promise<void>
+    _getCurrentGlobalIndex: () => number
+    _clearAutoPlayTimer: () => void
+    _resetAutoPlayTimer: () => void
 }
 
 const CACHE_TTL = 5 * 60 * 1000
-// const PAGE_SIZE = 10
+const PAGE_SIZE = 10
 const PREFETCH_THRESHOLD = 2
 
 export const useRecordStore = create<RecordState>()(immer((
-    set: (fn: (state: RecordState) => void) => void,
-    get: () => RecordState
+    set, get
 ) => ({
     entities: {},
     queries: {},
     activeKey: null,
     cursor: 0,
     history: [],
-    historyCursor: null,
+    historyCursor: -1,
+    autoPlay: 'stop',
+    autoPlayTimerId: null,
+    autoPlayInFlight: false,
+    pendingPreloadUrl: null,
+    querySwitching: false,
+    queryTransitionRecord: null,
 
     // ─── selectors ────────────────────────────────────────────────────────────
 
@@ -100,19 +131,21 @@ export const useRecordStore = create<RecordState>()(immer((
 
     /**
      * 返回当前实体：当处于历史浏览时返回历史中的项；否则返回当前 query 中 cursor 指向的项
-     * 每次 live 模式下读取当前实体时，会把该实体加入 history（避免连续重复 id）
+     * 注意：不在此处修改 history，由调用方决定是否添加到历史记录
      */
     currentRecord: () => {
         const historyCursor = get().historyCursor
-        if (typeof historyCursor === 'number') {
-            const h = get().history[historyCursor] ?? null
-            console.log('[recordStore] currentRecord(history):', { historyCursor, hasRecord: !!h, recordId: h?.id })
-            return h
+        if (historyCursor !== -1) {
+            return get().history[historyCursor] ?? null
+        }
+
+        const transitionRecord = get().queryTransitionRecord
+        if (get().querySwitching && transitionRecord) {
+            return transitionRecord
         }
 
         const q = get().currentQuery()
         if (!q) {
-            console.log('[recordStore] currentRecord: no active query')
             return null
         }
 
@@ -121,18 +154,7 @@ export const useRecordStore = create<RecordState>()(immer((
             .map(id => get().entities[id])
             .filter((item): item is ProviderRecord => Boolean(item))
 
-        const cursor = get().cursor
-        const record = items[cursor] ?? null
-        console.log('[recordStore] currentRecord:', { totalItems: items.length, cursor, hasRecord: !!record, recordId: record?.id })
-
-        if (record) {
-            const history = get().history
-            if (history.length === 0 || history.at(-1)!.id !== record.id) {
-                set(state => { state.history.push(record) })
-            }
-        }
-
-        return record
+        return items[get().cursor] ?? null
     },
 
     // ─── 查询管理 ──────────────────────────────────────────────────────────────
@@ -140,39 +162,58 @@ export const useRecordStore = create<RecordState>()(immer((
     /**
      * 切换当前激活的查询
      * - 已有缓存且未过期：直接激活，不重新请求
-     * - 已有缓存但已过期：保留 deletedIds，重置分页状态，重新加载第一页
+     * - 已有缓存但已过期：保留 deletedIds，重置数据状态，重新加载第一页
      * - 全新查询：初始化 QueryState，立即加载第一页
-     * cursor 始终归零
+     * cursor 始终归零，baseIndex 从 0 开始（对应第1页）
      */
     switchQuery: (provider, api, params) => {
         const key = get()._buildKey(provider, api, params)
         const now = Date.now()
+        const prevRecord = get().currentRecord()
         console.log('[recordStore] switchQuery:', { key, provider, api, params })
 
         set(state => {
             state.activeKey = key
             state.cursor = 0
+            state.historyCursor = -1
+            state.querySwitching = true
+            state.queryTransitionRecord = prevRecord
+
+            const pageParam = params?.['page']
+            const initialBase = (typeof pageParam === 'number' && Number.isInteger(pageParam) && pageParam > 0)
+                ? Math.max(0, (pageParam - 1) * PAGE_SIZE)
+                : 0
 
             if (!state.queries[key]) {
                 state.queries[key] = {
                     provider, key, api, params,
                     ids: [], deletedIds: new Set(),
-                    nextPage: 1, hasMore: true,
-                    loading: false, error: null,
+                    baseIndex: initialBase, pageSize: PAGE_SIZE,
+                    canLoadPrev: initialBase > 0, hasMore: true,
+                    loading: false, loadingPrev: false,
+                    error: null,
                     loadedAt: null, requestId: 0,
                 }
-                console.log('[recordStore] created new query:', key)
+                console.log('[recordStore] created new query:', key, 'baseIndex:', initialBase)
             } else if (state.queries[key].loadedAt &&
                 now - state.queries[key].loadedAt! > CACHE_TTL) {
                 // 缓存过期：只重置分页，保留 deletedIds（用户的删除操作不应随缓存失效消失）
                 state.queries[key].ids = []
-                state.queries[key].nextPage = 1
+                state.queries[key].baseIndex = initialBase
+                state.queries[key].canLoadPrev = initialBase > 0
                 state.queries[key].hasMore = true
                 state.queries[key].loadedAt = null
                 state.queries[key].error = null
                 console.log('[recordStore] cache expired, resetting query:', key)
             } else {
                 console.log('[recordStore] using cached query:', key)
+            }
+
+            const nextQuery = state.queries[key]
+            const hasUsableCache = Boolean(nextQuery.loadedAt && nextQuery.ids.length > 0)
+            if (hasUsableCache) {
+                state.querySwitching = false
+                state.queryTransitionRecord = null
             }
         })
 
@@ -192,7 +233,8 @@ export const useRecordStore = create<RecordState>()(immer((
         set(state => {
             if (state.queries[key]) {
                 state.queries[key].ids = []
-                state.queries[key].nextPage = 1
+                state.queries[key].baseIndex = 0
+                state.queries[key].canLoadPrev = false
                 state.queries[key].hasMore = true
                 state.queries[key].loadedAt = null
             }
@@ -206,10 +248,31 @@ export const useRecordStore = create<RecordState>()(immer((
         Object.keys(get().queries).forEach(key => get().invalidateQuery(key))
     },
 
+    // ─── 历史模式管理 ──────────────────────────────────────────────────────────
+
+    enterHistoryMode: () => {
+        const h = get().history
+        if (h.length === 0) return
+        set(state => {
+            state.historyCursor = h.length - 1
+        })
+    },
+
+    leaveHistoryMode: () => {
+        set(state => {
+            state.historyCursor = -1
+        })
+    },
+
+    isHistoryMode: () => {
+        return get().historyCursor !== -1
+    },
+
     // ─── 数据加载 ──────────────────────────────────────────────────────────────
 
     /**
      * 加载当前查询的下一页数据，追加到 ids 末尾
+     * - 页码计算：nextPage = Math.floor((baseIndex + ids.length) / PAGE_SIZE) + 1
      * - 并发安全：用 requestId 防止过期响应写入
      * - 后台加载：即使切换了查询，数据也会写入对应 key 的缓存
      * - 去重：新数据的 id 若已存在于 ids 中，不重复追加
@@ -231,12 +294,15 @@ export const useRecordStore = create<RecordState>()(immer((
 
         try {
             const adapter = getAdapter(q.provider)
-            console.log('[recordStore] fetching data for query:', activeKey, 'page:', q.nextPage)
-            const { data, hasMore } = await adapter.fetch(q.api, q.params, q.nextPage)
+            // 计算下一页页码
+            const nextPageNum = Math.floor((q.baseIndex + q.ids.length) / PAGE_SIZE) + 1
+            console.log('[recordStore] fetching data for query:', activeKey, 'page:', nextPageNum, 'baseIndex:', q.baseIndex, 'idsLen:', q.ids.length)
+            const { data, hasMore } = await adapter.fetch(q.api, q.params, nextPageNum)
             console.log('[recordStore] fetch result:', { count: data.length, hasMore, activeKey })
 
             set(state => {
                 const current = state.queries[activeKey]!
+                const beforeCount = current.ids.length
                 // 请求已被更新的请求覆盖，丢弃此响应
                 if (current.requestId !== myRequestId) {
                     console.log('[recordStore] stale request, discarding:', activeKey)
@@ -244,7 +310,6 @@ export const useRecordStore = create<RecordState>()(immer((
                 }
 
                 try {
-                    const beforeCount = current.ids.length
                     console.log('[recordStore] before merge:', { beforeCount, currentIdsType: typeof current.ids, isArray: Array.isArray(current.ids) })
 
                     // 直接在当前 set 中合并数据，避免嵌套 set
@@ -268,9 +333,23 @@ export const useRecordStore = create<RecordState>()(immer((
                     console.log('[recordStore] merged data:', { beforeCount, afterCount: current.ids.length, newItemsAdded: current.ids.length - beforeCount })
 
                     current.hasMore = hasMore
-                    current.nextPage += 1
                     current.loadedAt = Date.now()
                     current.loading = false
+
+                    if (state.activeKey === activeKey && state.querySwitching) {
+                        state.querySwitching = false
+                        state.queryTransitionRecord = null
+                    }
+
+                    if (beforeCount === 0 && state.historyCursor === -1) {
+                        const currentRecord = current.ids
+                            .filter(id => !current.deletedIds.has(id))
+                            .map(id => state.entities[id])
+                            .find((item): item is ProviderRecord => Boolean(item))
+                        if (currentRecord && (state.history.length === 0 || state.history.at(-1)!.id !== currentRecord.id)) {
+                            state.history.push(currentRecord)
+                        }
+                    }
                 } catch (err) {
                     console.error('[recordStore] error during merge:', err)
                     throw err
@@ -281,6 +360,10 @@ export const useRecordStore = create<RecordState>()(immer((
                 if (state.queries[activeKey]!.requestId === myRequestId) {
                     state.queries[activeKey]!.loading = false
                     state.queries[activeKey]!.error = (err as Error).message
+                    if (state.activeKey === activeKey && state.querySwitching) {
+                        state.querySwitching = false
+                        state.queryTransitionRecord = null
+                    }
                 }
             })
         }
@@ -288,7 +371,7 @@ export const useRecordStore = create<RecordState>()(immer((
 
 
     /**
-     * 检查当前查询是否还有更多数据可加载
+     * 检查当前查询是否还有更多数据可加载（向后）
      * 由当前查询的 hasMore 字段决定，调用前应先检查 currentQuery() 是否为 null
      */
     hasMore: () => {
@@ -299,6 +382,110 @@ export const useRecordStore = create<RecordState>()(immer((
         if (!q || q.loading || !q.hasMore) return false
 
         return q.hasMore;
+    },
+
+    /**
+     * 检查当前查询是否还有更多数据可加载（向前）
+     * 由当前查询的 canLoadPrev 字段决定
+     */
+    hasPrev: () => {
+        const { activeKey, queries } = get()
+        if (!activeKey) return false
+
+        const q = queries[activeKey]
+        if (!q || q.loadingPrev || !q.canLoadPrev) return false
+
+        return q.canLoadPrev;
+    },
+
+    /**
+     * 加载当前查询的前一页数据，插入到 ids 头部
+     * - 页码计算：prevPage = Math.floor(baseIndex / PAGE_SIZE)
+     * - 并发安全：用 requestId 防止过期响应写入
+     * - 去重 & 过滤：同 loadMore
+     * - 成功加载后 baseIndex 向前回退 PAGE_SIZE
+     * - 若无前一页数据（baseIndex === 0 且后端无更多前向数据），设 canLoadPrev = false
+     */
+    _loadPrevious: async () => {
+        const { activeKey, queries } = get()
+        if (!activeKey) return
+
+        const q = queries[activeKey]
+        if (!q || q.loadingPrev || !q.canLoadPrev) return
+
+        const myRequestId = q.requestId + 1
+        set(state => {
+            state.queries[activeKey]!.loadingPrev = true
+            state.queries[activeKey]!.error = null
+            state.queries[activeKey]!.requestId = myRequestId
+        })
+
+        try {
+            const adapter = getAdapter(q.provider)
+            // 计算前一页的页码（baseIndex 所在的页）
+            const prevPageNum = Math.floor(q.baseIndex / PAGE_SIZE)
+            if (prevPageNum < 1) {
+                // 已在第1页，无法向前加载
+                set(state => {
+                    state.queries[activeKey]!.loadingPrev = false
+                    state.queries[activeKey]!.canLoadPrev = false
+                })
+                return
+            }
+
+            console.log('[recordStore] fetching previous page for query:', activeKey, 'page:', prevPageNum, 'baseIndex:', q.baseIndex)
+            const { data, hasMore } = await adapter.fetch(q.api, q.params, prevPageNum)
+            console.log('[recordStore] fetch previous result:', { count: data.length, hasMore, activeKey })
+
+            set(state => {
+                const current = state.queries[activeKey]!
+                // 请求已被更新的请求覆盖，丢弃此响应
+                if (current.requestId !== myRequestId) {
+                    console.log('[recordStore] stale request for loadPrevious, discarding:', activeKey)
+                    return
+                }
+
+                try {
+                    // 合并实体
+                    data.forEach(item => {
+                        state.entities[item.id] = item
+                    })
+
+                    const existingIds = new Set(current.ids)
+                    const itemsToAdd = data
+                        .filter(item => !current.deletedIds.has(item.id) && !existingIds.has(item.id))
+
+                    // 插入到头部（前向加载）
+                    itemsToAdd.reverse().forEach(item => {
+                        current.ids.unshift(item.id)
+                    })
+
+                    // 更新 baseIndex（向前回退）
+                    current.baseIndex = prevPageNum * PAGE_SIZE - itemsToAdd.length
+                    if (current.baseIndex < 0) {
+                        current.baseIndex = 0
+                    }
+
+                    // 判断是否还能继续向前加载
+                    current.canLoadPrev = current.baseIndex > 0
+
+                    current.loadedAt = Date.now()
+                    current.loadingPrev = false
+
+                    console.log('[recordStore] loaded previous page:', { newBaseIndex: current.baseIndex, itemsAdded: itemsToAdd.length, canLoadPrev: current.canLoadPrev })
+                } catch (err) {
+                    console.error('[recordStore] error during previous merge:', err)
+                    throw err
+                }
+            })
+        } catch (err) {
+            set(state => {
+                if (state.queries[activeKey]!.requestId === myRequestId) {
+                    state.queries[activeKey]!.loadingPrev = false
+                    state.queries[activeKey]!.error = (err as Error).message
+                }
+            })
+        }
     },
 
     /**
@@ -313,31 +500,108 @@ export const useRecordStore = create<RecordState>()(immer((
 
     // ─── 导航 ──────────────────────────────────────────────────────────────────
 
-    /**
-     * 相对移动光标
-     * delta = +1 下一个，delta = -1 上一个
-     * 接近末尾时（距末尾 < PREFETCH_THRESHOLD）自动后台预加载下一页
-     */
-    navigate: async (delta = 1) => {
-        // 仅允许 +-1
-        if (delta !== 1 && delta !== -1) return
+    enableAutoPlay: (intervalSec: number) => {
+        const normalized = Math.max(1, Math.round(intervalSec))
+        set(state => {
+            state.autoPlay = normalized
+        })
+        get()._resetAutoPlayTimer()
+    },
 
+    disableAutoPlay: () => {
+        get()._clearAutoPlayTimer()
+        set(state => {
+            state.autoPlay = 'stop'
+            state.autoPlayInFlight = false
+        })
+    },
+
+    /**
+     * 导航到指定的全局序号
+     * index 是全局序号（从0开始），例如 navigate(23) 将跳转到第23项
+     * 若目标超出已加载范围，会自动补充加载
+     * 成功导航后自动记录当前 record 到历史（在非历史浏览模式下）
+     */
+    navigate: async (delta: number) => {
+        if (!Number.isInteger(delta)) return
+
+        // 历史模式下：移动历史游标（环形），不退出历史模式
+        if (get().isHistoryMode()) {
+            const h = get().history
+            if (h.length === 0) return
+            set(state => {
+                const len = h.length
+                const idx = ((state.historyCursor + delta) % len + len) % len
+                state.historyCursor = idx
+            })
+            return
+        }
+
+        const q0 = get().currentQuery()
+        if (!q0) return
+
+        // 当前全局索引
+        const currentGlobal = get()._getCurrentGlobalIndex()
+        const targetGlobal = currentGlobal + delta
+        if (targetGlobal < 0) return
+
+        // 确保加载目标
+        await get()._ensureLoaded(targetGlobal)
         const q = get().currentQuery()
         if (!q) return
 
-        const items = q.ids
+        const localCursor = targetGlobal - q.baseIndex
+        const visibleItems = q.ids
             .filter(id => !q.deletedIds.has(id))
             .map(id => get().entities[id])
             .filter((item): item is ProviderRecord => Boolean(item))
 
-        const next = get().cursor + delta
-        if (next < 0 || next >= items.length) return
-
-        set(state => { state.cursor = next })
-
-        if (q.hasMore && items.length - next <= PREFETCH_THRESHOLD) {
-            get().loadMore()  // 不 await，静默后台加载
+        if (localCursor < 0 || localCursor >= visibleItems.length) {
+            console.log('[recordStore] navigate target out of range after loading:', { targetGlobal, baseIndex: q.baseIndex, visibleCount: visibleItems.length })
+            return
         }
+
+        set(state => { state.cursor = localCursor })
+
+        // 导航成功后，记录当前 record 到历史（仅在非历史浏览模式）
+        const record = get().currentRecord()
+        if (record) {
+            const history = get().history
+            if (history.length === 0 || history.at(-1)!.id !== record.id) {
+                set(state => { state.history.push(record) })
+            }
+        }
+
+        // 接近末尾时自动后台预加载下一页
+        if (q.hasMore && visibleItems.length - localCursor <= PREFETCH_THRESHOLD) {
+            void get().loadMore()  // 不 await，静默后台加载
+        }
+
+        if (get().autoPlayTimerId !== null) {
+            get()._resetAutoPlayTimer()
+        }
+
+        const nextRecord = await get().peek(1)
+        set(state => {
+            state.pendingPreloadUrl = nextRecord?.type === 'image' ? nextRecord.url : null
+        })
+    },
+
+    /**
+     * 便捷方法：导航到下一项（相当于 navigate(currentIndex + 1)）
+     */
+    next: async () => {
+        await get().navigate(1)
+    },
+
+    /**
+     * 便捷方法：导航到上一项（相当于 navigate(currentIndex - 1)）
+     */
+    _prev: async () => {
+        const q = get().currentQuery()
+        if (!q) return
+        const currentIndex = get()._getCurrentGlobalIndex()
+        await get().navigate(currentIndex - 1)
     },
 
     /**
@@ -358,10 +622,10 @@ export const useRecordStore = create<RecordState>()(immer((
     },
 
     /**
-     * 跳到第一个（不触发加载）
+     * 跳到第一个
      */
-    goToFirst: () => {
-        set(state => { state.cursor = 0 })
+    goToFirst: async () => {
+        await get().navigate(0)
     },
 
     /**
@@ -379,7 +643,7 @@ export const useRecordStore = create<RecordState>()(immer((
      * 跳到指定的本地下标
      * 若目标下标超出已加载范围，先补充加载再定位
      */
-    // goToIndex 已移除；请使用历史相关 API 或 navigate(+1/-1)
+    // goToIndex 已移除；请使用历史相关 API 或 navigate(index)/next()/prev()
 
     // ─── 数据操作 ──────────────────────────────────────────────────────────────
 
@@ -442,7 +706,7 @@ export const useRecordStore = create<RecordState>()(immer((
     },
 
     returnToCurrent: () => {
-        set(state => { state.historyCursor = null })
+        set(state => { state.historyCursor = -1 })
     },
 
     // ─── 内部工具 ──────────────────────────────────────────────────────────────
@@ -479,13 +743,106 @@ export const useRecordStore = create<RecordState>()(immer((
     },
 
     /**
-     * 确保本地已加载到足够覆盖目标下标的数据
-     * 循环加载直到 ids 长度超过目标下标或没有更多数据
+     * 确保本地已加载到足够覆盖目标全局下标的数据
+     * 采用双向加载：若目标在已加载范围外，向指定方向加载
      */
-    _ensureLoaded: async (globalIdx) => {
-        const getIds = () => get().currentQuery()?.ids ?? []
-        while (getIds().length <= globalIdx && get().currentQuery()?.hasMore) {
-            await get().loadMore()
+    _ensureLoaded: async (globalIdx: number) => {
+        const q = get().currentQuery()
+        if (!q) return
+
+        const maxLoadedIdx = q.baseIndex + q.ids.length - 1
+
+        // 若目标已在已加载范围内，直接返回
+        if (globalIdx >= q.baseIndex && globalIdx <= maxLoadedIdx) {
+            return
         }
+
+        // 若目标在范围前方，向前加载
+        if (globalIdx < q.baseIndex) {
+            while (globalIdx < q.baseIndex && q.canLoadPrev) {
+                await get()._loadPrevious()
+            }
+        }
+        // 若目标在范围后方，向后加载
+        else if (globalIdx > maxLoadedIdx) {
+            while (globalIdx > get().currentQuery()!.baseIndex + get().currentQuery()!.ids.length - 1 && get().currentQuery()!.hasMore) {
+                await get().loadMore()
+            }
+        }
+    },
+
+    /**
+     * 获取当前光标指向的全局序号
+     * 若没有激活查询或光标无效，返回 0
+     */
+    _getCurrentGlobalIndex: () => {
+        const q = get().currentQuery()
+        if (!q) return 0
+        return q.baseIndex + get().cursor
+    },
+
+    _clearAutoPlayTimer: () => {
+        if (typeof window === 'undefined') {
+            set(state => {
+                state.autoPlayTimerId = null
+            })
+            return
+        }
+
+        const timerId = get().autoPlayTimerId
+        if (timerId !== null) {
+            window.clearInterval(timerId)
+        }
+
+        set(state => {
+            state.autoPlayTimerId = null
+        })
+    },
+
+    _resetAutoPlayTimer: () => {
+        if (typeof window === 'undefined') return
+
+        const autoPlay = get().autoPlay
+        if (autoPlay === 'stop') {
+            get()._clearAutoPlayTimer()
+            return
+        }
+
+        const intervalMs = Math.max(1, Math.round(autoPlay * 1000))
+        get()._clearAutoPlayTimer()
+
+        const timerId = window.setInterval(() => {
+            const state = get()
+            if (state.autoPlay === 'stop' || state.autoPlayInFlight) {
+                return
+            }
+
+            const q = state.currentQuery()
+            if (!q) {
+                state.disableAutoPlay()
+                return
+            }
+
+            const visibleCount = q.ids.filter((id) => !q.deletedIds.has(id)).length
+            const currentIndex = state._getCurrentGlobalIndex()
+            const maxLoadedIndex = q.baseIndex + visibleCount - 1
+            if (!q.hasMore && currentIndex >= maxLoadedIndex) {
+                state.disableAutoPlay()
+                return
+            }
+
+            set(s => {
+                s.autoPlayInFlight = true
+            })
+            void state.navigate(1).finally(() => {
+                set(s => {
+                    s.autoPlayInFlight = false
+                })
+            })
+        }, intervalMs)
+
+        set(state => {
+            state.autoPlayTimerId = timerId
+        })
     },
 })))
