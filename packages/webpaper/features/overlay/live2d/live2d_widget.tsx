@@ -4,42 +4,35 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useElementSize, useDebounce } from '@reactuses/core';
 import { useLive2D } from './useLive2D';
-
-// settings JSON loaded via cached dynamic import to avoid refetch on remount
+import { useLive2DModel } from './useLive2DModel';
 import type { WidgetRendererProps } from '../types';
 import type { Live2dWidgetProps } from './schema';
 
-const LIVE2D_WIDGET_LOG_PREFIX = '[Live2D:widget]';
-
-/**
- * Live2D widget - 管理 Pixi Application 和 Live2D 模型
- */
 export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
     const { widget } = props;
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [elemWidth, elemHeight] = useElementSize(containerRef.current);
-    // Debounce size changes for renderer resize (avoid flicker from frequent updates)
-    const debouncedSize = useDebounce({ width: elemWidth, height: elemHeight }, widget.props.resizeDelay);
-    const onHit = useCallback((areas) => {
-        console.info(`${LIVE2D_WIDGET_LOG_PREFIX} model hit`, { widgetId: widget.id, areas });
-    }, [widget.id]);
-    const { canvas, resize } = useLive2D({
-        modelPath: widget.props.modelPath,
-        userScale: widget.props.scale,
-        enableInteraction: widget.props.enableInteraction,
-        enablePointerTracking: widget.props.enablePointerTracking,
-        autoAnimation: widget.props.autoAnimation,
+    const debouncedSize = useDebounce({ width: elemWidth, height: elemHeight }, widget.props.resizeDelay ?? 300);
+
+    const onHit = useCallback((areas: string[]) => {
+        void areas;
+    }, []);
+
+    const { l2d, canvas, resize } = useLive2D({
         renderPrecision: widget.props.renderPrecision,
-        width: elemWidth || 0,
-        height: elemHeight || 0,
-        onHit: onHit,
+    });
+
+    useLive2DModel({
+        l2d,
+        modelPath: widget.props.modelPath,
+        scale: widget.props.scale,
+        onHit: widget.props.interaction ? onHit : undefined,
     });
 
     useEffect(() => {
         resize(debouncedSize.width, debouncedSize.height);
     }, [debouncedSize.width, debouncedSize.height, resize]);
 
-    // append / remove canvas produced by useLive2D
     useEffect(() => {
         const container = containerRef.current;
         if (!container || !canvas) return;
@@ -52,19 +45,21 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
         }
         return () => {
             try {
-                if (c && container.contains(c)) container.removeChild(c);
-            } catch (e) { }
+                if (c && container.contains(c)) {
+                    container.removeChild(c);
+                }
+            } catch (e) {
+                // ignore
+            }
         };
     }, [canvas]);
 
     const containerStyle: CSSProperties = {
-        width: '100%',
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
         alignItems: 'center',
-        flexDirection: 'column',
         minHeight: 0,
     };
 

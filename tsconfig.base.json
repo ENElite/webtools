@@ -6,6 +6,9 @@
     "lib": [
       "ES2021"
     ],
+    "types": [
+      "node"
+    ],
     "esModuleInterop": true,
     "outDir": "dist",
     "noEmit": false,

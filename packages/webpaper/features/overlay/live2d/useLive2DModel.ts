@@ -1,119 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-import type { Application } from 'pixi.js';
-import type { Live2DModel } from 'pixi-live2d-display';
-import { loadLive2dRuntimeModules, loadLive2dSettingsJsonCached } from '@/lib/live2d';
-
-const LIVE2D_WIDGET_LOG_PREFIX = '[Live2D:useLive2D]';
+import { useEffect } from 'react';
+import type { L2D } from 'l2d';
 
 export type UseLive2DModelOptions = {
-    app: Application | null;
+    l2d: L2D | null;
     modelPath: string;
-    enableInteraction?: boolean;
-    enablePointerTracking?: boolean;
-    autoAnimation?: boolean;
+    scale?: number;
     onHit?: (areas: string[]) => void;
 };
 
 export function useLive2DModel(options: UseLive2DModelOptions) {
-    const {
-        app,
-        modelPath,
-        enableInteraction = true,
-        enablePointerTracking = false,
-        autoAnimation = false,
-        onHit,
-    } = options;
-
-    const [model, setModel] = useState<Live2DModel | null>(null);
-    const autoTimerRef = useRef<number | null>(null);
+    const { l2d, modelPath, scale = 1, onHit } = options;
 
     useEffect(() => {
-        if (!app) {
+        if (!l2d) {
             return;
         }
 
         let cancelled = false;
-        let nextModel: Live2DModel | null = null;
-
-        const cleanupTimer = () => {
-            if (autoTimerRef.current !== null) {
-                window.clearInterval(autoTimerRef.current);
-                autoTimerRef.current = null;
-            }
-        };
-
-        const cleanupModel = () => {
-            if (!nextModel) {
-                return;
-            }
-
+        void (async () => {
             try {
-                if (app.stage.children.includes(nextModel)) {
-                    app.stage.removeChild(nextModel);
+                await l2d.load({
+                    path: modelPath,
+                });
+
+                if (cancelled) {
+                    return;
+                }
+
+                if (onHit && (l2d as any).on) {
+                    (l2d as any).on('hit', (hitAreas: string[]) => {
+                        onHit(hitAreas);
+                    });
                 }
             } catch (error) {
-                console.warn(`${LIVE2D_WIDGET_LOG_PREFIX} model removal failed`, {
-                    modelPath,
-                    error,
-                });
+                // ignore
             }
-
-            nextModel.destroy();
-            nextModel = null;
-        };
-
-        void (async () => {
-            const { pixi, cubism } = await loadLive2dRuntimeModules();
-            if (cancelled) {
-                return;
-            }
-
-            const Live2DModelCtor = cubism.Live2DModel;
-            Live2DModelCtor.registerTicker(pixi.Ticker);
-            const settingsJson = await loadLive2dSettingsJsonCached(modelPath);
-            if (cancelled) {
-                return;
-            }
-
-            nextModel = await Live2DModelCtor.from(settingsJson);
-            if (cancelled) {
-                cleanupModel();
-                return;
-            }
-
-            setModel(nextModel);
-            app.stage.addChild(nextModel);
-
-            if (enableInteraction) {
-                nextModel.interactive = true;
-                nextModel.cursor = 'pointer';
-                if (onHit) {
-                    nextModel.on('hit', onHit);
-                }
-            }
-
-            if (autoAnimation) {
-                autoTimerRef.current = window.setInterval(() => {
-                    nextModel?.motion('idle');
-                }, 3000);
-            }
-
-        })().catch((error) => {
-            console.error(`${LIVE2D_WIDGET_LOG_PREFIX} model load failed`, {
-                modelPath,
-                error,
-            });
-        });
+        })();
 
         return () => {
             cancelled = true;
-            cleanupTimer();
-            cleanupModel();
-            setModel(null);
         };
-    }, [app, autoAnimation, enableInteraction, enablePointerTracking, modelPath, onHit]);
+    }, [l2d, modelPath, onHit]);
 
-    return model;
+    useEffect(() => {
+        if (!l2d) {
+            return;
+        }
+
+        l2d.setScale(scale);
+    }, [l2d, scale]);
 }
