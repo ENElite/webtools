@@ -14,8 +14,8 @@ type OverlayRootProps = {
     onWidgetContextMenu?: () => void;
 };
 
-
 export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps) {
+    const OVERLAY_LOG_PREFIX = '[OverlayRoot]';
     const {
         activeWidgetId,
         activeWidget,
@@ -27,6 +27,10 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     } = useWidgetStore();
     const pendingSettingsWidgetId = useOverlayStore((rootState) => rootState.pendingSettingsWidgetId);
     const clearWidgetSettingsRequest = useOverlayStore((rootState) => rootState.clearWidgetSettingsRequest);
+    const undo = useOverlayStore((rootState) => rootState.undo);
+    const redo = useOverlayStore((rootState) => rootState.redo);
+    const canUndo = useOverlayStore((rootState) => rootState.canUndo);
+    const canRedo = useOverlayStore((rootState) => rootState.canRedo);
 
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});
@@ -65,7 +69,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
 
     const settingsSourceWidget = useMemo(() => {
         return findWidget(settingsWidgetId);
-    }, [settingsWidgetId]);
+    }, [settingsWidgetId, findWidget]);
 
     useEffect(() => {
         if (settingsWidgetId && !settingsSourceWidget) {
@@ -93,11 +97,47 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
         activate(null);
         setSettingsWidgetId(pendingSettingsWidgetId);
         clearWidgetSettingsRequest();
-    }, [clearWidgetSettingsRequest, hideWidgetableNow, pendingSettingsWidgetId]);
+    }, [clearWidgetSettingsRequest, hideWidgetableNow, pendingSettingsWidgetId, activate]);
+
+    // Keyboard shortcuts for undo/redo
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Ctrl+Z or Cmd+Z for undo
+            if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+                event.preventDefault();
+                if (canUndo) {
+                    undo();
+                }
+            }
+            // Ctrl+Y or Ctrl+Shift+Z or Cmd+Shift+Z for redo
+            if (
+                ((event.ctrlKey || event.metaKey) && event.key === 'y') ||
+                ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'z')
+            ) {
+                event.preventDefault();
+                if (canRedo) {
+                    redo();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [undo, redo, canUndo, canRedo]);
 
     const hoveredWidget = useMemo(() => {
         return findWidget(hoveredWidgetId);
     }, [hoveredWidgetId, findWidget]);
+
+    useEffect(() => {
+        const live2dWidgetIds = widgets.filter((item) => item.kind === 'live2d').map((item) => item.id);
+        console.info(`${OVERLAY_LOG_PREFIX} widgets snapshot`, {
+            totalWidgets: widgets.length,
+            live2dCount: live2dWidgetIds.length,
+            live2dWidgetIds,
+            activeWidgetId,
+        });
+    }, [OVERLAY_LOG_PREFIX, activeWidgetId, widgets]);
 
     return (
         <div
@@ -197,9 +237,6 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     />
                 )
                 : null}
-
         </div>
     );
 }
-
-export const Overlay = OverlayRoot;

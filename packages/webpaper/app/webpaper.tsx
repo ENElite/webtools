@@ -18,6 +18,7 @@ import {
     createWidget,
     defaultWidgetLabel,
 } from '@/features/overlay'
+import { AddWidgetCommand } from '@/features/overlay/commands';
 import type { WidgetKind } from '@/features/overlay';
 import type { ProviderRecord } from '@/providers';
 
@@ -33,6 +34,7 @@ export function Webpaper() {
     const hasMore = useRecordStore((state) => state.hasMore());
     const next = useRecordStore((state) => state.next);
     const enterHistoryMode = useRecordStore((state) => state.enterHistoryMode);
+    const leaveHistoryMode = useRecordStore(state => state.leaveHistoryMode)
     const isHistoryMode = useRecordStore((state) => state.isHistoryMode);
     const navigate = useRecordStore((state) => state.navigate);
     const goToHistory = useRecordStore((state) => state.goToHistory);
@@ -59,7 +61,7 @@ export function Webpaper() {
     const notifyRef = useRef(api);
     const overlayRenderers = useMemo(() => createOverlayRendererMap(), []);
     const overlayState = useOverlayStore((state) => state);
-    const addOverlayWidget = useOverlayStore((state) => state.addWidget);
+    const executeOverlayCommand = useOverlayStore((state) => state.executeCommand);
     const requestOverlayWidgetSettings = useOverlayStore((state) => state.requestWidgetSettings);
 
     usePreloadImage(pendingPreloadUrl);
@@ -157,7 +159,7 @@ export function Webpaper() {
                 adapt: 'fixed',
             },
         });
-        addOverlayWidget(nextWidget);
+        executeOverlayCommand(new AddWidgetCommand(nextWidget));
         requestOverlayWidgetSettings(nextWidget.id);
         notify('success', '组件已创建', `${nextWidget.label} (${nextWidget.id})`);
     };
@@ -168,23 +170,22 @@ export function Webpaper() {
         return history.findIndex((item) => item.id === currentRecord.id)
     }, [currentRecord, history]);
 
-    const hasHistory = history.length > 0
+    // const hasHistory = history.length > 0
     const inHistoryMode = isHistoryMode()
     const canGoPrevious = inHistoryMode || currentRecordIndex > 0
+    const canGoNext = inHistoryMode || hasMore
 
     const goToPreviousHistory = useCallback(async () => {
-        if (!inHistoryMode && currentRecordIndex <= 0) return
+        if (!canGoPrevious) return
         if (!inHistoryMode) {
             enterHistoryMode()
         }
         await navigate(-1)
-    }, [inHistoryMode, currentRecordIndex, enterHistoryMode, navigate])
+    }, [inHistoryMode, canGoPrevious, enterHistoryMode, navigate])
 
-    const returnToLatestHistory = useCallback(async () => {
-        if (history.length === 0) return
-        // enterHistoryMode() already sets cursor to history.length - 1
-        enterHistoryMode()
-    }, [history.length, enterHistoryMode])
+    const returnToLatest = useCallback(async () => {
+        if (inHistoryMode) leaveHistoryMode();
+    }, [inHistoryMode, leaveHistoryMode])
 
     const rightClickMenuItems = useMemo<MenuProps['items']>(() => {
         const makeItemIcon = (iconClass: string) => (
@@ -226,9 +227,9 @@ export function Webpaper() {
             {
                 key: 'next-image',
                 label: '下一张',
-                disabled: !hasMore && currentRecordIndex >= history.length - 1,
+                disabled: !canGoNext,
                 icon: makeItemIcon('icon-[octicon--arrow-right-16]'),
-                onClick: () => void loadNextImage(),
+                onClick: loadNextImage,
             },
             {
                 key: 'previous-image',
@@ -240,9 +241,9 @@ export function Webpaper() {
             {
                 key: 'return-latest',
                 label: '回到最新',
-                disabled: !hasHistory || currentRecordIndex >= history.length - 1,
+                disabled: !inHistoryMode,
                 icon: makeItemIcon('icon-[octicon--history-16]'),
-                onClick: returnToLatestHistory,
+                onClick: returnToLatest,
             },
             {
                 key: 'fullscreen',
@@ -322,7 +323,19 @@ export function Webpaper() {
                 ],
             },
         ];
-    }, [canGoPrevious, currentRecord, currentRecordIndex, history.length, fullScreen, goToPreviousHistory, hasHistory, hasMore, isAutoPlaying, loadNextImage, resetAllSettings, returnToLatestHistory, toggleSettings, togglePlay]);
+    }, [
+        currentRecord,
+        currentRecordIndex,
+        isAutoPlaying,
+        canGoPrevious, canGoNext,
+        goToPreviousHistory,
+        loadNextImage,
+        resetAllSettings,
+        returnToLatest,
+        toggleSettings,
+        togglePlay,
+        fullScreen,
+    ]);
 
     return (
         <Dropdown
