@@ -54,7 +54,7 @@ export const Dimensionable: Able = {
     name: "dimensionable",
     props: ['dimensionPosition', 'dimensionPadding'],
     events: [],
-    render(moveable: MoveableManagerInterface<DimensionableProps>, React: Renderer) {
+    render(moveable: MoveableManagerInterface<DimensionableProps>, _React: Renderer) {
         const rect = moveable.getRect();
         const position = moveable.props.dimensionPosition;
         const padding = moveable.props.dimensionPadding;

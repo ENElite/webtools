@@ -1,15 +1,15 @@
 import { useCallback, useMemo } from 'react';
 
 import { useOverlayStore } from './overlayStore';
-import type { WidgetId } from '@/features/overlay/types';
+import type { WidgetId } from '../overlay/types';
 import {
     RemoveWidgetCommand,
     UpdateWidgetCommand,
     MoveWidgetCommand,
     CopyWidgetCommand,
-} from '@/features/overlay/commands';
-import { layoutFromPx, parseTransformString } from '@/features/overlay/transform_utils';
-import type { WidgetLayout } from '@/features/overlay/types';
+} from '../overlay/commands';
+import { layoutFromPx, parseTransformString } from '../overlay/transform_utils';
+import type { WidgetLayout } from '../overlay/types';
 
 export type WidgetActionEvent =
     | { type: 'move-widget-up'; widgetId: WidgetId }

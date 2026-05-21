@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 
-import { useTimestamp } from '@/hooks/useTimestamp';
+import { useTimestamp } from '../../hooks/useTimestamp';
 
 import type { WidgetRendererProps } from '../types';
 import type { AmPmFormat, ClockWidgetProps, DateFormat, DigitFormat, ShowYearPlacement, TimeFormat, WeekdayFormat } from './schema';

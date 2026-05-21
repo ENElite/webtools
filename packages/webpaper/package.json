@@ -16,6 +16,7 @@
     "generate-models:interactive": "node ../../scripts/generate-models-list.cjs -i"
   },
   "dependencies": {
+    "@webtools/webwidget": "workspace:*",
     "@heroui/react": "^2.1.7",
     "@langchain/core": "^1.1.40",
     "@langchain/openai": "^1.4.4",
@@ -33,18 +34,12 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@iconify-json/octicon": "^1.2.22",
-    "@iconify/tailwind4": "^1.2.3",
-    "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.3.0",
     "@vitest/coverage-v8": "4.1.4",
-    "autoprefixer": "^10.4.20",
     "babel-plugin-import": "^1.13.8",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^4.2.2",
     "vite": "^6.4.2"
   }
 }

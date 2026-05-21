@@ -3,15 +3,15 @@ import { create } from 'zustand';
 import type {
     WidgetId,
     WidgetModel,
-} from '@/features/overlay/types';
+} from '../overlay/types';
 import {
     CommandHistoryManager,
     type Command,
     type CommandSnapshot,
-} from '@/features/overlay/commands';
-import { createWidget } from '@/features/overlay/registry';
+} from '../overlay/commands';
+import { createWidget } from '../overlay/registry';
 
-type OverlayState = {
+export type OverlayState = {
     // Core State
     widgets: WidgetModel[];
     activeWidgetId: WidgetId | null;

@@ -12,7 +12,7 @@ import type {
     WidgetPropPrimitive,
 } from './types';
 
-import type { SettingsFieldSchema } from '@/components/settings';
+import type { SettingsFieldSchema } from '../components/settings';
 
 export const WidgetStyleSettingsKeys = [
     'opacity',

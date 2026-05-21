@@ -117,6 +117,7 @@ function buildWidgetLayoutStyle(
     const anchorTop = layoutToUse.anchorY === 'top' ? '0%' : layoutToUse.anchorY === 'center' ? '50%' : '100%';
 
     return {
+        position: 'absolute',
         left: anchorLeft,
         top: anchorTop,
         width: `${widthPx}px`,
@@ -254,7 +255,7 @@ export function Widget({
     return (
         <div
             className={combineClassNames(
-                'widget group absolute select-none touch-none',
+                'widget group',
                 // active ? 'ring-2 ring-cyan-400/70' : undefined,
                 // widget.locked ? 'opacity-100' : undefined,
             )}
@@ -277,10 +278,14 @@ export function Widget({
         >
             <div
                 className={combineClassNames(
-                    'widget-content w-full h-full',
+                    'widget-content',
                     className,
                 )}
                 style={{
+                    userSelect: 'none',
+                    touchAction: 'none',
+                    width: '100%',
+                    height: '100%',
                     ...buildWidgetVisualStyle(widget),
                     ...style,
                 }}

@@ -3,11 +3,11 @@ import { useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 
 import { Widgetable } from './ables/widgetable';
+import { Dimensionable } from './ables/dimensionable';
 import type { WidgetModel } from './types';
 import { DEFAULT_SNAP_THRESHOLD } from './registry';
-import { Dimensionable } from './ables/dimensionable';
-import { useWidgetAction } from '@/store/widgetStore';
-import { WidgetActionEvent } from '@/store';
+
+import { useWidgetAction, WidgetActionEvent } from '../store';
 
 type OverlayMoveableProps = {
     activeWidget: WidgetModel | null;

@@ -9,17 +9,18 @@ import {
 } from '@reactuses/core';
 import { useShallow } from 'zustand/react/shallow';
 
-import { usePreloadImage } from '@/hooks/usePreloadImage';
 import { Paper, HistoryDrawer, buildDescriptionItems, type ImageHeroMode } from '@/features/paper';
-import { usePaperStore, useOverlayStore, useRecordStore } from '@/store';
+import { usePaperStore, useRecordStore } from '@/store';
 import {
+    useOverlayStore,
     OverlayRoot,
     createOverlayRendererMap,
     createWidget,
     defaultWidgetLabel,
-} from '@/features/overlay'
-import { AddWidgetCommand } from '@/features/overlay/commands';
-import type { WidgetKind } from '@/features/overlay';
+    AddWidgetCommand,
+} from '@webtools/webwidget'
+import { usePreloadImage } from '@/hooks/usePreloadImage';
+import type { WidgetKind } from '@webtools/webwidget';
 import type { ProviderRecord } from '@/providers';
 
 export function Webpaper() {

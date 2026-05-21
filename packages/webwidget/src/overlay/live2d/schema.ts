@@ -1,6 +1,5 @@
 import type { WidgetSettingsSchema } from '../schema';
-import { DEFAULT_LIVE2D_MODEL3_PATH } from '@/lib/live2d';
-import { LIVE2D_MODEL_TREE_DATA } from '@/lib/live2d/models';
+import { LIVE2D_MODEL_TREE_DATA } from './models';
 import { WidgetLayout } from '../types';
 
 export type Live2dWidgetProps = {
@@ -14,9 +13,9 @@ export type Live2dWidgetProps = {
 };
 
 export const DEFAULT_LIVE2D_WIDGET_PROPS: Live2dWidgetProps = {
-    source: 'url',
-    modelUrl: '/live2d/assets/hiyori/runtime/hiyori_free_t08.model3.json',
-    modelPath: DEFAULT_LIVE2D_MODEL3_PATH,
+    source: 'builtin',
+    modelUrl: '',
+    modelPath: "https://raw.githubusercontent.com/Eikanya/Live2d-model/94ae3e5628226726af96c6b4bf0e1ce5c728e28e/%E5%B0%91%E5%A5%B3%E5%89%8D%E7%BA%BF%20girls%20Frontline/live2dnew/hk416_3401/destroy/destroy.model3.json",
     scale: 1,
     renderPrecision: 180,
     resizeDelay: 250,

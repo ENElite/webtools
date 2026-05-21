@@ -4,7 +4,7 @@ import { OverlayMoveable } from './moveable';
 import { resolveWidgetRenderer, DEFAULT_OVERLAY_Z_INDEX } from './registry';
 import { SettingsPanel } from './settings_panel';
 import { useElementSize } from '@reactuses/core';
-import { useOverlayStore, useWidgetStore } from '@/store';
+import { useOverlayStore, useWidgetStore } from '../store';
 import type { WidgetRendererMap } from './types';
 
 import { Widget } from './widget';

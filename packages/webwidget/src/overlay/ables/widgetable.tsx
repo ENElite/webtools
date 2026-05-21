@@ -1,4 +1,5 @@
 import { Button, Space } from 'antd';
+import { Icon } from '@iconify/react';
 import type { Able, MoveableManagerInterface, Renderer } from 'react-moveable';
 export type WidgetableButtonType =
     | 'move-widget-up'
@@ -18,16 +19,16 @@ type WidgetableProps = {
     onWidgetableClicked?: (type: WidgetableButtonType) => void;
 };
 
-const WIDGETABLE_BUTTONS: Array<{ type: WidgetableButtonType; title: string; iconClass: string; enabled: boolean }> = [
-    { type: 'move-widget-up', title: '上移一层', iconClass: 'icon-[octicon--chevron-up-16]', enabled: true },
-    { type: 'move-widget-down', title: '下移一层', iconClass: 'icon-[octicon--chevron-down-16]', enabled: true },
-    { type: 'move-widget-to-top', title: '置顶', iconClass: 'icon-[octicon--move-to-top-16]', enabled: true },
-    { type: 'move-widget-to-bottom', title: '置底', iconClass: 'icon-[octicon--move-to-bottom-16]', enabled: true },
-    { type: 'reset-widget-rotation', title: '复位旋转', iconClass: 'icon-[octicon--sync-16]', enabled: true },
-    { type: 'toggle-widget-lock', title: '锁定/解锁', iconClass: 'icon-[octicon--lock-16]', enabled: true },
-    { type: 'copy-widget', title: '复制', iconClass: 'icon-[octicon--duplicate-16]', enabled: true },
-    { type: 'remove-widget', title: '删除', iconClass: 'icon-[octicon--trash-16]', enabled: true },
-    { type: 'open-widget-settings', title: '设置', iconClass: 'icon-[octicon--gear-16]', enabled: true },
+const WIDGETABLE_BUTTONS: Array<{ type: WidgetableButtonType; title: string; iconId: string; enabled: boolean }> = [
+    { type: 'move-widget-up', title: '上移一层', iconId: 'octicon:chevron-up-16', enabled: true },
+    { type: 'move-widget-down', title: '下移一层', iconId: 'octicon:chevron-down-16', enabled: true },
+    { type: 'move-widget-to-top', title: '置顶', iconId: 'octicon:move-to-top-16', enabled: true },
+    { type: 'move-widget-to-bottom', title: '置底', iconId: 'octicon:move-to-bottom-16', enabled: true },
+    { type: 'reset-widget-rotation', title: '复位旋转', iconId: 'octicon:sync-16', enabled: true },
+    { type: 'toggle-widget-lock', title: '锁定/解锁', iconId: 'octicon:lock-16', enabled: true },
+    { type: 'copy-widget', title: '复制', iconId: 'octicon:duplicate-16', enabled: true },
+    { type: 'remove-widget', title: '删除', iconId: 'octicon:trash-16', enabled: true },
+    { type: 'open-widget-settings', title: '设置', iconId: 'octicon:gear-16', enabled: true },
 ];
 
 export const Widgetable = {
@@ -57,7 +58,7 @@ export const Widgetable = {
                 return {
                     ...button,
                     title: locked ? '解锁' : '锁定',
-                    iconClass: locked ? 'icon-[octicon--lock-16]' : 'icon-[octicon--unlock-16]',
+                    iconId: locked ? 'octicon:lock-16' : 'octicon:unlock-16',
                 };
             }
 
@@ -70,7 +71,7 @@ export const Widgetable = {
             transform: `translate(${pos[0]}px, ${pos[1]}px) rotate(${rect.rotation}deg) translate(0px, 10px)`,
         }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
             <Space.Compact key={"widgetable-buttons"}>
-                {buttons.map(({ type, title, iconClass }) => (
+                {buttons.map(({ type, title, iconId }) => (
                     <Button
                         key={type}
                         size="small"
@@ -79,7 +80,7 @@ export const Widgetable = {
                         onClick={() => onWidgetableClicked?.(type)}
                         className='widgetable-button'
                     >
-                        <span aria-hidden='true' className={`inline-block h-4 w-4 ${iconClass}`} />
+                        <Icon icon={iconId} width={16} height={16} aria-hidden />
                     </Button>
                 ))}
             </Space.Compact>

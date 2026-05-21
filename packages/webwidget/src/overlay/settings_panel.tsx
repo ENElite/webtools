@@ -1,14 +1,12 @@
 import { useMemo } from 'react';
-
 import { useElementSize } from '@reactuses/core';
 
-import { SettingsFormPanel } from '@/components/settings';
-
-import { resolveWidgetSettingsSchema } from './schema';
-import { useOverlayStore } from '@/store';
-import { UpdateWidgetCommand } from '@/features/overlay/commands';
 import type { WidgetModel, WidgetPropPrimitive } from './types';
-import { WidgetLayoutSettingsKeys, WidgetStyleSettingsKeys } from './schema';
+import { useOverlayStore } from '../store';
+import { SettingsFormPanel } from '../components/settings';
+
+import { UpdateWidgetCommand } from './commands';
+import { WidgetLayoutSettingsKeys, WidgetStyleSettingsKeys, resolveWidgetSettingsSchema } from './schema';
 import { layoutFromPx, pxFromLayout } from './transform_utils';
 
 type SettingsPanelProps = {
