@@ -14,7 +14,7 @@ const REPO_OWNER = 'Eikanya';
 const REPO_NAME = 'Live2d-model';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}.git`;
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}`;
-const DEFAULT_OUTPUT_PATH = path.resolve(process.cwd(), 'packages/webpaper/lib/live2d/models.json');
+const DEFAULT_OUTPUT_PATH = path.resolve(process.cwd(), 'packages/webwidget/src/overlay/live2d/models.json');
 const DEFAULT_LOCAL_REPO_PATH = path.resolve(process.cwd(), 'temp', REPO_NAME);
 const LOCAL_REPO_CANDIDATES = [
   process.env.LIVE2D_REPO_DIR,
@@ -53,6 +53,21 @@ function isArchiveFile(filePath) {
 
 function isModelFile(filePath) {
   return MODEL_FILE_PATTERN.test(filePath);
+}
+
+function shouldExcludePath(filePath, excludeList) {
+  if (!excludeList || excludeList.length === 0) {
+    return false;
+  }
+
+  const segments = normalizeRelativePath(filePath).split('/');
+  for (const segment of segments) {
+    if (excludeList.includes(segment)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function isRecord(value) {
@@ -188,6 +203,78 @@ function resolveCandidatePath(modelFilePath, fileReference) {
 
   const modelDir = path.posix.dirname(normalizeRelativePath(modelFilePath));
   return normalizeRelativePath(path.posix.join(modelDir, trimmed));
+}
+
+function hasHashInPath(fileReference) {
+  return typeof fileReference === 'string' && fileReference.includes('#');
+}
+
+function validateLegacyModel(settingsJson, repoRoot, targetHash, modelPath, allFiles) {
+  const errors = [];
+  const checked = new Set(); // Track checked paths to avoid duplicates
+
+  const checkPath = (pathValue, fieldName) => {
+    if (typeof pathValue !== 'string' || checked.has(pathValue)) {
+      return;
+    }
+    checked.add(pathValue);
+
+    if (hasHashInPath(pathValue)) {
+      errors.push(`${fieldName} contains '#': ${pathValue}`);
+    } else {
+      const candidate = resolveCandidatePath(modelPath, pathValue);
+      if (!candidate || !allFiles.has(candidate)) {
+        errors.push(`${fieldName} not found: ${pathValue}`);
+      }
+    }
+  };
+
+  // Check 'model' field
+  const model = settingsJson?.model;
+  if (typeof model === 'string') {
+    checkPath(model, 'model');
+  }
+
+  // Check 'textures' array
+  const textures = settingsJson?.textures;
+  if (Array.isArray(textures)) {
+    for (const texture of textures) {
+      if (typeof texture === 'string') {
+        checkPath(texture, 'textures');
+      }
+    }
+  }
+
+  // Check 'physics' field
+  const physics = settingsJson?.physics;
+  if (typeof physics === 'string') {
+    checkPath(physics, 'physics');
+  }
+
+  // Check all 'file' keys in JSON recursively
+  function checkFileKeys(obj) {
+    if (!obj || typeof obj !== 'object') {
+      return;
+    }
+
+    if (obj.file && typeof obj.file === 'string') {
+      checkPath(obj.file, 'file');
+    }
+
+    for (const value of Object.values(obj)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          checkFileKeys(item);
+        }
+      } else if (value && typeof value === 'object') {
+        checkFileKeys(value);
+      }
+    }
+  }
+
+  checkFileKeys(settingsJson);
+
+  return errors;
 }
 
 async function runCommand(command, args, options = {}) {
@@ -359,6 +446,8 @@ function parseArgs(argv) {
     printTree: false,
     printModels: false,
     noDownload: false,
+    exclude: [],
+    validateReferences: false,
   };
 
   const rest = [];
@@ -417,6 +506,21 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === '--validate-references') {
+      options.validateReferences = true;
+      continue;
+    }
+
+    if (arg === '--exclude') {
+      const excludeArg = argv[++index] || '';
+      if (excludeArg) {
+        options.exclude = options.exclude.concat(
+          excludeArg.split(',').map((s) => s.trim()).filter(Boolean)
+        );
+      }
+      continue;
+    }
+
     if (arg === '-h' || arg === '--help') {
       options.help = true;
       continue;
@@ -439,6 +543,8 @@ Options:
   -o, --output <path>       Output JSON path
   --hash <commit>           Generate from a specific commit hash
   -i, --interactive         Prompt for a commit hash
+  --exclude <names>         Exclude folder names (comma-separated), skip folder and subfolders
+  --validate-references     Validate FileReferences (check for missing files and '#' in paths), default: off
   --print-tree              Print repository tree output
   --print-models            Print all scanned model.json paths
   --tree-depth <n>          Print repository tree up to n levels, default 1
@@ -446,6 +552,10 @@ Options:
   --dry-run                 Resolve the version and scan, but do not write the output file
   --no-download             Only read git tree and emit model paths; skip model json validation
   -h, --help                Show this message
+
+Example:
+  node scripts/generate-models-list.cjs --exclude "temp,cache,node_modules"
+  node scripts/generate-models-list.cjs --validate-references
 `);
 }
 
@@ -490,13 +600,12 @@ async function ensureRepoForCommit(repoRoot, commitHash) {
   }
 }
 
-async function collectRepoIndex(commitHash, treeDepth, treeLimit) {
-  const opts = arguments[3] || {};
+async function collectRepoIndex(commitHash, treeDepth, treeLimit, opts = {}) {
   const repoRoot = await resolveRepoRoot();
   await ensureRepoForCommit(repoRoot, commitHash);
 
   const allFiles = new Set();
-  const modelEntries = [];
+  const modelEntries = []; const excludeList = opts.exclude || [];
 
   console.log('[info] Reading repository file tree...');
   const treeOutput = await runCommand('git', ['-c', 'core.quotepath=false', 'ls-tree', '-r', '-z', '--name-only', commitHash], { cwd: repoRoot });
@@ -504,13 +613,19 @@ async function collectRepoIndex(commitHash, treeDepth, treeLimit) {
   console.log(`[info] Found ${repoFiles.length} files in repository.`);
 
   if (treeDepth >= 0) {
-    printRepositoryTree(repoFiles, treeDepth, treeLimit);
+    printRepositoryTree(repoFiles, treeDepth, treeLimit, excludeList);
   }
 
   _progress.start('Scanning files', repoFiles.length);
   for (const filePath of repoFiles) {
     // Skip archives entirely (no extraction / no archive-based model discovery).
     if (isArchiveFile(filePath)) {
+      _progress.tick();
+      continue;
+    }
+
+    // Skip files in excluded folders
+    if (shouldExcludePath(filePath, excludeList)) {
       _progress.tick();
       continue;
     }
@@ -531,12 +646,16 @@ async function collectRepoIndex(commitHash, treeDepth, treeLimit) {
   return { repoRoot, allFiles, modelEntries };
 }
 
-function printRepositoryTree(repoFiles, maxDepth = 1, maxItems = 3) {
+function printRepositoryTree(repoFiles, maxDepth = 1, maxItems = 3, excludeList = []) {
   console.log('[info] Repository directory tree:');
 
   const root = { children: new Map(), files: [] };
 
   for (const filePath of repoFiles) {
+    // Skip files in excluded folders
+    if (shouldExcludePath(filePath, excludeList)) {
+      continue;
+    }
     const segments = filePath.split('/').filter(Boolean);
     let current = root;
 
@@ -715,7 +834,7 @@ async function main() {
 
   console.log('[info] Loading repository tree...');
   // Show a placeholder progress so terminal indicates activity during clone/ls-tree
-  const { repoRoot, allFiles, modelEntries } = await collectRepoIndex(targetHash, options.printTree ? options.treeDepth : -1, options.treeLimit, { noDownload: options.noDownload });
+  const { repoRoot, allFiles, modelEntries } = await collectRepoIndex(targetHash, options.printTree ? options.treeDepth : -1, options.treeLimit, { noDownload: options.noDownload, exclude: options.exclude });
 
   // In no-download mode, still validate model format by checking FileReferences.
   if (options.noDownload) {
@@ -728,7 +847,38 @@ async function main() {
       try {
         const modelBlob = await readModelBlob(repoRoot, targetHash, entry.displayPath);
         const settingsJson = JSON.parse(modelBlob.toString('utf8'));
-        if (isRecord(settingsJson?.FileReferences)) {
+        const fileReferences = settingsJson?.FileReferences;
+
+        let isValid = false;
+
+        // Model3+ version with FileReferences
+        if (isRecord(fileReferences)) {
+          if (options.validateReferences) {
+            // Check if any path in FileReferences contains '#'
+            let hasHashError = false;
+            for (const fieldValue of Object.values(fileReferences)) {
+              const referencedValues = [];
+              collectStringLeaves(fieldValue, referencedValues);
+              if (referencedValues.some((val) => hasHashInPath(val))) {
+                hasHashError = true;
+                break;
+              }
+            }
+            isValid = !hasHashError;
+          } else {
+            isValid = true;
+          }
+        } else {
+          // Legacy version (model3 below)
+          if (options.validateReferences) {
+            const errors = await validateLegacyModel(settingsJson, repoRoot, targetHash, entry.displayPath, allFiles);
+            isValid = errors.length === 0;
+          } else {
+            isValid = true;
+          }
+        }
+
+        if (isValid) {
           keptEntries.push(entry);
         } else {
           skippedByFormat += 1;
@@ -788,48 +938,82 @@ async function main() {
         const settingsJson = JSON.parse(modelBlob.toString('utf8'));
 
         const fileReferences = settingsJson?.FileReferences;
-        // If FileReferences is missing or malformed, silently skip this model (hide MissField logs)
-        if (!isRecord(fileReferences)) {
-          continue;
-        }
 
-        const missingFields = [];
-
-        for (const [fieldName, fieldValue] of Object.entries(fileReferences)) {
-          const referencedValues = [];
-          collectStringLeaves(fieldValue, referencedValues);
-
-          if (referencedValues.length === 0) {
+        // Model3+ version with FileReferences
+        if (isRecord(fileReferences)) {
+          // If validate-references is not enabled, skip all FileReferences validation
+          if (!options.validateReferences) {
+            keptEntries.push(entry);
             continue;
           }
 
-          const missing = referencedValues.some((referenceValue) => {
-            const candidate = resolveCandidatePath(entry.displayPath, referenceValue);
-            return !candidate || !allFiles.has(candidate);
-          });
+          const missingFields = [];
+          const hashErrorFields = [];
 
-          if (missing) {
-            missingFields.push(fieldName);
+          for (const [fieldName, fieldValue] of Object.entries(fileReferences)) {
+            const referencedValues = [];
+            collectStringLeaves(fieldValue, referencedValues);
+
+            if (referencedValues.length === 0) {
+              continue;
+            }
+
+            // Check if any referenced value contains '#'
+            const hasHash = referencedValues.some((referenceValue) => hasHashInPath(referenceValue));
+            if (hasHash) {
+              hashErrorFields.push(fieldName);
+              continue;
+            }
+
+            const missing = referencedValues.some((referenceValue) => {
+              const candidate = resolveCandidatePath(entry.displayPath, referenceValue);
+              return !candidate || !allFiles.has(candidate);
+            });
+
+            if (missing) {
+              missingFields.push(fieldName);
+            }
           }
-        }
 
-        if (missingFields.length > 0) {
-          const onlyTexturesOrMoc = missingFields.every((f) => f === 'Textures' || f === 'Moc');
-
-          if (onlyTexturesOrMoc) {
-            console.warn(`[warn] MissFile <${missingFields.join(',')}>: /${entry.displayPath}`);
-            // Discard this model (do not include in output)
+          // If there are hash errors, skip this model
+          if (hashErrorFields.length > 0) {
+            console.warn(`[warn] InvalidPath <${hashErrorFields.join(',')}> (contains '#'): /${entry.displayPath}`);
             continue;
           }
 
-          // Other missing-file cases: keep the model but log info
-          console.log(`[info] MissFile <${missingFields.join(',')}>: /${entry.displayPath}`);
+          if (missingFields.length > 0) {
+            const onlyTexturesOrMoc = missingFields.every((f) => f === 'Textures' || f === 'Moc');
+
+            if (onlyTexturesOrMoc) {
+              console.warn(`[warn] MissFile <${missingFields.join(',')}>: /${entry.displayPath}`);
+              // Discard this model (do not include in output)
+              continue;
+            }
+
+            // Other missing-file cases: keep the model but log info
+            console.log(`[info] MissFile <${missingFields.join(',')}>: /${entry.displayPath}`);
+            keptEntries.push(entry);
+            continue;
+          }
+
+          // No missing fields -> keep
           keptEntries.push(entry);
-          continue;
-        }
+        } else {
+          // Legacy version (model3 below)
+          if (!options.validateReferences) {
+            // Without validation, accept legacy models
+            keptEntries.push(entry);
+            continue;
+          }
 
-        // No missing fields -> keep
-        keptEntries.push(entry);
+          // Validate legacy model
+          const errors = await validateLegacyModel(settingsJson, repoRoot, targetHash, entry.displayPath, allFiles);
+          if (errors.length === 0) {
+            keptEntries.push(entry);
+          } else {
+            console.warn(`[warn] LegacyModelError <${errors.join(', ')}> /${entry.displayPath}`);
+          }
+        }
       } catch {
         // ignore individual model errors
       } finally {

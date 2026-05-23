@@ -17,8 +17,8 @@ export const DEFAULT_LIVE2D_WIDGET_PROPS: Live2dWidgetProps = {
     modelUrl: '',
     modelPath: "https://raw.githubusercontent.com/Eikanya/Live2d-model/94ae3e5628226726af96c6b4bf0e1ce5c728e28e/%E5%B0%91%E5%A5%B3%E5%89%8D%E7%BA%BF%20girls%20Frontline/live2dnew/hk416_3401/destroy/destroy.model3.json",
     scale: 1,
-    renderPrecision: 180,
-    resizeDelay: 250,
+    renderPrecision: 200,
+    resizeDelay: 0,
     interaction: true,
 };
 
@@ -68,7 +68,7 @@ export const LIVE2D_WIDGET_SETTINGS_SCHEMA = [
     {
         key: 'scale',
         label: '缩放比例',
-        type: 'number',
+        type: 'slider',
         min: 0.1,
         max: 5,
         step: 0.1,
@@ -76,9 +76,9 @@ export const LIVE2D_WIDGET_SETTINGS_SCHEMA = [
     {
         key: 'renderPrecision',
         label: '渲染精度 (%)',
-        type: 'number',
+        type: 'slider',
         min: 50,
-        max: 200,
+        max: 300,
         step: 10,
     },
     {

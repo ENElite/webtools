@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRef, useState } from 'react';
 
-import { Button, ColorPicker, Form, Input, InputNumber, Radio, Switch, Tabs, TreeSelect } from 'antd';
+import { Button, ColorPicker, Form, Input, InputNumber, Radio, Slider, Switch, Tabs, TreeSelect } from 'antd';
 
 import { AiEditorPanel } from '@webtools/webwidget';
 
@@ -112,6 +112,29 @@ export function SettingsDynamicForm<TValues extends SettingsValues>({ value, sch
                             updateField(field.key, safeNumber);
                         }}
                     />
+                </Form.Item>
+            );
+        }
+
+        if (field.type === 'slider') {
+            return (
+                <Form.Item key={field.key} label={field.label}>
+                    <div className='flex items-center gap-3'>
+                        <Slider
+                            className='flex-1'
+                            min={field.min}
+                            max={field.max}
+                            step={field.step ?? 1}
+                            value={typeof currentValue === 'number' ? currentValue : field.min ?? 0}
+                            onChange={(next) => {
+                                const safeNumber = typeof next === 'number' ? next : next[0] ?? field.min ?? 0;
+                                updateField(field.key, safeNumber);
+                            }}
+                        />
+                        <span className='min-w-14 text-right text-sm text-slate-500'>
+                            {typeof currentValue === 'number' ? `${currentValue}${field.suffix ?? ''}` : ''}
+                        </span>
+                    </div>
                 </Form.Item>
             );
         }

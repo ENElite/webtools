@@ -37,6 +37,16 @@ export type SettingsFieldSchema<T extends SettingsValues = SettingsValues> =
     | {
         key: Extract<keyof T, string>;
         label: string;
+        type: 'slider';
+        min?: number;
+        max?: number;
+        step?: number;
+        suffix?: string;
+        visibleWhen?: SettingsFieldVisibility<T>;
+    }
+    | {
+        key: Extract<keyof T, string>;
+        label: string;
         type: 'boolean';
         visibleWhen?: SettingsFieldVisibility<T>;
     }
