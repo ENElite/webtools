@@ -54,11 +54,18 @@ export function OverlayMoveable({
             return [];
         }
 
-        return widgets
+        const otherElements = widgets
             .filter((widget) => widget.id !== activeWidget.id)
             .map((widget) => widgetElementRef.current[widget.id])
             .filter((element): element is HTMLDivElement => Boolean(element));
-    }, [activeWidget, widgetElementRef, widgets]);
+
+        // Include overlay container so moveable can snap to container center/middle lines
+        if (overlayRef?.current) {
+            return [overlayRef.current, ...otherElements];
+        }
+
+        return otherElements;
+    }, [activeWidget, widgetElementRef, widgets, overlayRef]);
 
     const locked = activeWidget?.locked ?? false;
     const widgetable = widgetableConfig?.widgetable ?? true;
@@ -155,11 +162,11 @@ export function OverlayMoveable({
                         }}
                         onRound={({ target, borderRadius }) => {
                             target.style.borderRadius = borderRadius;
+                            onWidgetStyleChange(activeWidget.id, target as HTMLElement);
                         }}
                         onDragEnd={({ target }) => onWidgetLayoutChange(activeWidget.id, target as HTMLElement, overlayRef.current)}
                         onResizeEnd={({ target }) => onWidgetLayoutChange(activeWidget.id, target as HTMLElement, overlayRef.current)}
                         onRotateEnd={({ target }) => onWidgetLayoutChange(activeWidget.id, target as HTMLElement, overlayRef.current)}
-                        onRoundEnd={({ target }) => onWidgetStyleChange(activeWidget.id, target as HTMLElement)}
                     />
                 )
                 : null}

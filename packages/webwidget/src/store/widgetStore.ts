@@ -128,14 +128,20 @@ export function useWidgetStore() {
                 return;
             }
 
+            // 合并现有 style，避免覆盖其他样式（如 backgroundColor）
+            const widget = widgets.find((item) => item.id === widgetId);
+            const prevStyle = widget?.style ?? {};
+            const nextStyle = {
+                ...prevStyle,
+                borderRadius: target.style.borderRadius || undefined,
+            };
+
             const command = new UpdateWidgetCommand(widgetId, {
-                style: {
-                    borderRadius: target.style.borderRadius || undefined,
-                },
+                style: nextStyle,
             } as any);
             executeCommand(command);
         },
-        [executeCommand],
+        [executeCommand, widgets],
     );
 
     const onWidgetLayoutChange = useCallback(
