@@ -10,6 +10,22 @@
       "types": "./index.d.ts",
       "default": "./index.ts"
     },
+    "./engine": {
+      "default": "./src/engine/index.ts"
+    },
+    "./engine/model": {
+      "default": "./src/engine/model/index.ts"
+    },
+    "./engine/editor": {
+      "default": "./src/engine/editor/index.ts"
+    },
+    "./editors": {
+      "default": "./src/editors/index.ts"
+    },
+    "./runtime": {
+      "default": "./src/runtime/index.ts"
+    },
+    "./styles.css": "./styles.css",
     "./components/editor": {
       "default": "./src/components/editor/index.ts"
     },
@@ -47,6 +63,6 @@
     "@vitest/coverage-v8": "4.1.4",
     "babel-plugin-import": "^1.13.8",
     "vite": "^6.4.2",
-    "vitest": "^1.6.0"
+    "vitest": "^4.1.4"
   }
 }

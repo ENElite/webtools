@@ -24,7 +24,7 @@ export function AiEditorPanel({
     }, [value]);
 
     return (
-        <Card size='small' title='源码编辑器' style={{ width: '100%', height, minHeight: 360 }}>
+        <Card size='small' title='源码编辑器' className='w-full min-h-90' style={{ height }}>
             <Input.TextArea
                 value={code}
                 onChange={(event) => {
@@ -33,7 +33,8 @@ export function AiEditorPanel({
                     onChange?.(nextContent);
                 }}
                 autoSize={false}
-                style={{ width: '100%', height: '100%', minHeight: 320, fontFamily: 'monospace' }}
+                className='w-full h-full min-h-80 font-mono'
+                style={{ height: '100%' }}
                 aria-label={`editor-${language}-${chat ? 'chat' : 'plain'}`}
             />
         </Card>

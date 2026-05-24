@@ -4,15 +4,16 @@ import type { ReactNode } from 'react';
 import { Button, Modal, Typography } from 'antd';
 import Moveable from 'react-moveable';
 
-import { PropertyInspector } from '../../engine/editor';
-import type { InspectorSchema, PageRegistry, Patch } from '../../engine/editor';
-import type { WidgetModel } from '../../engine/model';
+import { PropertyInspector } from '../engine/editor';
+import type { InspectorSchema, PageRegistry, Patch } from '../engine/editor';
+import { applyChange, diffObjects } from '../engine/editor/applyChange';
 import { useMaximize } from './useMaximize';
+import type { WidgetModel } from '../engine/model';
 
 type SettingsPanelProps = {
     panelKey: string | number;
     title: string;
-    value: WidgetModel;
+    sourceWidget: WidgetModel;
     schema: InspectorSchema;
     pages: PageRegistry;
     container: HTMLElement;
@@ -22,44 +23,23 @@ type SettingsPanelProps = {
     emptyState?: ReactNode;
 };
 
-type HistoryState = {
-    past: Record<string, any>[];
-    future: Record<string, any>[];
+type HistoryEntry = {
+    prev: WidgetModel;
+    next: WidgetModel;
 };
 
-function cloneValue(value: Record<string, any>): Record<string, any> {
-    return structuredClone(value);
+function cloneWidget(widget: WidgetModel): WidgetModel {
+    return structuredClone(widget);
 }
 
-function valuesEqual(a: Record<string, any>, b: Record<string, any>): boolean {
-    const aKeys = Object.keys(a);
-    const bKeys = Object.keys(b);
-    if (aKeys.length !== bKeys.length) {
-        return false;
-    }
-
-    for (const key of aKeys) {
-        const left = a[key];
-        const right = b[key];
-        if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
-            if (!valuesEqual(left, right)) {
-                return false;
-            }
-            continue;
-        }
-
-        if (left !== right) {
-            return false;
-        }
-    }
-
-    return true;
+function widgetsEqual(a: WidgetModel, b: WidgetModel): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function SettingsFormPanel({
     panelKey,
     title,
-    value,
+    sourceWidget,
     schema,
     pages,
     container,
@@ -73,99 +53,83 @@ export function SettingsFormPanel({
     const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
     const moveableRef = useRef<Moveable | null>(null);
 
-    const [draftValues, setDraftValues] = useState<Record<string, any>>(() => cloneValue(value));
-    const [savedValues, setSavedValues] = useState<Record<string, any>>(() => cloneValue(value));
-    const [historyState, setHistoryState] = useState<HistoryState>({
-        past: [],
-        future: [],
-    });
-    const initialValuesRef = useRef<Record<string, any>>(cloneValue(value));
+    const [draftWidget, setDraftWidget] = useState<WidgetModel>(() => cloneWidget(sourceWidget));
+    const [savedWidget, setSavedWidget] = useState<WidgetModel>(() => cloneWidget(sourceWidget));
+    const [history, setHistory] = useState<HistoryEntry[]>([]);
+    const [future, setFuture] = useState<HistoryEntry[]>([]);
+    const initialValuesRef = useRef<WidgetModel>(cloneWidget(sourceWidget));
 
-    const resetPanelState = (nextValue: Record<string, any>) => {
-        const nextDraft = cloneValue(nextValue);
-        initialValuesRef.current = cloneValue(nextDraft);
-        setDraftValues(nextDraft);
-        setSavedValues(cloneValue(nextDraft));
-        setHistoryState({ past: [], future: [] });
+    const resetPanelState = (nextWidget: WidgetModel) => {
+        const cloned = cloneWidget(nextWidget);
+        initialValuesRef.current = cloneWidget(cloned);
+        setDraftWidget(cloned);
+        setSavedWidget(cloneWidget(cloned));
+        setHistory([]);
+        setFuture([]);
         setCloseConfirmOpen(false);
     };
 
     useEffect(() => {
-        resetPanelState(value);
+        resetPanelState(sourceWidget);
     }, [panelKey]);
 
-    const commitDraft = (nextDraft: Record<string, any>) => {
-        if (valuesEqual(draftValues, nextDraft)) {
+    const commitPatch = (patch: Patch) => {
+        const nextWidget = cloneWidget(applyChange(draftWidget, patch));
+        if (widgetsEqual(draftWidget, nextWidget)) {
             return;
         }
 
-        setHistoryState((current) => ({
-            past: [...current.past, cloneValue(draftValues)],
-            future: [],
-        }));
-
-        const nextValue = cloneValue(nextDraft);
-        setDraftValues(nextValue);
-        onChange(nextValue);
+        setHistory((prev) => [...prev, { prev: cloneWidget(draftWidget), next: nextWidget }]);
+        setFuture([]);
+        setDraftWidget(nextWidget);
+        onChange(patch);
     };
 
     const undo = () => {
-        setHistoryState((current) => {
-            const previous = current.past[current.past.length - 1];
-            if (!previous) {
-                return current;
-            }
-
-            const nextFuture = [cloneValue(draftValues), ...current.future];
-            const nextDraft = cloneValue(previous);
-            setDraftValues(nextDraft);
-            onChange(nextDraft);
-
-            return {
-                past: current.past.slice(0, -1),
-                future: nextFuture,
-            };
-        });
+        if (history.length === 0) return;
+        const entry = history[history.length - 1]!;
+        const inversePatch = diffObjects(entry.next, entry.prev);
+        setHistory((prev) => prev.slice(0, -1));
+        setFuture((prev) => [{ prev: entry.prev, next: entry.next }, ...prev]);
+        setDraftWidget(entry.prev);
+        if (inversePatch) {
+            onChange({ set: inversePatch });
+        }
     };
 
     const redo = () => {
-        setHistoryState((current) => {
-            const next = current.future[0];
-            if (!next) {
-                return current;
-            }
-
-            const nextDraft = cloneValue(next);
-            setDraftValues(nextDraft);
-            onChange(nextDraft);
-
-            return {
-                past: [...current.past, cloneValue(draftValues)],
-                future: current.future.slice(1),
-            };
-        });
+        if (future.length === 0) return;
+        const entry = future[0]!;
+        const patch = diffObjects(entry.prev, entry.next);
+        setFuture((prev) => prev.slice(1));
+        setHistory((prev) => [...prev, { prev: entry.prev, next: entry.next }]);
+        setDraftWidget(entry.next);
+        if (patch) {
+            onChange({ set: patch });
+        }
     };
 
     const resetToInitial = () => {
         const initialValues = initialValuesRef.current;
-        if (valuesEqual(draftValues, initialValues)) {
+        if (widgetsEqual(draftWidget, initialValues)) {
             return;
         }
 
-        setHistoryState((current) => ({
-            past: [...current.past, cloneValue(draftValues)],
-            future: [],
-        }));
-
-        const nextDraft = cloneValue(initialValues);
-        setDraftValues(nextDraft);
-        onChange(nextDraft);
+        const patch = diffObjects(draftWidget, initialValues);
+        setHistory((prev) => [...prev, { prev: cloneWidget(draftWidget), next: initialValues }]);
+        setFuture([]);
+        setDraftWidget(initialValues);
+        if (patch) {
+            onChange({ set: patch });
+        }
     };
 
     const save = () => {
-        const nextSaved = cloneValue(draftValues);
-        setSavedValues(nextSaved);
-        onSave?.(nextSaved);
+        const patch = diffObjects(savedWidget, draftWidget);
+        setSavedWidget(cloneWidget(draftWidget));
+        if (patch) {
+            onSave?.({ set: patch });
+        }
     };
 
     const saveAndClose = () => {
@@ -181,9 +145,9 @@ export function SettingsFormPanel({
         onClose();
     };
 
-    const isDirty = useMemo(() => !valuesEqual(draftValues, savedValues), [draftValues, savedValues]);
-    const canUndo = historyState.past.length > 0;
-    const canRedo = historyState.future.length > 0;
+    const isDirty = useMemo(() => !widgetsEqual(draftWidget, savedWidget), [draftWidget, savedWidget]);
+    const canUndo = history.length > 0;
+    const canRedo = future.length > 0;
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -302,12 +266,10 @@ export function SettingsFormPanel({
                 {schema.length > 0
                     ? (
                         <PropertyInspector
-                            value={draftValues as unknown as WidgetModel}
+                            value={draftWidget}
                             schema={schema}
                             pages={pages}
-                            onChange={(patch) => {
-                                commitDraft(patch as any);
-                            }}
+                            onChange={commitPatch}
                         />
                     )
                     : emptyState ?? (

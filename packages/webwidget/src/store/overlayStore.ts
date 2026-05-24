@@ -1,15 +1,12 @@
 import { create } from 'zustand';
 
-import type {
-    WidgetId,
-    WidgetModel,
-} from '../overlay/types';
+import type { WidgetId, WidgetModel } from '../engine/model';
 import {
     CommandHistoryManager,
     type Command,
     type CommandSnapshot,
-} from '../overlay/commands';
-import { createWidget } from '../overlay/registry';
+} from '../engine/commands';
+import { createWidget } from '../engine/model';
 
 export type OverlayState = {
     // Core State

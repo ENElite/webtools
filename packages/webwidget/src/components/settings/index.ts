@@ -1,16 +1,9 @@
-export { SettingsDynamicForm } from './dynamic_form';
-export { FontPicker, buildFontString, parseFontString } from './font_picker';
-export type { FontPickerValue } from './font_picker';
+export { buildFontString, parseFontString } from '../../engine/editor/editors/FontEditor';
+export type { FontPickerValue } from '../../engine/editor/editors/FontEditor';
 export { DEFAULT_FONT_FAMILIES, type FontFamilyOption } from '../../hooks/useLocalFonts';
-export { TagsInput } from './tags';
+export { TagsInput } from '../../engine/editor/editors/TagsEditor';
 export { SettingsFormPanel } from './settings_panel';
-export { CombinerPicker } from './combiner';
-export type {
-    SettingsFieldSchema,
-    SettingsFieldVisibility,
-    SettingsTreeDataNode,
-    SettingsSchema,
-    SettingsValuePrimitive,
-    SettingsValues,
-} from './schema';
-export type { CombinerOperator, CombinerOption, CombinerValue } from './combiner';
+export { CombinerPicker } from '../../engine/editor/editors/CombinerEditor';
+export type { CombinerOperator, CombinerOption, CombinerValue } from '../../engine/editor/editors/CombinerEditor';
+export { PropertyInspector, WIDGET_PAGE_REGISTRY } from '../../engine/editor';
+export type { InspectorSchema, InspectorSchemaItem, PageDefinition, PageRegistry } from '../../engine/editor';
