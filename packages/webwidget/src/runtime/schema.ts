@@ -163,7 +163,7 @@ export const WIDGET_STYLE_SETTINGS_SCHEMA: InspectorSchema = [
         order: 400,
         bind: 'style.backgroundImageUrl',
         visibleWhen: {
-            key: 'backgroundEffect',
+            field: 'style.backgroundEffect',
             equals: 'image',
         },
         meta: { placeholder: '输入图片 URL，或拖拽/选择本地图片' },

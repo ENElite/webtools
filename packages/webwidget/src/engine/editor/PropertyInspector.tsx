@@ -50,7 +50,7 @@ export function PropertyInspector({ value, schema, pages, onChange }: InspectorP
 
     const renderField = (item: InspectorSchemaItem) => {
         if (item.visibleWhen) {
-            const condValue = readPath(value, item.visibleWhen.key);
+            const condValue = readPath(value, item.visibleWhen.field);
             if (condValue !== item.visibleWhen.equals) {
                 return null;
             }

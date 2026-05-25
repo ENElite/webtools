@@ -56,7 +56,7 @@ export const LIVE2D_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         order: 200,
         bind: 'props.modelUrl',
         visibleWhen: {
-            key: 'source',
+            field: 'props.source',
             equals: 'url',
         },
         meta: { placeholder: '输入模型文件 URL' },
@@ -69,7 +69,7 @@ export const LIVE2D_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         order: 300,
         bind: 'props.modelPath',
         visibleWhen: {
-            key: 'source',
+            field: 'props.source',
             equals: 'builtin',
         },
         meta: {

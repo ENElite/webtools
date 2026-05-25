@@ -60,7 +60,7 @@ export type InspectorSchemaItem = {
     page: string;
     order: number;
     bind: BindPath;
-    visibleWhen?: { key: string; equals: any };
+    visibleWhen?: { field: WidgetPath; equals: any };
     meta?: Record<string, any>;
 };
 

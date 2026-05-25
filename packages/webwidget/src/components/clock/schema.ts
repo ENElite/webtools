@@ -101,7 +101,7 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         order: 400,
         bind: 'props.amPmFormat',
         visibleWhen: {
-            key: 'timeFormat',
+            field: 'props.timeFormat',
             equals: '12-hour-am-pm',
         },
         meta: {
