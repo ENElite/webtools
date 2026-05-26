@@ -54,14 +54,19 @@ export type PageDefinition = {
 export type PageRegistry = ReadonlyArray<PageDefinition>;
 
 export type InspectorSchemaItem = {
+    // schema 唯一标识与展示名
     key: string;
     label?: string;
+    // 属性编辑器类型
     type: string;
-    page: string;
-    order: number;
-    bind: BindPath;
-    visibleWhen?: { field: WidgetPath; equals: any };
     meta?: Record<string, any>;
+    // 绑定路径
+    bind: BindPath;
+    // 分页分组排序展示
+    page: string;
+    group?: string;
+    order: number;
+    visibleWhen?: { field: WidgetPath; equals: any };
 };
 
 export type InspectorSchema = ReadonlyArray<InspectorSchemaItem>;

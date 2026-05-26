@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Form, Tabs } from 'antd';
+import { Collapse, Divider, Form, Tabs } from 'antd';
 
 import type { InspectorProps, InspectorSchemaItem } from './types';
 import { getEditor } from './registry';
@@ -22,30 +22,58 @@ function resolveBindValue(source: any, bind: string | string[]): any {
     return readPath(source, bind);
 }
 
+type PageGroup = {
+    key: string;
+    label: string;
+    fields: InspectorSchemaItem[];
+    groups: Map<string, InspectorSchemaItem[]>;
+};
+
 export function PropertyInspector({ value, schema, pages, onChange }: InspectorProps) {
-    const groups = useMemo(() => {
+    const pageGroups = useMemo(() => {
         const visiblePages = (pages ?? [])
             .filter((p) => p.visible !== false)
             .sort((a, b) => a.order - b.order);
 
-        const fieldGroups = new Map<string, InspectorSchemaItem[]>();
+        const fieldByPage = new Map<string, InspectorSchemaItem[]>();
         for (const item of schema) {
-            const list = fieldGroups.get(item.page) ?? [];
+            const list = fieldByPage.get(item.page) ?? [];
             list.push(item);
-            fieldGroups.set(item.page, list);
+            fieldByPage.set(item.page, list);
         }
 
-        for (const list of fieldGroups.values()) {
+        for (const list of fieldByPage.values()) {
             list.sort((a, b) => a.order - b.order);
         }
 
         return visiblePages
-            .filter((p) => fieldGroups.has(p.key))
-            .map((page) => ({
-                key: page.key,
-                label: page.label,
-                fields: fieldGroups.get(page.key)!,
-            }));
+            .filter((p) => fieldByPage.has(p.key))
+            .map((page): PageGroup => {
+                const items = fieldByPage.get(page.key)!;
+                const ungrouped: InspectorSchemaItem[] = [];
+                const grouped = new Map<string, InspectorSchemaItem[]>();
+
+                for (const item of items) {
+                    if (item.group) {
+                        const list = grouped.get(item.group) ?? [];
+                        list.push(item);
+                        grouped.set(item.group, list);
+                    } else {
+                        ungrouped.push(item);
+                    }
+                }
+
+                for (const list of grouped.values()) {
+                    list.sort((a, b) => a.order - b.order);
+                }
+
+                return {
+                    key: page.key,
+                    label: page.label,
+                    fields: ungrouped,
+                    groups: grouped,
+                };
+            });
     }, [schema, pages]);
 
     const renderField = (item: InspectorSchemaItem) => {
@@ -65,7 +93,6 @@ export function PropertyInspector({ value, schema, pages, onChange }: InspectorP
             );
         }
 
-        const isMultiBind = Array.isArray(item.bind);
         const editorValue = resolveBindValue(value, item.bind);
 
         return (
@@ -79,7 +106,11 @@ export function PropertyInspector({ value, schema, pages, onChange }: InspectorP
         );
     };
 
-    if (groups.length === 0) {
+    const renderFields = (fields: InspectorSchemaItem[]) => {
+        return fields.map((field) => renderField(field));
+    };
+
+    if (pageGroups.length === 0) {
         return (
             <div className='flex items-center justify-center w-full h-full text-gray-400'>
                 无法加载设置面板
@@ -87,7 +118,7 @@ export function PropertyInspector({ value, schema, pages, onChange }: InspectorP
         );
     }
 
-    const defaultKey = groups[0]?.key;
+    const defaultKey = pageGroups[0]?.key;
 
     return (
         <Tabs
@@ -100,9 +131,9 @@ export function PropertyInspector({ value, schema, pages, onChange }: InspectorP
             tabPlacement='start'
             indicator={{ align: 'start' }}
             defaultActiveKey={defaultKey}
-            items={groups.map((group) => ({
-                key: group.key,
-                label: group.label,
+            items={pageGroups.map((pageGroup) => ({
+                key: pageGroup.key,
+                label: pageGroup.label,
                 children: (
                     <Form
                         layout='horizontal'
@@ -110,7 +141,21 @@ export function PropertyInspector({ value, schema, pages, onChange }: InspectorP
                         labelCol={{ span: 6 }}
                         wrapperCol={{ span: 18 }}
                     >
-                        {group.fields.map((field) => renderField(field))}
+                        {renderFields(pageGroup.fields)}
+                        {Array.from(pageGroup.groups.entries()).map(([groupName, groupFields], index) => (
+                            <div key={groupName}>
+                                {index > 0 && <Divider plain className='my-2' />}
+                                <Collapse
+                                    ghost
+                                    className='mb-2'
+                                    items={[{
+                                        key: groupName,
+                                        label: groupName,
+                                        children: renderFields(groupFields),
+                                    }]}
+                                />
+                            </div>
+                        ))}
                     </Form>
                 ),
             }))}
