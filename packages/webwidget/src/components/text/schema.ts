@@ -7,15 +7,25 @@ export type TextWidgetProps = {
     textShadowRadius: number;
     align: 'left' | 'center' | 'right';
     font: string;
+    strokeColor: string;
+    strokeWidth: number;
+    marquee: boolean;
+    marqueeSpeed: number;
+    marqueeDirection: 'left' | 'right';
 };
 
 export const DEFAULT_TEXT_WIDGET_PROPS: TextWidgetProps = {
     text: '图片加载依赖网络环境\n需要确保当前可以访问 konachan.net',
     color: '#fdafd3',
     textShadowColor: 'rgba(255, 255, 255, 1)',
-    textShadowRadius: 5,
+    textShadowRadius: 0,
     align: 'center',
-    font: 'normal 300 24px/1.25 Arial, sans-serif',
+    font: 'normal 300 36px/1.25 Arial, sans-serif',
+    strokeColor: '#ffffff',
+    strokeWidth: 10,
+    marquee: false,
+    marqueeSpeed: 30,
+    marqueeDirection: 'left',
 };
 
 export const TEXT_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
@@ -43,6 +53,24 @@ export const TEXT_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         page: 'widget',
         order: 300,
         bind: 'props.color',
+    },
+    {
+        key: 'strokeColor',
+        label: '描边颜色',
+        type: 'color',
+        page: 'widget',
+        order: 320,
+        bind: 'props.strokeColor',
+        meta: { alpha: true },
+    },
+    {
+        key: 'strokeWidth',
+        label: '描边宽度',
+        type: 'number',
+        page: 'widget',
+        order: 340,
+        bind: 'props.strokeWidth',
+        meta: { min: 0, max: 20, step: 0.5 },
     },
     {
         key: 'textShadowColor',
@@ -74,6 +102,37 @@ export const TEXT_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
                 { label: '左对齐', value: 'left' },
                 { label: '居中', value: 'center' },
                 { label: '右对齐', value: 'right' },
+            ],
+        },
+    },
+    {
+        key: 'marquee',
+        label: '跑马灯',
+        type: 'switch',
+        page: 'widget',
+        order: 700,
+        bind: 'props.marquee',
+    },
+    {
+        key: 'marqueeSpeed',
+        label: '跑马灯速度',
+        type: 'slider',
+        page: 'widget',
+        order: 800,
+        bind: 'props.marqueeSpeed',
+        meta: { min: 5, max: 100, step: 1, unit: 's' },
+    },
+    {
+        key: 'marqueeDirection',
+        label: '跑马灯方向',
+        type: 'enum',
+        page: 'widget',
+        order: 900,
+        bind: 'props.marqueeDirection',
+        meta: {
+            options: [
+                { label: '向左', value: 'left' },
+                { label: '向右', value: 'right' },
             ],
         },
     },
