@@ -4,3 +4,7 @@ export { Widget } from './Widget';
 export { SettingsPanel } from './SettingsPanel';
 export { layoutFromPx, pxFromLayout, parseTransformString } from './transform_utils';
 export { resolveWidgetSettingsSchema } from './schema';
+export { RuntimeProvider } from './RuntimeProvider';
+export { useRuntime } from './useRuntime';
+export { useLifecycleSignal } from './useLifecycleSignal';
+export { useVisualMotionState } from './useVisualMotionState';

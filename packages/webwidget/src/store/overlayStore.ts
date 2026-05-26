@@ -7,6 +7,7 @@ import {
     type CommandSnapshot,
 } from '../engine/commands';
 import { createWidget } from '../engine/model';
+import { signalBus, createWidgetSignal, createLifecycleSignal } from '../engine/signal';
 
 export type OverlayState = {
     // Core State
@@ -38,6 +39,24 @@ function findWidgetIndex(widgets: WidgetModel[], widgetId: WidgetId): number {
 
 function findWidget(widgets: WidgetModel[], widgetId: WidgetId): WidgetModel | null {
     return widgets.find((widget) => widget.id === widgetId) || null;
+}
+
+/**
+ * Emit WidgetSignal for each changed top-level key between prev and next widget.
+ */
+function emitChangedWidgetSignals(prevWidget: WidgetModel, nextWidget: WidgetModel) {
+    const keys = new Set([...Object.keys(prevWidget), ...Object.keys(nextWidget)]);
+    for (const key of keys) {
+        const k = key as keyof WidgetModel;
+        if (prevWidget[k] !== nextWidget[k]) {
+            signalBus.emit(createWidgetSignal(
+                nextWidget.id,
+                k as any,
+                prevWidget[k],
+                nextWidget[k],
+            ));
+        }
+    }
 }
 
 export function createDefaultWidgets(): WidgetModel[] {
@@ -143,6 +162,25 @@ export const useOverlayStore = create<OverlayState>((set) => ({
             const nextWidgets = command.execute(snapshot);
             historyManager.execute(command);
 
+            // Emit signals for changed widgets
+            for (const nextWidget of nextWidgets) {
+                const prevWidget = state.widgets.find((w) => w.id === nextWidget.id);
+                if (!prevWidget) {
+                    // New widget added
+                    signalBus.emit(createLifecycleSignal('mount', nextWidget.id));
+                    continue;
+                }
+                if (prevWidget === nextWidget) continue;
+                emitChangedWidgetSignals(prevWidget, nextWidget);
+            }
+
+            // Detect removed widgets
+            for (const prevWidget of state.widgets) {
+                if (!nextWidgets.find((w) => w.id === prevWidget.id)) {
+                    signalBus.emit(createLifecycleSignal('unmount', prevWidget.id));
+                }
+            }
+
             const historyState = historyManager.getState();
             return {
                 widgets: nextWidgets,
@@ -165,8 +203,16 @@ export const useOverlayStore = create<OverlayState>((set) => ({
             };
 
             const nextWidgets = command.undo(snapshot);
-            const historyState = historyManager.getState();
 
+            // Emit signals for changed widgets
+            for (const nextWidget of nextWidgets) {
+                const prevWidget = state.widgets.find((w) => w.id === nextWidget.id);
+                if (prevWidget && prevWidget !== nextWidget) {
+                    emitChangedWidgetSignals(prevWidget, nextWidget);
+                }
+            }
+
+            const historyState = historyManager.getState();
             return {
                 widgets: nextWidgets,
                 canUndo: historyState.canUndo,
@@ -188,8 +234,16 @@ export const useOverlayStore = create<OverlayState>((set) => ({
             };
 
             const nextWidgets = command.execute(snapshot);
-            const historyState = historyManager.getState();
 
+            // Emit signals for changed widgets
+            for (const nextWidget of nextWidgets) {
+                const prevWidget = state.widgets.find((w) => w.id === nextWidget.id);
+                if (prevWidget && prevWidget !== nextWidget) {
+                    emitChangedWidgetSignals(prevWidget, nextWidget);
+                }
+            }
+
+            const historyState = historyManager.getState();
             return {
                 widgets: nextWidgets,
                 canUndo: historyState.canUndo,

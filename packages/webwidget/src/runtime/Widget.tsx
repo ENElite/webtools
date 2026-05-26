@@ -1,11 +1,25 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useIdle } from '@reactuses/core';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 
 import type { WidgetLayout, WidgetModel } from '../engine/model';
+import { buildPreset, getMotionTransition } from '../engine/animation/presets';
+import { useRuntime } from './useRuntime';
+import { useLifecycleSignal } from './useLifecycleSignal';
+import { useVisualMotionState } from './useVisualMotionState';
+import { registerControls } from './runtimes/controlsRegistry';
 
 function combineClassNames(...names: Array<string | undefined | false>) {
     return names.filter(Boolean).join(' ');
+}
+
+function buildGlitchStyle(intensity: number): CSSProperties {
+    const offset = 4 * intensity;
+    return {
+        animation: `glitch-flicker 0.15s infinite`,
+        '--glitch-offset': `${offset}px`,
+    } as CSSProperties;
 }
 
 type WidgetProps = {
@@ -150,11 +164,29 @@ export function Widget({
     onDoubleClick,
     onContextMenu,
 }: WidgetProps) {
+    const { userRuntime, animationRuntime } = useRuntime();
     const isIdle = useIdle(5000);
     const [isHydrated, setIsHydrated] = React.useState(false);
+    const controls = useAnimationControls();
     const baseContainerSizeRef = React.useRef<{ width: number; height: number } | null>(null);
     const fixedSizeRef = React.useRef<{ widthPx: number; heightPx: number } | null>(null);
     const layoutIdRef = React.useRef<string>('');
+
+    // Register controls for AnimationRuntime
+    useEffect(() => {
+        return registerControls(widget.id, controls);
+    }, [widget.id, controls]);
+
+    // Lifecycle signal
+    useLifecycleSignal(widget);
+
+    // Compile animations when widget.animation changes
+    useEffect(() => {
+        return animationRuntime.compile(widget.id, widget.animation);
+    }, [widget.id, widget.animation, animationRuntime]);
+
+    // Visual motion state for declarative framer-motion rendering
+    const motionState = useVisualMotionState(widget.id);
 
     React.useEffect(() => {
         setIsHydrated(true);
@@ -225,6 +257,80 @@ export function Widget({
         return null;
     }
 
+    // Mouse handlers that emit user signals
+    const handleMouseEnter = useCallback(() => {
+        userRuntime.emitMouseEnter(widget.id);
+        onMouseEnter?.();
+    }, [widget.id, userRuntime, onMouseEnter]);
+
+    const handleMouseLeave = useCallback(() => {
+        userRuntime.emitMouseLeave(widget.id);
+        onMouseLeave?.();
+    }, [widget.id, userRuntime, onMouseLeave]);
+
+    // Build mount/unmount animation presets
+    const mountSlots = (widget.animation ?? []).filter(
+        (s) => s.signal.source === 'lifecycle' && s.signal.type === 'mount',
+    );
+    const unmountSlots = (widget.animation ?? []).filter(
+        (s) => s.signal.source === 'lifecycle' && s.signal.type === 'unmount',
+    );
+
+    const firstMountConfig = mountSlots[0]?.motion;
+    const mountPreset = firstMountConfig ? buildPreset(firstMountConfig) : undefined;
+    const unmountPreset = unmountSlots[0]?.motion ? buildPreset(unmountSlots[0].motion) : undefined;
+
+    const initial = mountPreset?.initial as Record<string, unknown> | undefined;
+
+    // Check for glitch effect
+    const hasGlitch = mountSlots.some((s) => s.motion.effect === 'glitch');
+    const glitchIntensity = mountSlots.find((s) => s.motion.effect === 'glitch')?.motion.intensity ?? 1;
+    const glitchStyle = hasGlitch ? buildGlitchStyle(glitchIntensity) : undefined;
+
+    // Determine animate target:
+    // 1. visualStateRuntime state (WidgetSignal-driven)
+    // 2. mount preset animate (declarative mount animation)
+    // 3. controls (imperative, for user/system signal animations)
+    const hasVisualState = Object.keys(motionState.animate).length > 0;
+    const animateTarget = hasVisualState
+        ? motionState.animate
+        : mountPreset
+            ? mountPreset.animate as Record<string, unknown>
+            : controls;
+
+    const transitionConfig = hasVisualState
+        ? motionState.transition
+        : firstMountConfig
+            ? getMotionTransition(firstMountConfig.motionType, firstMountConfig)
+            : undefined;
+
+    const visualStyle = buildWidgetVisualStyle(widget);
+    const needsPresence = mountPreset || unmountPreset;
+
+    const motionDiv = (
+        <motion.div
+            key={widget.id}
+            className={combineClassNames('widget-content', className)}
+            style={{
+                userSelect: 'none',
+                touchAction: 'none',
+                width: '100%',
+                height: '100%',
+                ...visualStyle,
+                ...glitchStyle,
+                ...style,
+            }}
+            initial={initial as any}
+            animate={animateTarget as any}
+            exit={unmountPreset?.exit as any}
+            transition={transitionConfig as any}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
+            {children}
+        </motion.div>
+    );
+
     return (
         <div
             className={'widget group'}
@@ -245,22 +351,11 @@ export function Widget({
                     : { visibility: 'hidden' }),
             }}
         >
-            <div
-                className={combineClassNames(
-                    'widget-content',
-                    className,
-                )}
-                style={{
-                    userSelect: 'none',
-                    touchAction: 'none',
-                    width: '100%',
-                    height: '100%',
-                    ...buildWidgetVisualStyle(widget),
-                    ...style,
-                }}
-            >
-                {children}
-            </div>
+            {needsPresence ? (
+                <AnimatePresence>
+                    {motionDiv}
+                </AnimatePresence>
+            ) : motionDiv}
         </div>
     );
 }

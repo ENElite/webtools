@@ -1,4 +1,5 @@
 import type { ComponentType, Dispatch } from 'react';
+import type { WidgetAnimation } from './animation';
 
 export type WidgetId = string;
 export type WidgetKind = 'text' | 'image' | 'video' | 'clock' | 'canvas' | 'html' | 'iframe' | 'live2d';
@@ -41,6 +42,7 @@ export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     props: TProps;
     locked?: boolean;
     autoHide?: boolean;
+    animation?: WidgetAnimation;
 };
 
 export type OverlayAction =

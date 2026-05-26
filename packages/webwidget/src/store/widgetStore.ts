@@ -77,8 +77,8 @@ export function useWidgetAction() {
     const resetRotation = useCallback(
         (widgetId: WidgetId) => {
             const command = new UpdateWidgetCommand(widgetId, {
-                layout: { rotation: 0 },
-            } as any);
+                set: { 'layout.rotation': 0 },
+            });
             executeCommand(command);
         },
         [executeCommand],
@@ -86,7 +86,9 @@ export function useWidgetAction() {
 
     const toggleLock = useCallback(
         (widgetId: WidgetId, locked: boolean) => {
-            const command = new UpdateWidgetCommand(widgetId, { locked } as any);
+            const command = new UpdateWidgetCommand(widgetId, {
+                set: { locked },
+            });
             executeCommand(command);
         },
         [executeCommand],
@@ -131,14 +133,13 @@ export function useWidgetStore() {
             // 合并现有 style，避免覆盖其他样式（如 backgroundColor）
             const widget = widgets.find((item) => item.id === widgetId);
             const prevStyle = widget?.style ?? {};
-            const nextStyle = {
-                ...prevStyle,
-                borderRadius: target.style.borderRadius || undefined,
-            };
+            const nextBorderRadius = target.style.borderRadius || undefined;
 
             const command = new UpdateWidgetCommand(widgetId, {
-                style: nextStyle,
-            } as any);
+                set: {
+                    'style.borderRadius': nextBorderRadius,
+                },
+            });
             executeCommand(command);
         },
         [executeCommand, widgets],
@@ -179,7 +180,16 @@ export function useWidgetStore() {
                 widget.layout.adapt,
             );
 
-            const command = new UpdateWidgetCommand(widgetId, { layout } as { layout: WidgetLayout });
+            const command = new UpdateWidgetCommand(widgetId, {
+                set: {
+                    'layout.x': layout.x,
+                    'layout.y': layout.y,
+                    'layout.w': layout.w,
+                    'layout.h': layout.h,
+                    'layout.rotation': layout.rotation,
+                    'layout.adapt': layout.adapt,
+                },
+            });
             executeCommand(command);
         },
         [executeCommand, widgets],

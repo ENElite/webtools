@@ -25,7 +25,7 @@ type OverlayMoveableProps = {
     };
     onWidgetableMouseEnter: (widgetId: string) => void;
     onWidgetableMouseLeave: (widgetId: string) => void;
-    onWidgetSettingsClick: () => void;
+    onWidgetSettingsClick: (widgetId: string) => void;
     onWidgetLayoutChange: (widgetId: string, target: HTMLElement | null, container: HTMLElement | null) => void;
     onWidgetStyleChange: (widgetId: string, target: HTMLElement | null) => void;
 };
@@ -103,7 +103,7 @@ export function OverlayMoveable({
         }
 
         if (actionType === 'open-widget-settings') {
-            onWidgetSettingsClick?.();
+            onWidgetSettingsClick?.(widgetableWidget.id);
             return;
         }
 

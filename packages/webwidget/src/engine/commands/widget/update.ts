@@ -1,12 +1,12 @@
 import type { Command, CommandSnapshot } from '../types';
 import type { WidgetId, WidgetModel } from '../../model';
+import type { Patch } from '../../editor/types';
 import { generateCommandId } from '../types';
-import { deepMerge } from '../../editor/applyChange';
+import { applyChange } from '../../editor/applyChange';
 
 /**
  * 更新 widget 属性命令
- * 支持更新 layout, style, props, label, locked, autoHide 等
- * 使用深合并确保嵌套属性（如 style.opacity）不会覆盖整个 style 对象
+ * 接受 Patch (dot-path set/unset) 格式，在 execute 内部转换为 widget 更新
  */
 export class UpdateWidgetCommand implements Command {
     readonly id: string;
@@ -14,10 +14,10 @@ export class UpdateWidgetCommand implements Command {
     readonly timestamp: number;
 
     readonly widgetId: WidgetId;
-    readonly patch: Partial<Omit<WidgetModel, 'id' | 'kind'>>;
-    private previousValues: Partial<Omit<WidgetModel, 'id' | 'kind'>> = {};
+    readonly patch: Patch;
+    private previousSnapshot: WidgetModel | null = null;
 
-    constructor(widgetId: WidgetId, patch: Partial<Omit<WidgetModel, 'id' | 'kind'>>) {
+    constructor(widgetId: WidgetId, patch: Patch) {
         this.id = generateCommandId();
         this.timestamp = Date.now();
         this.widgetId = widgetId;
@@ -35,35 +35,29 @@ export class UpdateWidgetCommand implements Command {
             return snapshot.widgets;
         }
 
-        this.previousValues = {};
-        for (const key of Object.keys(this.patch) as Array<keyof typeof this.patch>) {
-            this.previousValues[key as any] = (widget as any)[key];
-        }
+        // Save full widget snapshot for undo
+        this.previousSnapshot = { ...widget };
+
+        // Apply patch (dot-path format) to the widget
+        const nextWidget = applyChange(widget, this.patch) as WidgetModel;
 
         const nextWidgets = snapshot.widgets.slice();
-        nextWidgets[index] = deepMerge(
-            widget as Record<string, any>,
-            this.patch as Record<string, any>,
-        ) as WidgetModel;
+        nextWidgets[index] = nextWidget;
         return nextWidgets;
     }
 
     undo(snapshot: CommandSnapshot): WidgetModel[] {
-        const index = snapshot.widgets.findIndex((w) => w.id === this.widgetId);
-        if (index < 0 || Object.keys(this.previousValues).length === 0) {
+        if (!this.previousSnapshot) {
             return snapshot.widgets;
         }
 
-        const widget = snapshot.widgets[index];
-        if (!widget) {
+        const index = snapshot.widgets.findIndex((w) => w.id === this.widgetId);
+        if (index < 0) {
             return snapshot.widgets;
         }
 
         const nextWidgets = snapshot.widgets.slice();
-        nextWidgets[index] = deepMerge(
-            widget as Record<string, any>,
-            this.previousValues as Record<string, any>,
-        ) as WidgetModel;
+        nextWidgets[index] = this.previousSnapshot;
         return nextWidgets;
     }
 
@@ -72,10 +66,17 @@ export class UpdateWidgetCommand implements Command {
     }
 
     getDescription(): string {
-        const keys = Object.keys(this.patch);
+        const keys = Object.keys(this.patch.set ?? {});
         if (keys.length === 1) {
             return `修改 ${keys[0]}`;
         }
-        return `修改${keys.length}个属性`;
+        if (keys.length > 1) {
+            return `修改${keys.length}个属性`;
+        }
+        const unsets = this.patch.unset?.length ?? 0;
+        if (unsets > 0) {
+            return `删除${unsets}个属性`;
+        }
+        return '修改组件';
     }
 }

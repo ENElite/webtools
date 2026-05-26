@@ -8,45 +8,9 @@ import { IFRAME_WIDGET_SETTINGS_SCHEMA } from '../components/iframe';
 import { LIVE2D_WIDGET_SETTINGS_SCHEMA } from '../components/live2d';
 import type {
     WidgetKind,
-    WidgetFlatProps,
-    WidgetPropPrimitive,
 } from '../engine/model';
 
-import type { BorderPickerValue } from '../engine/editor/editors/BorderEditor';
-
 import type { InspectorSchema } from '../engine/editor';
-
-export const WidgetStyleSettingsKeys = [
-    'opacity',
-    'backgroundColor',
-    'backgroundEffect',
-    'backgroundImageUrl',
-    'border',
-    'outlineOffset',
-    'shadowRadius',
-    'shadowColor',
-] as const;
-
-export type WidgetStyleSettingsKey = typeof WidgetStyleSettingsKeys[number];
-
-export const WidgetLayoutSettingsKeys = [
-    'anchorX',
-    'anchorY',
-    'adapt',
-] as const;
-
-export type WidgetLayoutSettingsKey = typeof WidgetLayoutSettingsKeys[number];
-
-export type WidgetStyleSettingsDraft = {
-    opacity: number;
-    backgroundColor: string;
-    backgroundEffect: string;
-    backgroundImageUrl: string;
-    border: BorderPickerValue;
-    outlineOffset: number;
-    shadowRadius: number;
-    shadowColor: string;
-};
 
 export type WidgetSettingsSchema = InspectorSchema;
 
@@ -118,6 +82,17 @@ const WIDGET_BASE_SETTINGS_SCHEMA: InspectorSchema = [
                 { label: '拉伸', value: 'stretch' },
             ],
         },
+    },
+];
+
+export const WIDGET_ANIMATION_SETTINGS_SCHEMA: InspectorSchema = [
+    {
+        key: 'animation',
+        label: '动画',
+        type: 'animationSlots',
+        page: 'animation',
+        order: 100,
+        bind: 'animation',
     },
 ];
 
@@ -214,6 +189,7 @@ export function resolveWidgetSettingsSchema(kind: WidgetKind): InspectorSchema |
     return [
         ...WIDGET_BASE_SETTINGS_SCHEMA,
         ...WIDGET_STYLE_SETTINGS_SCHEMA,
+        ...WIDGET_ANIMATION_SETTINGS_SCHEMA,
         ...schema,
     ];
 }

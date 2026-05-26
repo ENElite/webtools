@@ -7,6 +7,7 @@ import { HtmlWidget, DEFAULT_HTML_WIDGET_PROPS } from '../../components/html';
 import { IframeWidget, DEFAULT_IFRAME_WIDGET_PROPS } from '../../components/iframe';
 import { TextWidget, DEFAULT_TEXT_WIDGET_PROPS } from '../../components/text';
 import { Live2dWidget, DEFAULT_LIVE2D_WIDGET_PROPS } from '../../components/live2d';
+import type { AnimationConfig, WidgetAnimation } from './animation';
 
 export function createWidgetRegistry(initial?: WidgetRendererMap): WidgetRendererMap {
     return { ...(initial || {}) };
@@ -118,9 +119,44 @@ export function defaultWidgetLabel(kind: WidgetKind): string {
     }[kind];
 }
 
+function createDefaultAnimation(): WidgetAnimation {
+    const tween03: AnimationConfig = {
+        effect: 'fade',
+        motionType: 'tween',
+        loop: false,
+        delay: 0,
+        duration: 0.3,
+        intensity: 1,
+        easing: 'ease-out',
+    };
+
+    return [
+        {
+            signal: { source: 'lifecycle', type: 'mount' },
+            motion: {
+                effect: 'fade',
+                motionType: 'tween',
+                loop: false,
+                delay: 0.5,
+                duration: 1,
+                intensity: 1,
+            },
+        },
+        { signal: { source: 'widget', type: 'style.opacity' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.backgroundColor' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.borderRadius' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.outline' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.outlineOffset' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.shadowRadius' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.shadowColor' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.backgroundEffect' }, motion: { ...tween03 } },
+        { signal: { source: 'widget', type: 'style.backgroundImageUrl' }, motion: { ...tween03 } },
+    ];
+}
+
 export function createWidget(
     kind: WidgetKind,
-    opts: { style?: Partial<WidgetStyle>; layout?: Partial<WidgetLayout> } = {},
+    opts: { style?: Partial<WidgetStyle>; layout?: Partial<WidgetLayout>; animation?: WidgetAnimation } = {},
 ): WidgetModel {
     const props = {
         text: DEFAULT_TEXT_WIDGET_PROPS,
@@ -141,5 +177,6 @@ export function createWidget(
         style: createWidgetStyle(opts.style || {}),
         layout: createWidgetLayout(opts.layout || {}),
         autoHide: false,
+        animation: opts.animation ?? createDefaultAnimation(),
     };
 }

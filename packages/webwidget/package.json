@@ -47,6 +47,7 @@
     "@iconify/react": "^4.1.0",
     "@reactuses/core": "^6.3.1",
     "antd": "^6.3.5",
+    "framer-motion": "^12.40.0",
     "immer": "^11.1.8",
     "l2d": "^2.1.1",
     "react": "^19.2.5",

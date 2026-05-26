@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIdle } from '@reactuses/core';
 
 import { OverlayMoveable } from './Moveable';
 import { resolveWidgetRenderer, DEFAULT_OVERLAY_Z_INDEX } from '../engine/model/widget';
@@ -8,6 +9,25 @@ import { useOverlayStore, useWidgetStore } from '../store';
 import type { WidgetRendererMap } from '../engine/model';
 
 import { Widget } from './Widget';
+import { RuntimeProvider } from './RuntimeProvider';
+import { useRuntime } from './useRuntime';
+
+function SystemIdleEmitter() {
+    const { systemRuntime } = useRuntime();
+    const isIdle = useIdle(5000);
+    const prevIdleRef = useRef(false);
+
+    useEffect(() => {
+        if (isIdle && !prevIdleRef.current) {
+            systemRuntime.emitIdle();
+        } else if (!isIdle && prevIdleRef.current) {
+            systemRuntime.emitActive();
+        }
+        prevIdleRef.current = isIdle;
+    }, [isIdle, systemRuntime]);
+
+    return null;
+}
 
 type OverlayRootProps = {
     renderers: WidgetRendererMap;
@@ -138,19 +158,21 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     }, [OVERLAY_LOG_PREFIX, activeWidgetId, widgets]);
 
     return (
-        <div
-            ref={overlayRef}
-            className='absolute inset-0 overflow-hidden'
-            style={{ zIndex: DEFAULT_OVERLAY_Z_INDEX }}
-            onMouseDown={(event) => {
-                if (event.target !== event.currentTarget) {
-                    return;
-                }
-                activate(null);
-                setHoveredWidgetId(null);
-                hideWidgetableNow();
-            }}
-        >
+        <RuntimeProvider>
+            <SystemIdleEmitter />
+            <div
+                ref={overlayRef}
+                className='absolute inset-0 overflow-hidden'
+                style={{ zIndex: DEFAULT_OVERLAY_Z_INDEX }}
+                onMouseDown={(event) => {
+                    if (event.target !== event.currentTarget) {
+                        return;
+                    }
+                    activate(null);
+                    setHoveredWidgetId(null);
+                    hideWidgetableNow();
+                }}
+            >
             {widgets.map((widget) => {
                 const WidgetRenderer = resolveWidgetRenderer(renderers, widget.kind);
                 if (!WidgetRenderer) {
@@ -213,11 +235,9 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                         hideWidgetableLater(widgetId);
                     }
                 }}
-                onWidgetSettingsClick={() => {
-                    if (activeWidget) {
-                        setSettingsWidgetId(activeWidget.id);
-                        activate(null);
-                    }
+                onWidgetSettingsClick={(widgetId) => {
+                    setSettingsWidgetId(widgetId);
+                    activate(null);
                 }}
                 onWidgetLayoutChange={onWidgetLayoutChange}
                 onWidgetStyleChange={onWidgetStyleChange}
@@ -232,6 +252,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     />
                 )
                 : null}
-        </div>
+            </div>
+        </RuntimeProvider>
     );
 }
