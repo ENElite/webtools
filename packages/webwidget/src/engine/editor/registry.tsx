@@ -32,6 +32,8 @@ import {
     CodeEditor,
     CombinerEditor,
     TagsEditor,
+    AnimationSlotsEditor,
+    CascaderEditor,
 } from './editors';
 
 registerEditor('string', StringEditor);
@@ -47,3 +49,5 @@ registerEditor('image', ImageEditor);
 registerEditor('editor', CodeEditor);
 registerEditor('combiner', CombinerEditor);
 registerEditor('tags', TagsEditor);
+registerEditor('animationSlots', AnimationSlotsEditor);
+registerEditor('cascader', CascaderEditor);

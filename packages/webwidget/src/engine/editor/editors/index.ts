@@ -11,3 +11,5 @@ export { default as ImageEditor } from './ImageEditor';
 export { default as CodeEditor } from './CodeEditor';
 export { default as CombinerEditor } from './CombinerEditor';
 export { default as TagsEditor } from './TagsEditor';
+export { default as AnimationSlotsEditor } from './AnimationSlotsEditor';
+export { default as CascaderEditor } from './CascaderEditor';
