@@ -9,7 +9,7 @@ import {
     CopyWidgetCommand,
 } from '../engine/commands';
 import { layoutFromPx, parseTransformString } from '../runtime/transform_utils';
-import type { WidgetLayout } from '../engine/model';
+import type { Patch } from '../engine/editor/types';
 
 export type WidgetActionEvent =
     | { type: 'move-widget-up'; widgetId: WidgetId }
@@ -130,9 +130,6 @@ export function useWidgetStore() {
                 return;
             }
 
-            // 合并现有 style，避免覆盖其他样式（如 backgroundColor）
-            const widget = widgets.find((item) => item.id === widgetId);
-            const prevStyle = widget?.style ?? {};
             const nextBorderRadius = target.style.borderRadius || undefined;
 
             const command = new UpdateWidgetCommand(widgetId, {
@@ -142,7 +139,7 @@ export function useWidgetStore() {
             });
             executeCommand(command);
         },
-        [executeCommand, widgets],
+        [executeCommand],
     );
 
     const onWidgetLayoutChange = useCallback(
@@ -180,17 +177,17 @@ export function useWidgetStore() {
                 widget.layout.adapt,
             );
 
-            const command = new UpdateWidgetCommand(widgetId, {
-                set: {
-                    'layout.x': layout.x,
-                    'layout.y': layout.y,
-                    'layout.w': layout.w,
-                    'layout.h': layout.h,
-                    'layout.rotation': layout.rotation,
-                    'layout.adapt': layout.adapt,
-                },
-            });
-            executeCommand(command);
+            const set: NonNullable<Patch['set']> = {};
+            if (layout.x !== widget.layout.x) set['layout.x'] = layout.x;
+            if (layout.y !== widget.layout.y) set['layout.y'] = layout.y;
+            if (layout.w !== widget.layout.w) set['layout.w'] = layout.w;
+            if (layout.h !== widget.layout.h) set['layout.h'] = layout.h;
+            if (layout.rotation !== widget.layout.rotation) set['layout.rotation'] = layout.rotation;
+            if (layout.adapt !== widget.layout.adapt) set['layout.adapt'] = layout.adapt;
+
+            if (Object.keys(set).length === 0) return;
+
+            executeCommand(new UpdateWidgetCommand(widgetId, { set }));
         },
         [executeCommand, widgets],
     );
