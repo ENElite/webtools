@@ -1,23 +1,21 @@
-import type { SettingsSchema } from '@/components/settings';
-
-/**
- * Json Provider 的扁平化设置值
- */
-export type JsonProviderSettingValues = {
-    content: string;
-};
+import type { InspectorSchema, BindPath } from '@webtools/webwidget';
 
 /**
  * Json Provider 的 schema 定义
  */
-export const PROVIDER_JSON_SCHEMA: SettingsSchema<JsonProviderSettingValues> = [
+export const PROVIDER_JSON_SCHEMA: InspectorSchema = [
     {
         key: 'content',
         label: 'JSON 内容',
         type: 'editor',
-        chat: false,
-        language: 'json',
-        height: '300px',
+        bind: 'content' as BindPath,
+        page: 'json',
+        order: 0,
+        meta: {
+            chat: false,
+            language: 'json',
+            height: '300px',
+        },
     },
 ];
 

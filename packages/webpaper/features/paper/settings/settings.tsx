@@ -1,14 +1,13 @@
 import { useCallback, useMemo } from 'react';
 
-import { SettingsFormPanel } from '@/components/settings';
+import { SettingsFormPanel } from '@webtools/webwidget';
 
 import { usePaperStore } from '@/store';
 import {
     PAPER_SETTINGS_SCHEMA,
-    buildPaperSettingsDraft,
-    splitPaperSettingsValues,
-    type PaperSettingsValues,
+    PAPER_PAGE_REGISTRY,
 } from './schema';
+import type { SharedSettings } from './schema';
 
 type PaperSettingsPanelProps = {
     container: HTMLElement;
@@ -26,33 +25,43 @@ export function PaperSettingsPanel({ container, onClose }: PaperSettingsPanelPro
     const setBirdSettings = usePaperStore((state) => state.setBirdSettings);
 
     const value = useMemo(
-        () => buildPaperSettingsDraft({
-            sharedSettings,
-            konachanSettings,
-            jsonSettings,
-            birdSettings,
+        () => ({
+            ...sharedSettings,
+            ...konachanSettings,
+            ...jsonSettings,
+            ...birdSettings,
         }),
         [sharedSettings, konachanSettings, jsonSettings, birdSettings]
     );
 
-    const handleSave = useCallback((nextValues: PaperSettingsValues) => {
-        const nextSettings = splitPaperSettingsValues(nextValues);
-        setSharedSettings(nextSettings.sharedSettings);
-        setKonachanSettings(nextSettings.konachanSettings);
-        setJsonSettings(nextSettings.jsonSettings);
-        setBirdSettings(nextSettings.birdSettings);
+    const handleSave = useCallback((nextValues: Record<string, any>) => {
+        const shared: SharedSettings = {
+            objectFit: nextValues['objectFit'],
+            provider: nextValues['provider'],
+            trackScale: nextValues['trackScale'],
+            trackIntensity: nextValues['trackIntensity'],
+            lockDock: nextValues['lockDock'],
+            interval: nextValues['interval'],
+            enableWakeLock: nextValues['enableWakeLock'],
+            videoAutoSwitchOnEnded: nextValues['videoAutoSwitchOnEnded'],
+        };
+        setSharedSettings(shared);
+        setKonachanSettings(nextValues as any);
+        setBirdSettings(nextValues as any);
+        setJsonSettings(nextValues as any);
     }, [setBirdSettings, setJsonSettings, setKonachanSettings, setSharedSettings]);
 
     return (
-        <SettingsFormPanel<PaperSettingsValues>
+        <SettingsFormPanel
             panelKey='paper-settings'
             title='Webpaper 设置'
-            value={value}
+            value={value as any}
             schema={PAPER_SETTINGS_SCHEMA}
+            pages={PAPER_PAGE_REGISTRY}
             container={container}
             onChange={() => { }}
             onClose={onClose}
-            onSave={handleSave}
+            onSave={handleSave as any}
         />
     );
 }

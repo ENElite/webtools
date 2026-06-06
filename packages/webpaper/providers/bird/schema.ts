@@ -1,4 +1,4 @@
-import { SettingsSchema } from "@/components/settings";
+import type { InspectorSchema, BindPath } from '@webtools/webwidget';
 
 export type BirdPaperResponse<T> = {
     errno: number;
@@ -69,21 +69,43 @@ export const DEFAULT_BIRD_PROVIDER_SETTINGS: BirdProviderSettings = {
     categoryId: '26', // 默认动漫分类
 };
 
-export const PROVIDER_BIRD_SCHEMA: SettingsSchema<BirdProviderSettings> = [
+export const PROVIDER_BIRD_SCHEMA: InspectorSchema = [
     {
-        key: 'api', label: 'API 类型', type: 'enum', options: [
-            { label: '最新', value: 'latest' },
-            { label: '搜索', value: 'search' },
-            { label: '分类', value: 'category' },
-        ]
+        key: 'api',
+        label: 'API 类型',
+        type: 'enum',
+        bind: 'api' as BindPath,
+        page: 'bird',
+        order: 0,
+        meta: {
+            options: [
+                { label: '最新', value: 'latest' },
+                { label: '搜索', value: 'search' },
+                { label: '分类', value: 'category' },
+            ],
+        },
     },
-    { key: 'query', label: '搜索关键字', type: 'string', placeholder: '搜索内容，仅用于 search', visibleWhen: { key: 'api', equals: 'search' } },
+    {
+        key: 'query',
+        label: '搜索关键字',
+        type: 'string',
+        bind: 'query' as BindPath,
+        page: 'bird',
+        order: 1,
+        visibleWhen: { field: 'api' as any, equals: 'search' },
+        meta: { placeholder: '搜索内容，仅用于 search' },
+    },
     {
         key: 'categoryId',
         label: '分类 ID',
         type: 'enum',
-        options: Object.entries(BirdPaperCategoryMap).map(([value, label]) => ({ label, value })),
-        visibleWhen: { key: 'api', equals: 'category' }
+        bind: 'categoryId' as BindPath,
+        page: 'bird',
+        order: 2,
+        visibleWhen: { field: 'api' as any, equals: 'category' },
+        meta: {
+            options: Object.entries(BirdPaperCategoryMap).map(([value, label]) => ({ label, value })),
+        },
     },
 ];
 
