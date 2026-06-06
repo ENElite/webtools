@@ -1,6 +1,6 @@
 import { Button, Space } from 'antd';
 
-import type { ProviderRecord } from '@/shared/types';
+import type { ProviderRecord } from '@/providers';
 
 type ImageCardProps = {
     item: ProviderRecord;

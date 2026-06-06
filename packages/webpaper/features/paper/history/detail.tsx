@@ -1,15 +1,8 @@
-import { Descriptions, DescriptionsProps, Image, Modal, Space, Tag, Typography } from 'antd';
+import { DescriptionsProps, Space, Tag, Typography } from 'antd';
 
 import type { ProviderRecord } from '@/providers';
 import { KonachanItem } from '@/providers';
 import { BirdPaperItem } from '@/providers';
-
-type HistoryDetailModalProps = {
-    item: ProviderRecord | null;
-    open: boolean;
-    onClose: () => void;
-    showImage?: boolean;
-};
 
 function formatSize(value: number): string {
     if (!Number.isFinite(value) || value <= 0) {
@@ -108,7 +101,7 @@ function buildBirdPaperDescriptionItems(item: BirdPaperItem): DescriptionsProps[
 };
 
 export function buildDescriptionItems(item: ProviderRecord): DescriptionsProps['items'] {
-    const ret = [
+    return [
         // { key: 'id', label: 'ID', children: item.id },
         // { key: 'provider', label: '来源', children: item.provider },
         // {
@@ -116,7 +109,7 @@ export function buildDescriptionItems(item: ProviderRecord): DescriptionsProps['
         //     label: '预览图',
         //     children: item.preview
         //         ? (
-        //             <Image src={item.preview} alt={`preview-${item.id}`} style={{ maxWidth: 200 }} />
+        //             <img src={item.preview} alt={`preview-${item.id}`} style={{ maxWidth: 200 }} />
         //         )
         //         : '--',
         // },
