@@ -27,6 +27,19 @@ const MODEL_FILE_PATTERN = /(?:^|\/)(?:[^/]+\.)?model(?:3|4)?\.json$/i;
 const ARCHIVE_PATTERN = /\.(zip|tar|tgz|tar\.gz|tar\.bz2|tar\.xz)$/i;
 const MODEL_JSON_CACHE_ROOT = path.resolve(process.cwd(), 'temp', 'model-json-cache');
 
+// Default folder names to exclude when scanning the upstream repository. These
+// will be included by default and merged with any user-provided `--exclude` list.
+const DEFAULT_EXCLUDE_NAMES = [
+  '为美好的世界献上祝福！Fantastic Days',
+  'destiny_child_kr 天命之子',
+  'sin 七大 罪～魔王崇拜～',
+  'Live2D',
+  'VenusScramble',
+  'Sacred Sword princesses',
+  '诺亚幻想',
+  '魂器学院 (炼铜学院)'
+];
+
 function toPosixPath(value) {
   return value.split(path.sep).join(path.posix.sep);
 }
@@ -446,7 +459,9 @@ function parseArgs(argv) {
     printTree: false,
     printModels: false,
     noDownload: false,
-    exclude: [],
+    // start with the default exclude list; user-provided `--exclude` will be
+    // merged later in the argument parsing loop
+    exclude: DEFAULT_EXCLUDE_NAMES.slice(),
     validateReferences: false,
   };
 
@@ -517,6 +532,8 @@ function parseArgs(argv) {
         options.exclude = options.exclude.concat(
           excludeArg.split(',').map((s) => s.trim()).filter(Boolean)
         );
+        // keep exclude list unique and preserve insertion order
+        options.exclude = Array.from(new Set(options.exclude));
       }
       continue;
     }
@@ -533,6 +550,9 @@ function parseArgs(argv) {
     options.commitHash = rest[0];
   }
 
+  // Ensure excludes are unique even if no --exclude was provided
+  options.exclude = Array.from(new Set(options.exclude));
+
   return options;
 }
 
@@ -544,6 +564,7 @@ Options:
   --hash <commit>           Generate from a specific commit hash
   -i, --interactive         Prompt for a commit hash
   --exclude <names>         Exclude folder names (comma-separated), skip folder and subfolders
+  (default excludes are applied automatically; user --exclude values are merged)
   --validate-references     Validate FileReferences (check for missing files and '#' in paths), default: off
   --print-tree              Print repository tree output
   --print-models            Print all scanned model.json paths

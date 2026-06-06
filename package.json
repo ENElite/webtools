@@ -1,29 +1,45 @@
 {
   "name": "webtools",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.8.0",
   "scripts": {
     "dev:webpaper": "pnpm --filter @webtools/webpaper dev",
     "build:webpaper": "pnpm --filter @webtools/webpaper build",
     "preview:webpaper": "pnpm --filter @webtools/webpaper start",
-    "dev:reactuse": "tsc -p packages/reactuse/tsconfig.json --watch",
-    "build:reactuse": "tsc -b packages/reactuse/tsconfig.json",
+    "dev:docs": "pnpm --filter @webtools/webdocs dev",
+    "build:docs": "pnpm --filter @webtools/webdocs build",
+    "preview:docs": "pnpm --filter @webtools/webdocs preview",
     "lint": "pnpm -r lint",
-    "format": "prettier --write .",
+    "for mat": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
+    "@iconify-json/octicon": "^1.2.22",
+    "@iconify/tailwind4": "^1.2.3",
     "@rollup/plugin-node-resolve": "^16.0.3",
+    "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-react-swc": "^4.3.0",
+    "@vitest/coverage-c8": "^0.33.0",
+    "@vitest/coverage-v8": "4.1.4",
     "@vitest/ui": "^4.1.4",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.39.4",
     "jsdom": "^24.1.3",
     "neostandard": "^0.13.0",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^6.4.2",
     "vite-plugin-cp": "^6.0.3",
     "vitest": "^4.1.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "^19.2.5",
+      "react-dom": "^19.2.5"
+    }
   }
 }

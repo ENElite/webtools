@@ -29,7 +29,7 @@ const commaDangle = (val: any) => {
     }
 
     if (val?.rules) {
-        val.rules['@stylistic/space-before-function-paren'] = ['never'];
+        val.rules['@stylistic/space-before-function-paren'] = ['error', 'never'];
     }
 
     /** 支持下划线 - 禁用 camelcase 规则 */

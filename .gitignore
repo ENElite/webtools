@@ -9,6 +9,7 @@ devconfig/*
 .devcontainer/
 .next/
 temp/
+cache/
 
 # Editor
 .vscode/
