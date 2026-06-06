@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { HistoryRecord, Provider, ProviderRecord } from '@/types';
-import { appendUniqueHistoryRecord } from '@/app/webpaper';
+import type { Provider, ProviderRecord } from '@/types';
+import type { IProviderAdapter } from '@/features/provider/types';
+import { ProviderManager } from '@/features/provider/ProviderManager';
 
 function makeProviderRecord(id: number, provider: Provider = 'Konachan'): ProviderRecord {
     return {
@@ -30,30 +31,63 @@ function makeProviderRecord(id: number, provider: Provider = 'Konachan'): Provid
     };
 }
 
-function makeHistoryRecord(id: number, sequence: number): HistoryRecord {
-    return {
-        ...makeProviderRecord(id),
-        sequence,
-    };
+class MockAdapter implements IProviderAdapter {
+    readonly name = 'Mock';
+    private index = 0;
+
+    public constructor(private readonly records: ProviderRecord[]) {
+    }
+
+    public async getOne(): Promise<ProviderRecord | null> {
+        const record = this.records[this.index] ?? null;
+        this.index += 1;
+        return record;
+    }
+
+    public async peekOne(): Promise<ProviderRecord | null> {
+        return this.records[this.index] ?? null;
+    }
+
+    public updateSettings(): void {
+    }
+
+    public reset(): void {
+        this.index = 0;
+    }
 }
 
-describe('appendUniqueHistoryRecord', () => {
-    it('appends new records with incremental sequence', () => {
-        const prev = [makeHistoryRecord(1, 1)];
+describe('ProviderManager history records', () => {
+    it('keeps stable sequence order in manager history', async () => {
+        const manager = new ProviderManager(
+            'Konachan',
+            {},
+            () => new MockAdapter([makeProviderRecord(101), makeProviderRecord(102), makeProviderRecord(103)]),
+        );
 
-        const next = appendUniqueHistoryRecord(prev, makeProviderRecord(2));
+        await manager.next();
+        await manager.next();
+        await manager.next();
 
-        expect(next).toHaveLength(2);
-        expect(next[1]?.id).toBe(2);
-        expect(next[1]?.sequence).toBe(2);
+        const history = manager.getHistoryRecords();
+        expect(history).toHaveLength(3);
+        expect(history.map((item) => item.id)).toEqual([101, 102, 103]);
+        expect(history.map((item) => item.sequence)).toEqual([1, 2, 3]);
     });
 
-    it('keeps history unchanged for duplicate provider+id', () => {
-        const prev = [makeHistoryRecord(1, 1)];
+    it('can locate current record by stable sequence', async () => {
+        const manager = new ProviderManager(
+            'Konachan',
+            {},
+            () => new MockAdapter([makeProviderRecord(201), makeProviderRecord(202), makeProviderRecord(203)]),
+        );
 
-        const next = appendUniqueHistoryRecord(prev, makeProviderRecord(1));
+        await manager.next();
+        await manager.next();
+        await manager.next();
 
-        expect(next).toHaveLength(1);
-        expect(next).toEqual(prev);
+        manager.setCurrentBySequence(2);
+        const current = manager.current();
+
+        expect(current?.id).toBe(202);
     });
 });

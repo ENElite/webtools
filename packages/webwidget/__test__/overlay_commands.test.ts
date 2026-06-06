@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createWidget, WidgetKinds } from '@webtools/webwidget';
+import { createWidget, WidgetKinds } from '../src/engine/model/widget';
 import {
     AddWidgetCommand,
     BatchCommand,
@@ -12,8 +12,8 @@ import {
     UpdateWidgetCommand,
     type Command,
     type CommandSnapshot,
-} from '@webtools/webwidget';
-import type { WidgetLayout, WidgetModel } from '@webtools/webwidget';
+} from '../src/engine/commands';
+import type { WidgetLayout, WidgetModel } from '../src/engine/model';
 
 function makeWidget(id: string, overrides: Partial<WidgetModel> = {}): WidgetModel {
     const base = createWidget(WidgetKinds.TEXT);
@@ -143,17 +143,19 @@ describe('CommandHistoryManager', () => {
 
 describe('Widget commands', () => {
     it('adds a widget and undoes the insertion', () => {
-        const base = makeWidget('a');
-        const widget = makeWidget('b', { label: 'New widget' });
+        const base = makeWidget('a', { layout: { order: 1 } as WidgetLayout });
+        const widget = makeWidget('b', { label: 'New widget', layout: { order: 2 } as WidgetLayout });
         const command = new AddWidgetCommand(widget);
         const snapshot = makeSnapshot([base]);
 
         const next = command.execute(snapshot);
         expect(next).toHaveLength(2);
-        expect(next[1]).toBe(widget);
+        expect(next[1]?.id).toBe('b');
+        expect(next[1]?.layout.order).toBe(2); // max order (1) + 1
 
         const undone = command.undo(makeSnapshot(next));
-        expect(undone).toEqual([base]);
+        expect(undone).toHaveLength(1);
+        expect(undone[0]?.id).toBe('a');
     });
 
     it('replaces an existing widget with the same id', () => {
@@ -168,24 +170,27 @@ describe('Widget commands', () => {
     });
 
     it('removes a widget and restores it on undo', () => {
-        const first = makeWidget('a');
-        const second = makeWidget('b');
+        const first = makeWidget('a', { layout: { order: 1 } as WidgetLayout });
+        const second = makeWidget('b', { layout: { order: 2 } as WidgetLayout });
         const command = new RemoveWidgetCommand('b');
 
         const next = command.execute(makeSnapshot([first, second]));
-        expect(next).toEqual([first]);
+        expect(next).toHaveLength(1);
+        expect(next[0]?.id).toBe('a');
+        expect(next[0]?.layout.order).toBe(1);
         expect(command.canExecute(makeSnapshot([first, second]))).toBe(true);
         expect(command.canExecute(makeSnapshot([first]))).toBe(false);
 
         const undone = command.undo(makeSnapshot(next));
-        expect(undone).toEqual([first, second]);
+        expect(undone).toHaveLength(2);
+        expect(undone.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(undone.find((w) => w.id === 'b')?.layout.order).toBe(2);
     });
 
     it('updates widget fields and restores the previous values on undo', () => {
         const original = makeWidget('a', { label: 'Alpha', locked: false });
         const command = new UpdateWidgetCommand('a', {
-            label: 'Beta',
-            locked: true,
+            set: { label: 'Beta', locked: true },
         });
 
         const next = command.execute(makeSnapshot([original]));
@@ -208,6 +213,7 @@ describe('Widget commands', () => {
                 h: 40,
                 rotation: 0,
                 adapt: 'fixed',
+                order: 1,
             },
         });
         const updatedLayout: WidgetLayout = {
@@ -216,7 +222,9 @@ describe('Widget commands', () => {
             y: 70,
             rotation: 45,
         };
-        const command = new UpdateWidgetCommand('a', { layout: updatedLayout });
+        const command = new UpdateWidgetCommand('a', {
+            set: { 'layout.x': updatedLayout.x, 'layout.y': updatedLayout.y, 'layout.rotation': updatedLayout.rotation },
+        });
 
         const next = command.execute(makeSnapshot([original]));
         expect(next[0]?.layout).toEqual(updatedLayout);
@@ -226,29 +234,53 @@ describe('Widget commands', () => {
     });
 
     it('moves widgets up, down, top and bottom with undo support', () => {
-        const a = makeWidget('a');
-        const b = makeWidget('b');
-        const c = makeWidget('c');
+        const a = makeWidget('a', { layout: { order: 1 } as WidgetLayout });
+        const b = makeWidget('b', { layout: { order: 2 } as WidgetLayout });
+        const c = makeWidget('c', { layout: { order: 3 } as WidgetLayout });
 
         const moveUp = new MoveWidgetCommand('b', 'up');
         const movedUp = moveUp.execute(makeSnapshot([a, b, c]));
-        expect(movedUp.map((widget) => widget.id)).toEqual(['a', 'c', 'b']);
-        expect(moveUp.undo(makeSnapshot(movedUp)).map((widget) => widget.id)).toEqual(['a', 'b', 'c']);
+        // b (order 2) swaps with c (order 3): b=3, c=2
+        expect(movedUp.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(movedUp.find((w) => w.id === 'b')?.layout.order).toBe(3);
+        expect(movedUp.find((w) => w.id === 'c')?.layout.order).toBe(2);
+        const undoneUp = moveUp.undo(makeSnapshot(movedUp));
+        expect(undoneUp.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(undoneUp.find((w) => w.id === 'b')?.layout.order).toBe(2);
+        expect(undoneUp.find((w) => w.id === 'c')?.layout.order).toBe(3);
 
         const moveDown = new MoveWidgetCommand('b', 'down');
         const movedDown = moveDown.execute(makeSnapshot([a, b, c]));
-        expect(movedDown.map((widget) => widget.id)).toEqual(['b', 'a', 'c']);
-        expect(moveDown.undo(makeSnapshot(movedDown)).map((widget) => widget.id)).toEqual(['a', 'b', 'c']);
+        // b (order 2) swaps with a (order 1): b=1, a=2
+        expect(movedDown.find((w) => w.id === 'a')?.layout.order).toBe(2);
+        expect(movedDown.find((w) => w.id === 'b')?.layout.order).toBe(1);
+        expect(movedDown.find((w) => w.id === 'c')?.layout.order).toBe(3);
+        const undoneDown = moveDown.undo(makeSnapshot(movedDown));
+        expect(undoneDown.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(undoneDown.find((w) => w.id === 'b')?.layout.order).toBe(2);
+        expect(undoneDown.find((w) => w.id === 'c')?.layout.order).toBe(3);
 
         const moveTop = new MoveWidgetCommand('a', 'top');
         const movedTop = moveTop.execute(makeSnapshot([a, b, c]));
-        expect(movedTop.map((widget) => widget.id)).toEqual(['b', 'c', 'a']);
-        expect(moveTop.undo(makeSnapshot(movedTop)).map((widget) => widget.id)).toEqual(['a', 'b', 'c']);
+        // a (order 1) → max(3), b shifts 2→1, c shifts 3→2
+        expect(movedTop.find((w) => w.id === 'a')?.layout.order).toBe(3);
+        expect(movedTop.find((w) => w.id === 'b')?.layout.order).toBe(1);
+        expect(movedTop.find((w) => w.id === 'c')?.layout.order).toBe(2);
+        const undoneTop = moveTop.undo(makeSnapshot(movedTop));
+        expect(undoneTop.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(undoneTop.find((w) => w.id === 'b')?.layout.order).toBe(2);
+        expect(undoneTop.find((w) => w.id === 'c')?.layout.order).toBe(3);
 
         const moveBottom = new MoveWidgetCommand('c', 'bottom');
         const movedBottom = moveBottom.execute(makeSnapshot([a, b, c]));
-        expect(movedBottom.map((widget) => widget.id)).toEqual(['c', 'a', 'b']);
-        expect(moveBottom.undo(makeSnapshot(movedBottom)).map((widget) => widget.id)).toEqual(['a', 'b', 'c']);
+        // c (order 3) → 1, a shifts 1→2, b shifts 2→3
+        expect(movedBottom.find((w) => w.id === 'a')?.layout.order).toBe(2);
+        expect(movedBottom.find((w) => w.id === 'b')?.layout.order).toBe(3);
+        expect(movedBottom.find((w) => w.id === 'c')?.layout.order).toBe(1);
+        const undoneBottom = moveBottom.undo(makeSnapshot(movedBottom));
+        expect(undoneBottom.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(undoneBottom.find((w) => w.id === 'b')?.layout.order).toBe(2);
+        expect(undoneBottom.find((w) => w.id === 'c')?.layout.order).toBe(3);
     });
 
     it('copies a widget and removes the copy on undo', () => {
@@ -262,19 +294,20 @@ describe('Widget commands', () => {
                 h: 40,
                 rotation: 0,
                 adapt: 'fixed',
+                order: 1,
             },
         });
-        const sibling = makeWidget('sibling');
+        const sibling = makeWidget('sibling', { layout: { order: 2 } as WidgetLayout });
         const command = new CopyWidgetCommand('source');
 
         const next = command.execute(makeSnapshot([source, sibling]));
         expect(next).toHaveLength(3);
-        expect(next[0]?.id).toBe('source');
-        expect(next[1]?.id).not.toBe('sibling');
-        expect(next[2]?.id).toBe('sibling');
-        expect(next[1]?.label).toBe(source.label);
-        expect(next[1]?.layout.x).toBe(source.layout.x + 2);
-        expect(next[1]?.layout.y).toBe(source.layout.y + 2);
+        const copy = next.find((w) => w.id !== 'source' && w.id !== 'sibling');
+        expect(copy).toBeDefined();
+        expect(copy?.label).toBe(source.label);
+        expect(copy?.layout.x).toBe(source.layout.x + 2);
+        expect(copy?.layout.y).toBe(source.layout.y + 2);
+        expect(copy?.layout.order).toBe(3); // max order (2) + 1
 
         const undone = command.undo(makeSnapshot(next));
         expect(undone.map((widget) => widget.id)).toEqual(['source', 'sibling']);
@@ -291,6 +324,7 @@ describe('Widget commands', () => {
                 h: 8,
                 rotation: 0,
                 adapt: 'fixed',
+                order: 1,
             },
         });
         const patch: Partial<WidgetLayout> = {
@@ -308,18 +342,21 @@ describe('Widget commands', () => {
     });
 
     it('combines commands atomically in a batch', () => {
-        const a = makeWidget('a');
-        const b = makeWidget('b', { label: 'Beta' });
-        const update = new UpdateWidgetCommand('b', { label: 'Gamma' });
+        const a = makeWidget('a', { layout: { order: 1 } as WidgetLayout });
+        const b = makeWidget('b', { label: 'Beta', layout: { order: 2 } as WidgetLayout });
+        const update = new UpdateWidgetCommand('b', { set: { label: 'Gamma' } });
         const move = new MoveWidgetCommand('b', 'down');
         const batch = new BatchCommand([update, move], 'update and move');
 
         const next = batch.execute(makeSnapshot([a, b]));
-        expect(next.map((widget) => widget.id)).toEqual(['b', 'a']);
-        expect(next[0]?.label).toBe('Gamma');
+        // b (order 2) swaps with a (order 1): b=1, a=2
+        expect(next.find((w) => w.id === 'a')?.layout.order).toBe(2);
+        expect(next.find((w) => w.id === 'b')?.layout.order).toBe(1);
+        expect(next.find((w) => w.id === 'b')?.label).toBe('Gamma');
 
         const undone = batch.undo(makeSnapshot(next));
-        expect(undone.map((widget) => widget.id)).toEqual(['a', 'b']);
-        expect(undone[1]?.label).toBe('Beta');
+        expect(undone.find((w) => w.id === 'a')?.layout.order).toBe(1);
+        expect(undone.find((w) => w.id === 'b')?.layout.order).toBe(2);
+        expect(undone.find((w) => w.id === 'b')?.label).toBe('Beta');
     });
 });

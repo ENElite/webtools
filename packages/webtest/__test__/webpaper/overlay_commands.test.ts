@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createWidget, WidgetKinds } from '@webtools/webwidget';
+import { createWidget } from '@webwidget';
 import {
     AddWidgetCommand,
     BatchCommand,
@@ -12,11 +12,11 @@ import {
     UpdateWidgetCommand,
     type Command,
     type CommandSnapshot,
-} from '@webtools/webwidget';
-import type { WidgetLayout, WidgetModel } from '@webtools/webwidget';
+} from '@webwidget';
+import type { WidgetLayout, WidgetModel } from '@webwidget';
 
 function makeWidget(id: string, overrides: Partial<WidgetModel> = {}): WidgetModel {
-    const base = createWidget(WidgetKinds.TEXT);
+    const base = createWidget('text');
 
     return {
         ...base,

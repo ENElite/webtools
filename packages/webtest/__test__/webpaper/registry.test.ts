@@ -1,24 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import { createWidgetRegistry, registerWidgetRenderer, resolveWidgetRenderer, resolveWidgetSettingsSchema, DEFAULT_CLOCK_WIDGET_PROPS, WidgetKinds } from '@webtools/webwidget';
+import { createWidgetRegistry, registerWidgetRenderer, resolveWidgetRenderer } from '@webwidget/src/engine/model/widget';
+import { resolveWidgetSettingsSchema } from '@webwidget/src/runtime/schema';
+import { DEFAULT_CLOCK_WIDGET_PROPS } from '@webwidget/src/components/clock';
 
 describe('overlay widget registry', () => {
     it('registers and resolves renderer by kind', () => {
         const renderer = () => null;
         const registry = createWidgetRegistry();
-        const updated = registerWidgetRenderer(registry, WidgetKinds.TEXT, renderer);
+        const updated = registerWidgetRenderer(registry, 'text', renderer);
 
-        expect(resolveWidgetRenderer(updated, WidgetKinds.TEXT)).toBe(renderer);
+        expect(resolveWidgetRenderer(updated, 'text')).toBe(renderer);
     });
 
-    it('returns renderer for registered widget', () => {
+    it('returns null when renderer is missing', () => {
         const registry = createWidgetRegistry();
 
-        expect(resolveWidgetRenderer(registry, WidgetKinds.IFRAME)).not.toBeNull();
+        expect(resolveWidgetRenderer(registry, 'iframe')).toBeNull();
     });
 
     it('builds widget settings schema with section dividers', async () => {
-        const schema = await resolveWidgetSettingsSchema(WidgetKinds.TEXT);
+        const schema = await resolveWidgetSettingsSchema('text');
 
         expect(schema).not.toBeNull();
         expect(schema?.[0]).toEqual({ type: 'divider', label: '基本设置' });
@@ -39,7 +41,7 @@ describe('overlay widget registry', () => {
     });
 
     it('builds clock settings schema with time and date font fields', async () => {
-        const schema = await resolveWidgetSettingsSchema(WidgetKinds.CLOCK);
+        const schema = await resolveWidgetSettingsSchema('clock');
 
         expect(schema).not.toBeNull();
         const componentDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '组件设置');
@@ -70,7 +72,7 @@ describe('overlay widget registry', () => {
     });
 
     it('builds html settings schema with editor field', async () => {
-        const schema = await resolveWidgetSettingsSchema(WidgetKinds.HTML);
+        const schema = await resolveWidgetSettingsSchema('html');
 
         expect(schema).not.toBeNull();
         const componentDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '组件设置');
@@ -82,7 +84,7 @@ describe('overlay widget registry', () => {
     });
 
     it('builds iframe settings schema with url field', async () => {
-        const schema = await resolveWidgetSettingsSchema(WidgetKinds.IFRAME);
+        const schema = await resolveWidgetSettingsSchema('iframe');
 
         expect(schema).not.toBeNull();
         const componentDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '组件设置');
@@ -107,7 +109,7 @@ describe('overlay widget registry', () => {
         }), { status: 200 })) as typeof fetch;
 
         try {
-            const schema = await resolveWidgetSettingsSchema(WidgetKinds.LIVE2D);
+            const schema = await resolveWidgetSettingsSchema('live2d');
             expect(schema).not.toBeNull();
 
             const componentDividerIndex = (schema || []).findIndex((field) => field.type === 'divider' && field.label === '组件设置');

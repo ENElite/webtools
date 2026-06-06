@@ -3,7 +3,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Widget, type WidgetModel } from '@webtools/webwidget';
+import { Widget } from '../src/runtime/Widget';
+import { RuntimeProvider } from '../src/runtime/RuntimeProvider';
+import type { WidgetModel } from '../src/engine/model';
 
 const idleState = { current: false };
 
@@ -19,7 +21,7 @@ function createWidget(autoHide: boolean): WidgetModel {
     return {
         id: 'widget-1',
         label: 'widget-1',
-        kind: 'text',
+        kind: 'text' as any,
         props: { text: 'hello' },
         layout: {
             anchorX: 'left',
@@ -30,6 +32,7 @@ function createWidget(autoHide: boolean): WidgetModel {
             h: 6,
             rotation: 0,
             adapt: 'fixed',
+            order: 1,
         },
         style: {
             borderRadius: '0px',
@@ -45,9 +48,11 @@ function renderWidget(widget: WidgetModel): { container: HTMLElement; root: Root
 
     act(() => {
         root.render(
-            <Widget widget={widget}>
-                <span>content</span>
-            </Widget>
+            <RuntimeProvider>
+                <Widget widget={widget}>
+                    <span>content</span>
+                </Widget>
+            </RuntimeProvider>
         );
     });
 

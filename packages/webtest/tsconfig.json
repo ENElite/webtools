@@ -1,0 +1,38 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2022"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@webpaper/*": [
+        "../webpaper/*"
+      ],
+      "@webwidget/*": [
+        "../webwidget/*"
+      ],
+      "@/*": [
+        "./*"
+      ]
+    },
+    "jsx": "preserve",
+    "noEmit": true,
+    "allowJs": false,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "__test__/**/*.ts",
+    "__test__/**/*.tsx",
+    "__test__/**/*.js"
+  ]
+}

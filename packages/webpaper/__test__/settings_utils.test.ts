@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { splitSettingsValues } from '@/features/overlay/settings/settings_utils';
-import { pxFromLayout } from '@/features/overlay/transform_utils';
-import type { WidgetModel } from '@/features/overlay/types';
+import { splitSettingsValues, pxFromLayout, WidgetKinds } from '@webtools/webwidget';
+import type { WidgetModel } from '@webtools/webwidget';
 
 function createWidget(): WidgetModel {
     return {
         id: 'widget-1',
-        kind: 'text',
+        kind: WidgetKinds.TEXT,
         label: '文本组件',
         props: {
             text: 'hello',

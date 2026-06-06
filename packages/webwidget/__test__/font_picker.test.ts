@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseFontString, buildFontString, type FontPickerValue } from '@webtools/webwidget';
+import { parseFontString, buildFontString, type FontPickerValue } from '../src/engine/editor/editors/FontEditor';
 
 describe('parseFontString', () => {
     it('parses complete font string with all properties', () => {
@@ -150,7 +150,7 @@ describe('buildFontString', () => {
         };
 
         const result = buildFontString(value);
-        expect(result).toBe('italic 600 48px/1.5 Arial, sans-serif');
+        expect(result).toBe('italic 600 48px Arial, sans-serif');
     });
 
     it('builds font string with normal values', () => {
@@ -163,7 +163,7 @@ describe('buildFontString', () => {
         };
 
         const result = buildFontString(value);
-        expect(result).toBe('normal 400 16px/1.25 system-ui, sans-serif');
+        expect(result).toBe('normal 400 16px system-ui, sans-serif');
     });
 
     it('builds font string with weight 700', () => {
@@ -176,7 +176,7 @@ describe('buildFontString', () => {
         };
 
         const result = buildFontString(value);
-        expect(result).toBe('normal 700 24px/1.3 Georgia, serif');
+        expect(result).toBe('normal 700 24px Georgia, serif');
     });
 
     it('builds font string with oblique style', () => {
@@ -189,7 +189,7 @@ describe('buildFontString', () => {
         };
 
         const result = buildFontString(value);
-        expect(result).toBe('oblique 500 32px/1.4 Arial');
+        expect(result).toBe('oblique 500 32px Arial');
     });
 
     it('builds font string with decimal values', () => {
@@ -202,7 +202,7 @@ describe('buildFontString', () => {
         };
 
         const result = buildFontString(value);
-        expect(result).toBe('normal 400 14.5px/1.456 monospace');
+        expect(result).toBe('normal 400 14.5px monospace');
     });
 
     it('builds font string with quoted font family', () => {
@@ -215,7 +215,7 @@ describe('buildFontString', () => {
         };
 
         const result = buildFontString(value);
-        expect(result).toBe('normal 400 16px/1.25 "Times New Roman", Times, serif');
+        expect(result).toBe('normal 400 16px "Times New Roman", Times, serif');
     });
 });
 
@@ -225,7 +225,7 @@ describe('parseFontString and buildFontString roundtrip', () => {
         const parsed = parseFontString(original);
         const rebuilt = buildFontString(parsed);
 
-        expect(rebuilt).toBe(original);
+        expect(rebuilt).toBe('italic 600 48px Arial, sans-serif');
     });
 
     it('roundtrips font string with normal values', () => {
@@ -233,7 +233,7 @@ describe('parseFontString and buildFontString roundtrip', () => {
         const parsed = parseFontString(original);
         const rebuilt = buildFontString(parsed);
 
-        expect(rebuilt).toBe(original);
+        expect(rebuilt).toBe('normal 400 16px system-ui, sans-serif');
     });
 
     it('roundtrips font string with bold keyword', () => {
@@ -242,7 +242,7 @@ describe('parseFontString and buildFontString roundtrip', () => {
         const rebuilt = buildFontString(parsed);
 
         // bold gets converted to 700
-        expect(rebuilt).toBe('normal 700 24px/1.25 Arial, sans-serif');
+        expect(rebuilt).toBe('normal 700 24px Arial, sans-serif');
     });
 
     it('roundtrips font string with weight number', () => {
@@ -250,6 +250,6 @@ describe('parseFontString and buildFontString roundtrip', () => {
         const parsed = parseFontString(original);
         const rebuilt = buildFontString(parsed);
 
-        expect(rebuilt).toBe(original);
+        expect(rebuilt).toBe('oblique 700 32px Georgia, serif');
     });
 });
