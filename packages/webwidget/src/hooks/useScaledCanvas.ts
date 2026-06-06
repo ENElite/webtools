@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useLayoutEffect, useEffect } from 'react';
+import { useRef, useState, useLayoutEffect, useEffect } from 'react';
 
 export type UseScaledCanvasOptions = {
     /** 设备像素比，默认为 window.devicePixelRatio */

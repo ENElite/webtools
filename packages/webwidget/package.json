@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@iconify/react": "^4.1.0",
+    "@webtools/shared": "workspace:*",
     "@reactuses/core": "^6.3.1",
     "antd": "^6.3.5",
     "framer-motion": "^12.40.0",

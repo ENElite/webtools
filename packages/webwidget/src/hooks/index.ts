@@ -1,9 +1,10 @@
-export { useLocalFonts } from './useLocalFonts';
-export { usePlaybackScheduler } from './usePlaybackScheduler';
-export { usePosition } from './usePosition';
-export { usePreloadImage } from './usePreloadImage';
-export { useIntervalFn } from './useIntervalFn';
-export { useTimestamp } from './useTimestamp';
+export { useLocalFonts, DEFAULT_FONT_FAMILIES, type FontFamilyOption } from '@webtools/shared/hooks';
+export { usePlaybackScheduler } from '@webtools/shared/hooks';
+export { usePosition } from '@webtools/shared/hooks';
+export { usePreloadImage } from '@webtools/shared/hooks';
+export { useIntervalFn, type UseIntervalFnOptions, type PausableControls } from '@webtools/shared/hooks';
+export { useTimestamp, type UseTimestampOptions, type UseTimestampReturn } from '@webtools/shared/hooks';
 export { useLive2D } from './useLive2D';
+export { useLive2DSlots } from './useLive2DSlots';
 export { useScaledCanvas } from './useScaledCanvas';
 export type { ScaledCanvas, UseScaledCanvasOptions } from './useScaledCanvas';
