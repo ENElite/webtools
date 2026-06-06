@@ -1,4 +1,5 @@
 import type { Signal } from './types';
+import { logSignal } from './logger';
 
 type Handler<T extends Signal = Signal> = (signal: T) => void;
 
@@ -18,6 +19,7 @@ export function createSignalBus(): SignalBus {
 
     return {
         emit(signal: Signal) {
+            logSignal(signal.type, signal.widgetId, signal.payload);
             const typeHandlers = handlers.get(signal.type);
             if (typeHandlers) {
                 for (const handler of typeHandlers) {
