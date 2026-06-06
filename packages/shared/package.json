@@ -1,0 +1,37 @@
+{
+  "name": "@webtools/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./hooks": {
+      "default": "./src/hooks/index.ts"
+    },
+    "./components": {
+      "default": "./src/components/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@reactuses/core": "^6.3.1",
+    "react-moveable": "^0.56.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.52.2",
+    "@langchain/core": "^1.1.40",
+    "@langchain/openai": "^1.4.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "^5.9.3"
+  }
+}
