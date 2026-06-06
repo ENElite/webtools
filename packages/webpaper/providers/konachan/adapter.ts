@@ -48,13 +48,18 @@ const PAGE_SIZE = 10;
 export const KonachanAdapter: ApiAdapter = {
     provider: 'Konachan',
     fetch: async (api = '/api/konachan', params, page) => {
-        const query = new URLSearchParams({
-            ...params,
-            page: page.toString(),
-            limit: PAGE_SIZE.toString(),
-        });
-        const url = `${api}?${query}`;
-        console.log('[KonachanAdapter] fetching:', { url, page, params });
+        // Konachan API 不能使用 urlencode 编码，所以这里手动构建查询字符串
+        const safeParams = { ...(params ?? {}) };
+        safeParams['page'] = page;
+        safeParams['limit'] = PAGE_SIZE;
+        const queryParts: string[] = [];
+        for (const [key, value] of Object.entries(safeParams)) {
+            if (!value) continue;
+            queryParts.push(`${key}=${String(value)}`);
+        }
+        const query = queryParts.join('&');
+        const url = `${api}${query ? `?${query}` : ''}`;
+        console.log('[KonachanAdapter] fetching:', { url, page, params: safeParams });
         const raw = await fetchKonachan(url);
         console.log('[KonachanAdapter] raw response:', { length: Array.isArray(raw) ? raw.length : 'not-array', isArray: Array.isArray(raw), sampleIds: Array.isArray(raw) ? raw.slice(0, 3).map(r => r.id) : [] });
         const normalized = KonachanAdapter.normalize(raw, params);
