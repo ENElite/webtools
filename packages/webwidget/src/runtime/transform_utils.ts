@@ -97,8 +97,8 @@ export function layoutFromPx(
     containerHeight: number,
     anchorX: LayoutHorizontalAnchor = "left",
     anchorY: LayoutVerticalAnchor = "top",
-    adapt: "stretch" | "fixed" = "fixed"
-): WidgetLayout {
+    adapt: "stretch" | "fixed" | "stretch-ratio" | "stick" = "fixed"
+): Omit<WidgetLayout, 'order'> {
     const w = Math.max(0, px.w);
     const h = Math.max(0, px.h);
     const baseX = getAnchorBaseX(anchorX, containerWidth);
@@ -131,8 +131,8 @@ export function snapshotLayoutFromStyle(
     container: HTMLElement | null,
     anchorX: LayoutHorizontalAnchor = "left",
     anchorY: LayoutVerticalAnchor = "top",
-    adapt: "stretch" | "fixed" = "fixed"
-): WidgetLayout {
+    adapt: "stretch" | "fixed" | "stretch-ratio" | "stick" = "fixed"
+): Omit<WidgetLayout, 'order'> {
     // Use getBoundingClientRect so we measure the element's actual rendered
     // position and size (including transforms) relative to the container.
     const containerRect = container?.getBoundingClientRect();

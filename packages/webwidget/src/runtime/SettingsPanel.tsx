@@ -18,7 +18,7 @@ type SettingsPanelProps = {
 
 export function SettingsPanel({ sourceWidget, container, onClose }: SettingsPanelProps) {
     const executeCommand = useOverlayStore((state) => state.executeCommand);
-    const [width, height] = useElementSize(container);
+    useElementSize(container);
 
     const schema = useMemo(() => {
         return resolveWidgetSettingsSchema(sourceWidget.kind) ?? [];

@@ -9,11 +9,5 @@ export function createLifecycleRuntimeImpl(): LifecycleRuntime {
         unmount(widgetId) {
             signalBus.emit(createLifecycleSignal('unmount', widgetId));
         },
-        visible(widgetId) {
-            signalBus.emit(createLifecycleSignal('visible', widgetId));
-        },
-        hidden(widgetId) {
-            signalBus.emit(createLifecycleSignal('hidden', widgetId));
-        },
     };
 }

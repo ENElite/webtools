@@ -2,35 +2,45 @@ import React, { createContext, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
 import type { RuntimeContextValue, GetControls } from './runtimes/types';
+import type { WidgetModel } from '../engine/model';
+import type { Command } from '../engine/commands/types';
 import { createUserRuntimeImpl } from './runtimes/userRuntime';
 import { createSystemRuntimeImpl } from './runtimes/systemRuntime';
 import { createLifecycleRuntimeImpl } from './runtimes/lifecycleRuntime';
-import { createVisualStateRuntimeImpl } from './runtimes/visualStateRuntime';
-import { createAnimationRuntimeImpl } from './runtimes/animationRuntime';
-import { getControls as defaultGetControls } from './runtimes/controlsRegistry';
+import { registerBuiltinSlots } from '../engine/slots';
+import { widgetRuntimeRegistry } from './WidgetRuntimeRegistry';
+import { enableSignalLog } from '../engine/signal/logger';
 
 export const RuntimeContext = createContext<RuntimeContextValue | null>(null);
 
 type RuntimeProviderProps = {
     children: ReactNode;
     getControls?: GetControls;
+    getWidget?: (widgetId: string) => WidgetModel | null;
+    executeCommand?: (command: Command) => void;
 };
 
-export function RuntimeProvider({ children, getControls }: RuntimeProviderProps) {
+// 注册内置 slot（幂等）
+let slotsRegistered = false;
+if (!slotsRegistered) {
+    registerBuiltinSlots();
+    slotsRegistered = true;
+    // 开发环境下启用信号日志
+    if (typeof process === 'undefined' || process.env?.['NODE_ENV'] !== 'production') {
+        enableSignalLog(true);
+    }
+}
+
+export function RuntimeProvider({ children }: RuntimeProviderProps) {
     const userRuntimeRef = useRef(createUserRuntimeImpl());
     const systemRuntimeRef = useRef(createSystemRuntimeImpl());
     const lifecycleRuntimeRef = useRef(createLifecycleRuntimeImpl());
-    const visualStateRuntimeRef = useRef(createVisualStateRuntimeImpl());
-    const animationRuntimeRef = useRef(
-        createAnimationRuntimeImpl(getControls ?? defaultGetControls, visualStateRuntimeRef.current),
-    );
 
     const value: RuntimeContextValue = useMemo(() => ({
         userRuntime: userRuntimeRef.current,
         systemRuntime: systemRuntimeRef.current,
         lifecycleRuntime: lifecycleRuntimeRef.current,
-        animationRuntime: animationRuntimeRef.current,
-        visualStateRuntime: visualStateRuntimeRef.current,
+        widgetRuntimeRegistry,
     }), []);
 
     return (

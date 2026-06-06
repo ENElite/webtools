@@ -11,6 +11,7 @@ import type { WidgetRendererMap } from '../engine/model';
 import { Widget } from './Widget';
 import { RuntimeProvider } from './RuntimeProvider';
 import { useRuntime } from './useRuntime';
+import { DevtoolsPanel } from '../devtools/DevtoolsPanel';
 
 function SystemIdleEmitter() {
     const { systemRuntime } = useRuntime();
@@ -51,6 +52,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     const redo = useOverlayStore((rootState) => rootState.redo);
     const canUndo = useOverlayStore((rootState) => rootState.canUndo);
     const canRedo = useOverlayStore((rootState) => rootState.canRedo);
+    const executeCommand = useOverlayStore((rootState) => rootState.executeCommand);
 
     const overlayRef = useRef<HTMLDivElement | null>(null);
     const widgetElementRef = useRef<Record<string, HTMLDivElement | null>>({});
@@ -158,7 +160,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     }, [OVERLAY_LOG_PREFIX, activeWidgetId, widgets]);
 
     return (
-        <RuntimeProvider>
+        <RuntimeProvider executeCommand={executeCommand} getWidget={(id) => findWidget(id)}>
             <SystemIdleEmitter />
             <div
                 ref={overlayRef}
@@ -252,6 +254,8 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                     />
                 )
                 : null}
+
+            <DevtoolsPanel />
             </div>
         </RuntimeProvider>
     );

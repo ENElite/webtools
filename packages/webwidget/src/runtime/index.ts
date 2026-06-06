@@ -7,4 +7,3 @@ export { resolveWidgetSettingsSchema } from './schema';
 export { RuntimeProvider } from './RuntimeProvider';
 export { useRuntime } from './useRuntime';
 export { useLifecycleSignal } from './useLifecycleSignal';
-export { useVisualMotionState } from './useVisualMotionState';

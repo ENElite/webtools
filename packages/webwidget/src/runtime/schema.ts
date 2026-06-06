@@ -9,8 +9,9 @@ import { LIVE2D_WIDGET_SETTINGS_SCHEMA } from '../components/live2d';
 import type {
     WidgetKind,
 } from '../engine/model';
+import { WidgetKinds } from '../engine/model';
 
-import type { InspectorSchema } from '../engine/editor';
+import type { BindPath, InspectorSchema } from '../engine/editor';
 
 export type WidgetSettingsSchema = InspectorSchema;
 
@@ -80,6 +81,8 @@ const WIDGET_BASE_SETTINGS_SCHEMA: InspectorSchema = [
             options: [
                 { label: '固定', value: 'fixed' },
                 { label: '拉伸', value: 'stretch' },
+                { label: '等比拉伸', value: 'stretch-ratio' },
+                { label: '固定尺寸', value: 'stick' },
             ],
         },
     },
@@ -87,12 +90,58 @@ const WIDGET_BASE_SETTINGS_SCHEMA: InspectorSchema = [
 
 export const WIDGET_ANIMATION_SETTINGS_SCHEMA: InspectorSchema = [
     {
-        key: 'animation',
-        label: '动画',
-        type: 'animationSlots',
+        key: 'easing',
+        label: '缓动曲线',
+        type: 'enum',
         page: 'animation',
         order: 100,
-        bind: 'animation',
+        bind: 'animation.easing' as BindPath,
+        meta: {
+            default: 'ease-out',
+            options: [
+                { label: '缓出', value: 'ease-out' },
+                { label: '缓入', value: 'ease-in' },
+                { label: '缓入缓出', value: 'ease-in-out' },
+                { label: '线性', value: 'linear' },
+            ],
+        },
+    },
+    {
+        key: 'duration',
+        label: '过渡时长',
+        type: 'slider',
+        page: 'animation',
+        order: 200,
+        bind: 'animation.duration' as BindPath,
+        meta: { min: 0.05, max: 3, step: 0.05, unit: 's' },
+    },
+    {
+        key: 'delay',
+        label: '过渡延迟',
+        type: 'slider',
+        page: 'animation',
+        order: 300,
+        bind: 'animation.delay' as BindPath,
+        meta: { min: 0, max: 5, step: 0.1, unit: 's' },
+    },
+    {
+        key: 'animatedProperties',
+        label: '过渡属性',
+        type: 'propertyTags',
+        page: 'animation',
+        order: 400,
+        bind: 'animation.animatedProperties' as BindPath,
+    },
+];
+
+export const WIDGET_BINDING_SETTINGS_SCHEMA: InspectorSchema = [
+    {
+        key: 'connections',
+        label: '信号连接',
+        type: 'connection',
+        page: 'signal',
+        order: 100,
+        bind: 'connections',
     },
 ];
 
@@ -169,16 +218,24 @@ export const WIDGET_STYLE_SETTINGS_SCHEMA: InspectorSchema = [
         bind: 'style.shadowColor',
         meta: { alpha: true },
     },
+    {
+        key: 'overflow',
+        label: '允许溢出',
+        type: 'switch',
+        page: 'style',
+        order: 800,
+        bind: 'style.overflow',
+    },
 ];
 
 const WIDGET_SETTINGS_SCHEMAS: Partial<Record<WidgetKind, InspectorSchema>> = {
-    clock: CLOCK_WIDGET_SETTINGS_SCHEMA,
-    image: IMAGE_WIDGET_SETTINGS_SCHEMA,
-    video: VIDEO_WIDGET_SETTINGS_SCHEMA,
-    text: TEXT_WIDGET_SETTINGS_SCHEMA,
-    html: HTML_WIDGET_SETTINGS_SCHEMA,
-    iframe: IFRAME_WIDGET_SETTINGS_SCHEMA,
-    live2d: LIVE2D_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.CLOCK]: CLOCK_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.IMAGE]: IMAGE_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.VIDEO]: VIDEO_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.TEXT]: TEXT_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.HTML]: HTML_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.IFRAME]: IFRAME_WIDGET_SETTINGS_SCHEMA,
+    [WidgetKinds.LIVE2D]: LIVE2D_WIDGET_SETTINGS_SCHEMA,
 };
 
 export function resolveWidgetSettingsSchema(kind: WidgetKind): InspectorSchema | null {
@@ -190,6 +247,7 @@ export function resolveWidgetSettingsSchema(kind: WidgetKind): InspectorSchema |
         ...WIDGET_BASE_SETTINGS_SCHEMA,
         ...WIDGET_STYLE_SETTINGS_SCHEMA,
         ...WIDGET_ANIMATION_SETTINGS_SCHEMA,
+        ...WIDGET_BINDING_SETTINGS_SCHEMA,
         ...schema,
     ];
 }

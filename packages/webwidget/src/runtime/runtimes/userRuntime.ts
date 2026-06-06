@@ -9,7 +9,7 @@ export function createUserRuntimeImpl(): UserRuntime {
         emitMouseLeave(widgetId) {
             signalBus.emit(createUserSignal('mouse.leave', widgetId));
         },
-        emitClick(widgetId) {
+        emitMouseClick(widgetId) {
             signalBus.emit(createUserSignal('mouse.click', widgetId));
         },
     };
