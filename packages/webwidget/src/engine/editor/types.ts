@@ -22,7 +22,17 @@ type PathValue<
     ? T[P]
     : never
 
+/**
+ * Widget 属性路径（不带前缀）。
+ * 示例: 'style.opacity', 'layout.x', 'props.fontSize'
+ */
 export type WidgetPath = Path<WidgetModel>;
+
+/**
+ * Widget 信号类型路径（带 'model.' 前缀）。
+ * 示例: 'model.style.opacity', 'model.layout.x', 'model.props.fontSize'
+ */
+export type WidgetSignalType = `model.${WidgetPath}`;
 
 export type BindPath = WidgetPath | WidgetPath[];
 

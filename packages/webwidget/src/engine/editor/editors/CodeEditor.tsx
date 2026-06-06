@@ -1,4 +1,4 @@
-import { AiEditorPanel } from '@webtools/webwidget';
+import { AiEditorPanel } from '../../../components/editor';
 import type { EditorProps } from '../registry';
 
 export default function CodeEditor({ item, value, onChange }: EditorProps) {

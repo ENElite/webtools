@@ -32,8 +32,12 @@ import {
     CodeEditor,
     CombinerEditor,
     TagsEditor,
-    AnimationSlotsEditor,
+    ConnectionEditor,
+    AnimationSettingsEditor,
+    PropertyTagsEditor,
     CascaderEditor,
+    MonacoCodeEditor,
+    CodePicker,
 } from './editors';
 
 registerEditor('string', StringEditor);
@@ -49,5 +53,9 @@ registerEditor('image', ImageEditor);
 registerEditor('editor', CodeEditor);
 registerEditor('combiner', CombinerEditor);
 registerEditor('tags', TagsEditor);
-registerEditor('animationSlots', AnimationSlotsEditor);
+registerEditor('connection', ConnectionEditor);
+registerEditor('animationSettings', AnimationSettingsEditor);
+registerEditor('propertyTags', PropertyTagsEditor);
 registerEditor('cascader', CascaderEditor);
+registerEditor('code', MonacoCodeEditor);
+registerEditor('codePicker', CodePicker);

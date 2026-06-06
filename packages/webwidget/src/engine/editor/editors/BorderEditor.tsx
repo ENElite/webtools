@@ -13,6 +13,7 @@ export type BorderPickerValue = {
     offset: number;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEFAULT_BORDER: BorderPickerValue = {
     width: 0,
     style: 'none',

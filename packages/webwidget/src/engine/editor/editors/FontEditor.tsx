@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { Button, Form, InputNumber, Popover, Radio, Select, Slider } from 'antd';
+import { Alert, Button, Form, Input, InputNumber, Popover, Radio, Select, Slider, Spin, Tabs } from 'antd';
 
-import { useLocalFonts } from '../../../hooks/useLocalFonts';
-import type { FontFamilyOption } from '../../../hooks/useLocalFonts';
+import { useLocalFonts } from '../../../hooks';
 import type { EditorProps } from '../registry';
 
 export type FontPickerValue = {
@@ -13,6 +12,18 @@ export type FontPickerValue = {
     lineHeight: number;
     family: string;
 };
+
+type FontSource = 'local' | 'url' | 'web';
+
+type WebFontEntry = {
+    name: string;
+    family: string;
+    url: string;
+    weight?: number;
+    style?: string;
+};
+
+type UrlFontStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 const FONT_STYLE_OPTIONS: Array<{ label: string; value: string }> = [
     { label: '常规', value: 'normal' },
@@ -132,11 +143,168 @@ export function buildFontString(value: FontPickerValue): string {
     ].join(' ');
 }
 
+function useUrlFont() {
+    const [status, setStatus] = useState<UrlFontStatus>('idle');
+    const [error, setError] = useState('');
+
+    const loadUrlFont = useCallback(async (url: string, familyName: string) => {
+        if (!url || !familyName) return;
+
+        setStatus('loading');
+        setError('');
+
+        try {
+            const fontFace = new FontFace(familyName, `url(${url})`);
+            await fontFace.load();
+            document.fonts.add(fontFace);
+
+            setStatus('loaded');
+        } catch (err) {
+            setStatus('error');
+            setError(err instanceof Error ? err.message : '字体加载失败');
+        }
+    }, []);
+
+    return { status, error, loadUrlFont };
+}
+
+function useWebFonts() {
+    const [fonts, setFonts] = useState<WebFontEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchManifest = async () => {
+            try {
+                const res = await fetch('/fonts/manifest.json');
+                if (!res.ok) throw new Error('Failed to load font manifest');
+                const data = await res.json();
+                if (!cancelled) {
+                    setFonts(data.fonts ?? []);
+                    setLoading(false);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : 'Failed to load fonts');
+                    setLoading(false);
+                }
+            }
+        };
+
+        void fetchManifest();
+        return () => { cancelled = true; };
+    }, []);
+
+    const loadWebFont = useCallback(async (entry: WebFontEntry) => {
+        try {
+            const fontFace = new FontFace(entry.family, `url(${entry.url})`, {
+                weight: String(entry.weight ?? 400),
+                style: entry.style ?? 'normal',
+            });
+            await fontFace.load();
+            document.fonts.add(fontFace);
+        } catch {
+            // Font already loaded or failed silently
+        }
+    }, []);
+
+    return { fonts, loading, error, loadWebFont };
+}
+
+function LocalFontSelect({ value, onChange }: { value: string; onChange: (family: string) => void }) {
+    const availableFonts = useLocalFonts();
+
+    return (
+        <Select
+            className='w-full'
+            options={availableFonts}
+            value={value}
+            showSearch={{ optionFilterProp: 'label' }}
+            onChange={onChange}
+        />
+    );
+}
+
+function UrlFontInput({ value, onChange }: { value: string; onChange: (family: string) => void }) {
+    const [url, setUrl] = useState('');
+    const { status, error, loadUrlFont } = useUrlFont();
+
+    const handleLoad = () => {
+        if (!url) return;
+        const familyName = url.split('/').pop()?.split('.')[0] ?? 'UrlFont';
+        loadUrlFont(url, familyName);
+        onChange(familyName);
+    };
+
+    return (
+        <div className='flex flex-col gap-2'>
+            <Input
+                placeholder='输入字体 URL（.ttf, .woff, .woff2）'
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onPressEnter={handleLoad}
+            />
+            <Button
+                type='primary'
+                onClick={handleLoad}
+                loading={status === 'loading'}
+                disabled={!url}
+            >
+                加载字体
+            </Button>
+            {status === 'loaded' && (
+                <div className='text-xs text-green-500'>字体已加载: {value}</div>
+            )}
+            {status === 'error' && (
+                <Alert message={error} type='error' showIcon className='text-xs' />
+            )}
+        </div>
+    );
+}
+
+function WebFontSelect({ value, onChange }: { value: string; onChange: (family: string) => void }) {
+    const { fonts, loading, error, loadWebFont } = useWebFonts();
+
+    const options = fonts.map((f) => ({
+        label: f.name,
+        value: f.family,
+    }));
+
+    const handleChange = async (family: string) => {
+        const entry = fonts.find((f) => f.family === family);
+        if (entry) {
+            await loadWebFont(entry);
+        }
+        onChange(family);
+    };
+
+    if (loading) {
+        return <Spin size='small' />;
+    }
+
+    if (error) {
+        return <Alert message={error} type='warning' showIcon className='text-xs' />;
+    }
+
+    return (
+        <Select
+            className='w-full'
+            options={options}
+            value={value}
+            showSearch={{ optionFilterProp: 'label' }}
+            onChange={handleChange}
+            placeholder='选择网站字体'
+        />
+    );
+}
+
 function FontPicker({ value, onChange }: { value?: string; onChange: (next: string) => void }) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<FontPickerValue>(() => parseFontString(value));
+    const [fontSource, setFontSource] = useState<FontSource>('local');
     const pendingChangeRef = useRef<string | null>(null);
-    const availableFonts = useLocalFonts();
 
     const commitDraft = useCallback((updater: (current: FontPickerValue) => FontPickerValue) => {
         setDraft((current) => {
@@ -181,18 +349,38 @@ function FontPicker({ value, onChange }: { value?: string; onChange: (next: stri
         return parts.join(' • ');
     }, [draft.size, draft.lineHeight, fontFamilyShort, styleLabel]);
 
+    const handleFontFamilyChange = useCallback((nextFamily: string) => {
+        commitDraft((current) => ({ ...current, family: nextFamily }));
+    }, [commitDraft]);
+
+    const fontSourceTabs = [
+        {
+            key: 'local',
+            label: '本地字体',
+            children: <LocalFontSelect value={draft.family} onChange={handleFontFamilyChange} />,
+        },
+        {
+            key: 'url',
+            label: 'URL 字体',
+            children: <UrlFontInput value={draft.family} onChange={handleFontFamilyChange} />,
+        },
+        {
+            key: 'web',
+            label: '网站字体',
+            children: <WebFontSelect value={draft.family} onChange={handleFontFamilyChange} />,
+        },
+    ];
+
     const content = (
         <div className='w-80 max-w-[calc(100vw-32px)]'>
+            <Tabs
+                size='small'
+                activeKey={fontSource}
+                onChange={(key) => setFontSource(key as FontSource)}
+                items={fontSourceTabs}
+                className='mb-4'
+            />
             <Form layout='inline' colon={false} className='flex-col w-full gap-3'>
-                <Form.Item label='字体' className='mb-0 flex-1 min-w-55'>
-                    <Select
-                        className='w-full'
-                        options={availableFonts}
-                        value={draft.family}
-                        showSearch={{ optionFilterProp: 'label' }}
-                        onChange={(nextFamily) => commitDraft((current) => ({ ...current, family: nextFamily }))}
-                    />
-                </Form.Item>
                 <div className='flex justify-between'>
                     <Form.Item label='字号' className='mb-0'>
                         <InputNumber
