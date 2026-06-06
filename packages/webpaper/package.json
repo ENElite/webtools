@@ -16,6 +16,7 @@
     "generate-models:interactive": "node ../../scripts/generate-models-list.cjs -i"
   },
   "dependencies": {
+    "@webtools/shared": "workspace:*",
     "@webtools/webwidget": "workspace:*",
     "@heroui/react": "^2.1.7",
     "@langchain/core": "^1.1.40",
