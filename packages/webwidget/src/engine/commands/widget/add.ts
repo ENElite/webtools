@@ -26,8 +26,15 @@ export class AddWidgetCommand implements Command {
             return snapshot.widgets.map((w) => (w.id === this.widget.id ? this.widget : w));
         }
 
+        // 新 widget 获得 max order + 1
+        const maxOrder = snapshot.widgets.reduce((max, w) => Math.max(max, w.layout.order), 0);
+        const widgetWithOrder = {
+            ...this.widget,
+            layout: { ...this.widget.layout, order: maxOrder + 1 },
+        };
+
         // 添加新 widget 到末尾
-        return [...snapshot.widgets, this.widget];
+        return [...snapshot.widgets, widgetWithOrder];
     }
 
     undo(snapshot: CommandSnapshot): WidgetModel[] {

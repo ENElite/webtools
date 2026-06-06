@@ -37,9 +37,11 @@ export class CopyWidgetCommand implements Command {
         this.newWidgetId = newId;
 
         // 计算新 layout
+        const maxOrder = snapshot.widgets.reduce((max, w) => Math.max(max, w.layout.order), 0);
         const newLayout = {
             ...sourceWidget.layout,
             ...(this.newLayout || {}),
+            order: maxOrder + 1,
         };
 
         // 如果没有指定新 layout，则默认稍微偏移
@@ -48,17 +50,17 @@ export class CopyWidgetCommand implements Command {
             newLayout.y += 2;
         }
 
-        // 创建复制的 widget
+        // 创建复制的 widget（深拷贝 props 和 style 避免引用共享）
         const newWidget: WidgetModel = {
             ...sourceWidget,
             id: newId,
             layout: newLayout,
+            props: { ...sourceWidget.props },
+            style: { ...sourceWidget.style },
         };
 
-        // 在源 widget 后插入
-        const nextWidgets = snapshot.widgets.slice();
-        nextWidgets.splice(sourceIndex + 1, 0, newWidget);
-        return nextWidgets;
+        // 添加到末尾
+        return [...snapshot.widgets, newWidget];
     }
 
     undo(snapshot: CommandSnapshot): WidgetModel[] {

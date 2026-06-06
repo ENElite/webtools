@@ -3,7 +3,7 @@ import type { WidgetId, WidgetModel } from '../../model';
 import { generateCommandId } from '../types';
 
 /**
- * 移动 widget 在列表中的位置命令
+ * 移动 widget 层级命令（通过修改 order 属性，不改变数组顺序）
  */
 export class MoveWidgetCommand implements Command {
     readonly id: string;
@@ -12,8 +12,8 @@ export class MoveWidgetCommand implements Command {
 
     readonly widgetId: WidgetId;
     readonly direction: 'up' | 'down' | 'top' | 'bottom';
-    private fromIndex: number = -1;
-    private toIndex: number = -1;
+    /** undo 时恢复的 order 快照：widgetId → order */
+    private prevOrders: Map<string, number> = new Map();
 
     constructor(widgetId: WidgetId, direction: 'up' | 'down' | 'top' | 'bottom') {
         this.id = generateCommandId();
@@ -23,64 +23,96 @@ export class MoveWidgetCommand implements Command {
     }
 
     execute(snapshot: CommandSnapshot): WidgetModel[] {
-        const fromIndex = snapshot.widgets.findIndex((w) => w.id === this.widgetId);
-        if (fromIndex < 0) {
+        const widget = snapshot.widgets.find((w) => w.id === this.widgetId);
+        if (!widget) {
             return snapshot.widgets;
         }
 
-        this.fromIndex = fromIndex;
-        let toIndex: number;
+        this.prevOrders = new Map(snapshot.widgets.map((w) => [w.id, w.layout.order]));
 
         switch (this.direction) {
             case 'up':
-                toIndex = fromIndex + 1;
-                break;
+                return this.swapWith(snapshot.widgets, widget.layout.order + 1);
             case 'down':
-                toIndex = fromIndex - 1;
-                break;
+                return this.swapWith(snapshot.widgets, widget.layout.order - 1);
             case 'top':
-                toIndex = snapshot.widgets.length - 1;
-                break;
+                return this.insertAtTop(snapshot.widgets, widget.layout.order);
             case 'bottom':
-                toIndex = 0;
-                break;
+                return this.insertAtBottom(snapshot.widgets, widget.layout.order);
         }
-
-        this.toIndex = toIndex;
-        return this.moveWidgetByIndex(snapshot.widgets, fromIndex, toIndex);
     }
 
     undo(snapshot: CommandSnapshot): WidgetModel[] {
-        if (this.fromIndex < 0 || this.toIndex < 0) {
+        if (this.prevOrders.size === 0) {
             return snapshot.widgets;
         }
 
-        const currentIndex = snapshot.widgets.findIndex((w) => w.id === this.widgetId);
-        if (currentIndex < 0) {
-            return snapshot.widgets;
-        }
-
-        return this.moveWidgetByIndex(snapshot.widgets, currentIndex, this.fromIndex);
+        return snapshot.widgets.map((w) => {
+            const savedOrder = this.prevOrders.get(w.id);
+            if (savedOrder === undefined || savedOrder === w.layout.order) {
+                return w;
+            }
+            return { ...w, layout: { ...w.layout, order: savedOrder } };
+        });
     }
 
-    private moveWidgetByIndex(widgets: WidgetModel[], fromIndex: number, toIndex: number): WidgetModel[] {
-        if (fromIndex < 0 || fromIndex >= widgets.length) {
+    /** 交换 target 与 order 为 targetOrder 的 widget */
+    private swapWith(widgets: WidgetModel[], targetOrder: number): WidgetModel[] {
+        const target = widgets.find((w) => w.layout.order === targetOrder);
+        if (!target) {
             return widgets;
         }
 
-        const boundedTarget = Math.min(Math.max(toIndex, 0), widgets.length - 1);
-        if (boundedTarget === fromIndex) {
-            return widgets;
-        }
-
-        const next = widgets.slice();
-        const [moved] = next.splice(fromIndex, 1);
+        const moved = widgets.find((w) => w.id === this.widgetId);
         if (!moved) {
             return widgets;
         }
 
-        next.splice(boundedTarget, 0, moved);
-        return next;
+        return widgets.map((w) => {
+            if (w.id === moved.id) {
+                return { ...w, layout: { ...w.layout, order: targetOrder } };
+            }
+            if (w.id === target.id) {
+                return { ...w, layout: { ...w.layout, order: moved.layout.order } };
+            }
+            return w;
+        });
+    }
+
+    /** 置顶：target 变为 maxOrder，所有 order > target.order 的 widget 各 -1 */
+    private insertAtTop(widgets: WidgetModel[], targetOrder: number): WidgetModel[] {
+        const maxOrder = Math.max(...widgets.map((w) => w.layout.order));
+        if (targetOrder === maxOrder) {
+            return widgets;
+        }
+
+        return widgets.map((w) => {
+            if (w.id === this.widgetId) {
+                return { ...w, layout: { ...w.layout, order: maxOrder } };
+            }
+            if (w.layout.order > targetOrder) {
+                return { ...w, layout: { ...w.layout, order: w.layout.order - 1 } };
+            }
+            return w;
+        });
+    }
+
+    /** 置底：target 变为 1，所有 order < target.order 的 widget 各 +1 */
+    private insertAtBottom(widgets: WidgetModel[], targetOrder: number): WidgetModel[] {
+        const minOrder = Math.min(...widgets.map((w) => w.layout.order));
+        if (targetOrder === minOrder) {
+            return widgets;
+        }
+
+        return widgets.map((w) => {
+            if (w.id === this.widgetId) {
+                return { ...w, layout: { ...w.layout, order: 1 } };
+            }
+            if (w.layout.order < targetOrder) {
+                return { ...w, layout: { ...w.layout, order: w.layout.order + 1 } };
+            }
+            return w;
+        });
     }
 
     canExecute(snapshot: CommandSnapshot): boolean {

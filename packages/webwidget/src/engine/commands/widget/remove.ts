@@ -28,10 +28,9 @@ export class RemoveWidgetCommand implements Command {
         // 保存被删除的 widget
         this.removedWidget = snapshot.widgets[index] ?? null;
 
-        // 移除 widget
-        const nextWidgets = snapshot.widgets.slice();
-        nextWidgets.splice(index, 1);
-        return nextWidgets;
+        // 移除 widget 并重排 order
+        const remaining = snapshot.widgets.filter((w) => w.id !== this.widgetId);
+        return this.renumberOrder(remaining);
     }
 
     undo(snapshot: CommandSnapshot): WidgetModel[] {
@@ -39,15 +38,19 @@ export class RemoveWidgetCommand implements Command {
             return snapshot.widgets;
         }
 
-        // 重新添加被删除的 widget（在原位置）
-        const originalIndex = snapshot.widgets.findIndex((w) => w.id === this.widgetId);
-        if (originalIndex >= 0) {
-            // 如果当前位置已有相同 ID，直接替换
-            return snapshot.widgets.map((w) => (w.id === this.widgetId ? this.removedWidget! : w));
-        }
+        // 重新添加被删除的 widget 并重排 order
+        const restored = [...snapshot.widgets, this.removedWidget];
+        return this.renumberOrder(restored);
+    }
 
-        // 添加回 widgets（使用原始快照中的位置，或直接添加到末尾）
-        return [...snapshot.widgets, this.removedWidget];
+    /** 按当前 order 排序后重新编号 1~N */
+    private renumberOrder(widgets: WidgetModel[]): WidgetModel[] {
+        const sorted = [...widgets].sort((a, b) => a.layout.order - b.layout.order);
+        return sorted.map((w, i) => {
+            const newOrder = i + 1;
+            if (w.layout.order === newOrder) return w;
+            return { ...w, layout: { ...w.layout, order: newOrder } };
+        });
     }
 
     canExecute(snapshot: CommandSnapshot): boolean {
