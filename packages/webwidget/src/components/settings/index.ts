@@ -1,6 +1,6 @@
 export { buildFontString, parseFontString } from '../../engine/editor/editors/FontEditor';
 export type { FontPickerValue } from '../../engine/editor/editors/FontEditor';
-export { DEFAULT_FONT_FAMILIES, type FontFamilyOption } from '../../hooks/useLocalFonts';
+export { DEFAULT_FONT_FAMILIES, type FontFamilyOption } from '../../hooks';
 export { TagsInput } from '../../engine/editor/editors/TagsEditor';
 export { SettingsFormPanel } from './settings_panel';
 export { CombinerPicker } from '../../engine/editor/editors/CombinerEditor';

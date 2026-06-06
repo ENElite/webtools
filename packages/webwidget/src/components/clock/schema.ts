@@ -23,11 +23,15 @@ export type ClockWidgetProps = {
     color: string;
     textShadowColor: string;
     textShadowRadius: number;
+    strokeColor: string;
+    strokeWidth: number;
     amPmFormat: AmPmFormat;
     showYear: ShowYearPlacement;
     digitFormat: DigitFormat;
     layout: LayoutMode;
     displayOrder: DisplayOrder;
+    timeAnimation: boolean;
+    timeAnimationDuration: number;
 };
 
 export const DEFAULT_CLOCK_WIDGET_PROPS: ClockWidgetProps = {
@@ -42,19 +46,25 @@ export const DEFAULT_CLOCK_WIDGET_PROPS: ClockWidgetProps = {
     color: '#fdafd3',
     textShadowColor: 'rgba(255, 255, 255, 1)',
     textShadowRadius: 5,
+    strokeColor: 'transparent',
+    strokeWidth: 0,
     amPmFormat: 'right-english',
     showYear: 'left',
     digitFormat: 'double',
     layout: 'dual-line',
     displayOrder: 'time-first',
+    timeAnimation: true,
+    timeAnimationDuration: 0.3,
 };
 
 export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
+    // ── 通用 ──────────────────────────────────────────────────────
     {
         key: 'layout',
         label: '布局',
         type: 'enum',
         page: 'widget',
+        group: '通用',
         order: 100,
         bind: 'props.layout',
         meta: {
@@ -69,6 +79,7 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: '显示顺序',
         type: 'enum',
         page: 'widget',
+        group: '通用',
         order: 200,
         bind: 'props.displayOrder',
         meta: {
@@ -79,11 +90,109 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         },
     },
     {
+        key: 'dateGap',
+        label: '间距',
+        type: 'number',
+        page: 'widget',
+        group: '通用',
+        order: 300,
+        bind: 'props.dateGap',
+        meta: { min: 0, max: 1.1, step: 0.05 },
+    },
+    {
+        key: 'color',
+        label: '文本颜色',
+        type: 'color',
+        page: 'widget',
+        group: '通用',
+        order: 400,
+        bind: 'props.color',
+    },
+    {
+        key: 'textShadowColor',
+        label: '阴影颜色',
+        type: 'color',
+        page: 'widget',
+        group: '通用',
+        order: 500,
+        bind: 'props.textShadowColor',
+        meta: { alpha: true },
+    },
+    {
+        key: 'textShadowRadius',
+        label: '阴影半径',
+        type: 'number',
+        page: 'widget',
+        group: '通用',
+        order: 600,
+        bind: 'props.textShadowRadius',
+        meta: { min: 0, max: 100, step: 1 },
+    },
+    {
+        key: 'strokeColor',
+        label: '描边颜色',
+        type: 'color',
+        page: 'widget',
+        group: '通用',
+        order: 650,
+        bind: 'props.strokeColor',
+        meta: { alpha: true },
+    },
+    {
+        key: 'strokeWidth',
+        label: '描边宽度',
+        type: 'number',
+        page: 'widget',
+        group: '通用',
+        order: 660,
+        bind: 'props.strokeWidth',
+        meta: { min: 0, max: 10, step: 0.5 },
+    },
+    {
+        key: 'timeFont',
+        label: '时间字体',
+        type: 'font',
+        page: 'widget',
+        group: '通用',
+        order: 700,
+        bind: 'props.timeFont',
+    },
+    {
+        key: 'dateFont',
+        label: '日期字体',
+        type: 'font',
+        page: 'widget',
+        group: '通用',
+        order: 800,
+        bind: 'props.dateFont',
+    },
+    {
+        key: 'timeAnimation',
+        label: '时间动画',
+        type: 'switch',
+        page: 'widget',
+        group: '通用',
+        order: 900,
+        bind: 'props.timeAnimation',
+    },
+    {
+        key: 'timeAnimationDuration',
+        label: '动画时长',
+        type: 'slider',
+        page: 'widget',
+        group: '通用',
+        order: 1000,
+        bind: 'props.timeAnimationDuration',
+        meta: { min: 0.1, max: 2, step: 0.1, unit: 's' },
+    },
+    // ── 时间 ──────────────────────────────────────────────────────
+    {
         key: 'timeFormat',
         label: '时间格式',
         type: 'enum',
         page: 'widget',
-        order: 300,
+        group: '时间',
+        order: 1100,
         bind: 'props.timeFormat',
         meta: {
             options: [
@@ -98,7 +207,8 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: 'AM/PM 格式',
         type: 'enum',
         page: 'widget',
-        order: 400,
+        group: '时间',
+        order: 1200,
         bind: 'props.amPmFormat',
         visibleWhen: {
             field: 'props.timeFormat',
@@ -118,15 +228,18 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: '显示秒',
         type: 'switch',
         page: 'widget',
-        order: 500,
+        group: '时间',
+        order: 1300,
         bind: 'props.showSeconds',
     },
+    // ── 日期 ──────────────────────────────────────────────────────
     {
         key: 'dateFormat',
         label: '日期格式',
         type: 'enum',
         page: 'widget',
-        order: 600,
+        group: '日期',
+        order: 1400,
         bind: 'props.dateFormat',
         meta: {
             options: [
@@ -142,7 +255,8 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: '年份位置',
         type: 'enum',
         page: 'widget',
-        order: 700,
+        group: '日期',
+        order: 1500,
         bind: 'props.showYear',
         meta: {
             options: [
@@ -157,7 +271,8 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: '星期格式',
         type: 'enum',
         page: 'widget',
-        order: 800,
+        group: '日期',
+        order: 1600,
         bind: 'props.weekdayFormat',
         meta: {
             options: [
@@ -172,7 +287,8 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: '星期位置',
         type: 'enum',
         page: 'widget',
-        order: 900,
+        group: '日期',
+        order: 1700,
         bind: 'props.weekdayPlacement',
         meta: {
             options: [
@@ -187,7 +303,8 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         label: '日期数字',
         type: 'enum',
         page: 'widget',
-        order: 1000,
+        group: '日期',
+        order: 1800,
         bind: 'props.digitFormat',
         meta: {
             options: [
@@ -195,56 +312,5 @@ export const CLOCK_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
                 { label: '两位数字', value: 'double' },
             ],
         },
-    },
-    {
-        key: 'color',
-        label: '文本颜色',
-        type: 'color',
-        page: 'widget',
-        order: 1100,
-        bind: 'props.color',
-    },
-    {
-        key: 'textShadowColor',
-        label: '阴影颜色',
-        type: 'color',
-        page: 'widget',
-        order: 1200,
-        bind: 'props.textShadowColor',
-        meta: { alpha: true },
-    },
-    {
-        key: 'textShadowRadius',
-        label: '阴影半径',
-        type: 'number',
-        page: 'widget',
-        order: 1300,
-        bind: 'props.textShadowRadius',
-        meta: { min: 0, max: 100, step: 1 },
-    },
-    {
-        key: 'timeFont',
-        label: '时间字体',
-        type: 'font',
-        page: 'widget',
-        order: 1400,
-        bind: 'props.timeFont',
-    },
-    {
-        key: 'dateFont',
-        label: '日期字体',
-        type: 'font',
-        page: 'widget',
-        order: 1500,
-        bind: 'props.dateFont',
-    },
-    {
-        key: 'dateGap',
-        label: '间距',
-        type: 'number',
-        page: 'widget',
-        order: 1600,
-        bind: 'props.dateGap',
-        meta: { min: 0, max: 1.1, step: 0.05 },
     },
 ];

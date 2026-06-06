@@ -1,10 +1,12 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import type { CSSProperties } from 'react';
+import { motion, LayoutGroup } from 'framer-motion';
 
-import { useTimestamp } from '../../hooks/useTimestamp';
+import { useTimestamp } from '../../hooks';
 
 import type { WidgetRendererProps } from '../../engine/model';
-import type { AmPmFormat, ClockWidgetProps, DateFormat, DigitFormat, ShowYearPlacement, TimeFormat, WeekdayFormat } from './schema';
+import type { AmPmFormat, ClockWidgetProps, DigitFormat, TimeFormat, WeekdayFormat } from './schema';
+import { AnimatedText } from './AnimatedText';
 
 const CHINESE_WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'] as const;
 const ENGLISH_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
@@ -75,18 +77,6 @@ function getAmPmText(date: Date, amPmFormat: AmPmFormat): string {
     }
 }
 
-function buildDateDisplay(dateText: string, weekdayText: string, weekdayPlacement: 'left' | 'right' | 'none'): string {
-    if (!dateText) {
-        return '';
-    }
-
-    if (!weekdayText || weekdayPlacement === 'none') {
-        return dateText;
-    }
-
-    return weekdayPlacement === 'left' ? `${weekdayText} ${dateText}` : `${dateText} ${weekdayText}`;
-}
-
 function getTimeText(date: Date, timeFormat: TimeFormat, showSeconds: boolean): string {
     const hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -102,60 +92,54 @@ function getTimeText(date: Date, timeFormat: TimeFormat, showSeconds: boolean): 
     return showSeconds ? `${hourText}:${minutes}:${seconds}` : `${hourText}:${minutes}`;
 }
 
-function getDateText(
-    date: Date,
-    dateFormat: DateFormat,
-    digitFormat: DigitFormat,
-    showYear: ShowYearPlacement
-): string {
-    const year = String(date.getFullYear());
-    const month = padDatePart(date.getMonth() + 1, digitFormat);
-    const day = padDatePart(date.getDate(), digitFormat);
+/**
+ * Split a CSS font shorthand into individual properties.
+ * Avoids the React warning about mixing shorthand (font) with longhand (lineHeight).
+ *
+ * Input:  "normal 600 36px/1.1 Arial, sans-serif"
+ * Output: { fontStyle: "normal", fontWeight: 600, fontSize: "36px", fontFamily: "Arial, sans-serif" }
+ */
+function splitFont(font: string): Pick<CSSProperties, 'fontStyle' | 'fontWeight' | 'fontSize' | 'fontFamily' | 'lineHeight'> {
+    const tokens = font.split(/\s+/).filter(Boolean);
+    const result: Pick<CSSProperties, 'fontStyle' | 'fontWeight' | 'fontSize' | 'fontFamily' | 'lineHeight'> = {};
 
-    let dateText = '';
+    let i = 0;
 
-    switch (dateFormat) {
-        case 'chinese': {
-            const core = `${month}月${day}日`;
-            dateText = showYear === 'left'
-                ? `${year}年${core}`
-                : showYear === 'right'
-                    ? `${core}${year}年`
-                    : core;
-            break;
-        }
-        case 'numeric1': {
-            const core = `${month}-${day}`;
-            dateText = showYear === 'left'
-                ? `${year}-${core}`
-                : showYear === 'right'
-                    ? `${core}-${year}`
-                    : core;
-            break;
-        }
-        case 'english': {
-            const core = `${ENGLISH_MONTHS[date.getMonth()]} ${day}`;
-            dateText = showYear === 'left'
-                ? `${year} ${core}`
-                : showYear === 'right'
-                    ? `${core}, ${year}`
-                    : core;
-            break;
-        }
-        case 'english-short': {
-            const core = `${ENGLISH_MONTHS_SHORT[date.getMonth()]} ${day}`;
-            dateText = showYear === 'left'
-                ? `${year} ${core}`
-                : showYear === 'right'
-                    ? `${core}, ${year}`
-                    : core;
-            break;
-        }
-        default:
-            return '';
+    // font-style (optional): normal | italic | oblique
+    if (tokens[i] === 'normal' || tokens[i] === 'italic' || tokens[i]?.startsWith('oblique')) {
+        result.fontStyle = tokens[i] as CSSProperties['fontStyle'];
+        i++;
     }
 
-    return dateText;
+    // font-weight (optional): normal | bold | 100-900
+    if (tokens[i] === 'normal' || tokens[i] === 'bold'
+        || /^\d{3}$/.test(tokens[i] ?? '')) {
+        const w = tokens[i];
+        result.fontWeight = (w === 'normal' || w === 'bold' ? w : Number(w)) as CSSProperties['fontWeight'];
+        i++;
+    }
+
+    // font-size (required): may include /line-height
+    const sizeToken = tokens[i];
+    if (sizeToken) {
+        const slashIdx = sizeToken.indexOf('/');
+        if (slashIdx >= 0) {
+            result.fontSize = sizeToken.slice(0, slashIdx);
+            const lh = sizeToken.slice(slashIdx + 1);
+            if (lh) result.lineHeight = lh.includes('.') ? parseFloat(lh) : `${lh}`;
+        } else {
+            result.fontSize = sizeToken;
+        }
+        i++;
+    }
+
+    // font-family (remaining tokens)
+    const family = tokens.slice(i).join(' ');
+    if (family) {
+        result.fontFamily = family;
+    }
+
+    return result;
 }
 
 export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
@@ -172,6 +156,58 @@ export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
 
     const date = useMemo(() => new Date(now), [now]);
 
+    const textShadow = widget.props.textShadowRadius > 0
+        ? `0 0 ${widget.props.textShadowRadius}px ${widget.props.textShadowColor}`
+        : 'none';
+
+    const textStroke = widget.props.strokeWidth > 0
+        ? `${widget.props.strokeWidth}px ${widget.props.strokeColor}` as CSSProperties['WebkitTextStroke']
+        : undefined;
+
+    const timeFontProps = splitFont(widget.props.timeFont);
+    const dateFontProps = splitFont(widget.props.dateFont);
+
+    const textStyle: CSSProperties = {
+        ...timeFontProps,
+        letterSpacing: '0.04em',
+        color: widget.props.color,
+        textShadow,
+        WebkitTextStroke: textStroke,
+        paintOrder: textStroke ? 'stroke fill' : undefined,
+    };
+
+    const dateStyle: CSSProperties = {
+        ...dateFontProps,
+        letterSpacing: '0.04em',
+        color: widget.props.color,
+        textShadow,
+        WebkitTextStroke: textStroke,
+        paintOrder: textStroke ? 'stroke fill' : undefined,
+    };
+
+    const gapValue = Math.min(widget.props.dateGap, 1.1);
+    const hasTimeAnimation = widget.props.timeAnimation;
+    const timeAnimationDuration = widget.props.timeAnimationDuration;
+
+    // ── Format fingerprint — changes when layout-related props change ──
+    // Used as key on motion containers so framer-motion can animate
+    // block reordering when the user changes format settings.
+    const formatFingerprint = [
+        widget.props.dateFormat,
+        widget.props.weekdayFormat,
+        widget.props.weekdayPlacement,
+        widget.props.showYear,
+        widget.props.digitFormat,
+        widget.props.amPmFormat,
+    ].join('|');
+
+    const prevFingerprintRef = useRef(formatFingerprint);
+    const isFormatChange = prevFingerprintRef.current !== formatFingerprint;
+    if (isFormatChange) {
+        prevFingerprintRef.current = formatFingerprint;
+    }
+
+    // ── Compute time / date text ──────────────────────────────────
     const timeText = useMemo(() => {
         return getTimeText(date, timeFormat, widget.props.showSeconds);
     }, [date, timeFormat, widget.props.showSeconds]);
@@ -180,57 +216,148 @@ export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
         return timeFormat === '24-hour' ? '' : getAmPmText(date, widget.props.amPmFormat);
     }, [date, timeFormat, widget.props.amPmFormat]);
 
-    const dateText = useMemo(() => {
-        return getDateText(date, widget.props.dateFormat, widget.props.digitFormat, widget.props.showYear);
-    }, [date, widget.props.dateFormat, widget.props.digitFormat, widget.props.showYear]);
-
     const weekdayText = useMemo(() => {
         return getWeekdayText(date, widget.props.weekdayFormat);
     }, [date, widget.props.weekdayFormat]);
 
-    const textShadow = widget.props.textShadowRadius > 0
-        ? `0 0 ${widget.props.textShadowRadius}px ${widget.props.textShadowColor}`
-        : 'none';
+    // ── Date blocks — split into semantic parts for layout animation ──
+    // When weekdayPlacement / showYear change, blocks reorder via layout.
+    // When only time ticks, blocks stay in place and AnimatedChar animates.
+    const dateBlocks = useMemo(() => {
+        const year = String(date.getFullYear());
+        const month = padDatePart(date.getMonth() + 1, widget.props.digitFormat);
+        const day = padDatePart(date.getDate(), widget.props.digitFormat);
 
-    const textStyle: CSSProperties = {
-        font: widget.props.timeFont,
-        lineHeight: 1.1,
-        letterSpacing: '0.04em',
-        color: widget.props.color,
-        textShadow,
-    };
+        // Build core date without year, based on format
+        let coreDate = '';
+        switch (widget.props.dateFormat) {
+            case 'chinese':
+                coreDate = `${month}月${day}日`;
+                break;
+            case 'numeric1':
+                coreDate = `${month}-${day}`;
+                break;
+            case 'english':
+                coreDate = `${ENGLISH_MONTHS[date.getMonth()]} ${day}`;
+                break;
+            case 'english-short':
+                coreDate = `${ENGLISH_MONTHS_SHORT[date.getMonth()]} ${day}`;
+                break;
+        }
 
-    const dateStyle: CSSProperties = {
-        font: widget.props.dateFont,
-        lineHeight: 1.1,
-        letterSpacing: '0.04em',
-        color: widget.props.color,
-        textShadow,
-    };
+        // Build year string with its separator
+        let yearText = '';
+        switch (widget.props.dateFormat) {
+            case 'chinese':
+                yearText = `${year}年`;
+                break;
+            case 'numeric1':
+                yearText = `${year}-`;
+                break;
+            case 'english':
+            case 'english-short':
+                yearText = `${year} `;
+                break;
+        }
 
-    const finalDateDisplay = buildDateDisplay(dateText, weekdayText, widget.props.weekdayPlacement);
+        const blocks: Array<{ key: string; text: string }> = [];
 
-    const amPmDisplay = amPmText && timeFormat === '12-hour-am-pm'
-        ? widget.props.amPmFormat.startsWith('left')
-            ? `${amPmText} ${timeText}`
-            : `${timeText} ${amPmText}`
-        : timeText;
+        if (widget.props.showYear === 'left') {
+            blocks.push({ key: 'year', text: yearText });
+        }
 
-    const gapValue = Math.min(widget.props.dateGap, 1.1);
+        blocks.push({ key: 'date', text: coreDate });
 
-    const dateElement = !finalDateDisplay
+        if (widget.props.showYear === 'right') {
+            // Right year: separator goes before year
+            const rightYearText = widget.props.dateFormat === 'chinese'
+                ? `${year}年`
+                : widget.props.dateFormat === 'numeric1'
+                    ? `-${year}`
+                    : `, ${year}`;
+            blocks.push({ key: 'year', text: rightYearText });
+        }
+
+        if (widget.props.weekdayPlacement === 'left') {
+            blocks.unshift({ key: 'weekday', text: weekdayText });
+        } else if (widget.props.weekdayPlacement === 'right') {
+            blocks.push({ key: 'weekday', text: weekdayText });
+        }
+
+        return blocks;
+    }, [date, widget.props.dateFormat, widget.props.digitFormat, widget.props.weekdayPlacement, widget.props.showYear, weekdayText]);
+
+    // ── AM/PM blocks ──────────────────────────────────────────────
+    const amPmBlocks = useMemo(() => {
+        if (!amPmText || timeFormat !== '12-hour-am-pm') {
+            return [{ key: 'time', text: timeText }];
+        }
+
+        if (widget.props.amPmFormat.startsWith('left')) {
+            return [
+                { key: 'ampm', text: amPmText },
+                { key: 'time', text: timeText },
+            ];
+        }
+        return [
+            { key: 'time', text: timeText },
+            { key: 'ampm', text: amPmText },
+        ];
+    }, [amPmText, timeText, timeFormat, widget.props.amPmFormat]);
+
+    const layoutTransition = { duration: timeAnimationDuration, ease: 'easeOut' as const };
+
+    const dateElement = !dateBlocks.some(b => b.text)
         ? null
         : mounted
-            ? <div key='date' style={dateStyle}>{finalDateDisplay}</div>
-            : <div key='date' style={dateStyle}>&nbsp;</div>;
+            ? (
+                <LayoutGroup>
+                    <motion.div
+                        layout
+                        transition={layoutTransition}
+                        style={{ ...dateStyle, display: 'flex', alignItems: 'center' }}
+                    >
+                        {dateBlocks.map((block) => (
+                            <motion.div key={block.key} layout transition={layoutTransition}>
+                                <AnimatedText
+                                    text={block.text}
+                                    animated={hasTimeAnimation}
+                                    duration={isFormatChange ? 0 : timeAnimationDuration}
+                                />
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                </LayoutGroup>
+            )
+            : <div style={dateStyle}>&nbsp;</div>;
 
     const timeElement = mounted
-        ? <div key='time' style={textStyle}>{amPmDisplay}</div>
-        : <div key='time' style={textStyle}>&nbsp;</div>;
+        ? (
+            <LayoutGroup>
+                <motion.div
+                    layout
+                    transition={layoutTransition}
+                    style={{ ...textStyle, display: 'flex', alignItems: 'center' }}
+                >
+                    {amPmBlocks.map((block) => (
+                        <motion.div key={block.key} layout transition={layoutTransition}>
+                            <AnimatedText
+                                text={block.text}
+                                animated={hasTimeAnimation}
+                                duration={isFormatChange ? 0 : timeAnimationDuration}
+                            />
+                        </motion.div>
+                    ))}
+                </motion.div>
+            </LayoutGroup>
+        )
+        : <div style={textStyle}>&nbsp;</div>;
 
-    const content = displayOrder === 'date-first'
-        ? [dateElement, timeElement]
-        : [timeElement, dateElement];
+    // Use CSS order to control visual position instead of array reordering.
+    // This keeps both elements mounted with stable keys, preventing
+    // AnimatedText from losing prevTextRef and triggering unwanted animation.
+    const dateOrder = displayOrder === 'date-first' ? 0 : 1;
+    const timeOrder = displayOrder === 'date-first' ? 1 : 0;
 
     return (
         <div
@@ -241,7 +368,12 @@ export function ClockWidget({ widget }: WidgetRendererProps<ClockWidgetProps>) {
                 gap: `${gapValue}em`,
             }}
         >
-            {content}
+            <div key="date" style={{ order: dateOrder }}>
+                {dateElement}
+            </div>
+            <div key="time" style={{ order: timeOrder }}>
+                {timeElement}
+            </div>
         </div>
     );
 }

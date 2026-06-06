@@ -15,7 +15,7 @@ export const HTML_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
     {
         key: 'html',
         label: '源代码',
-        type: 'editor',
+        type: 'codePicker',
         page: 'widget',
         order: 100,
         bind: 'props.html',

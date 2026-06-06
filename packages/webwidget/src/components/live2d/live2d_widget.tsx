@@ -1,20 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useElementSize, useDebounce } from '@reactuses/core';
-import { useLive2D } from '../../hooks';
-import { Progress } from 'antd';
+import { useLive2D, useLive2DSlots } from '../../hooks';
+import { Progress, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import type { WidgetRendererProps } from '../../engine/model';
 import type { Live2dWidgetProps } from './schema';
 
 export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
     const { widget } = props;
-    // const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const onHit = useCallback((area: string) => {
-        console.log(`Hit area: ${area}`);
-    }, []);
-
     // 根据模型来源选择对应的路径
     const modelPath = widget.props.source === 'url' ? (widget.props.modelUrl || widget.props.modelPath) : widget.props.modelPath;
 
@@ -22,6 +18,9 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
         scale: widget.props.scale * 100,
         renderPrecision: widget.props.renderPrecision,
     });
+
+    // 动态注册所有 motion 和 expression 为 slot
+    useLive2DSlots(l2d, widget.id, loading);
     // 自动缩放
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [elemWidth, elemHeight] = useElementSize(containerRef.current);
@@ -49,6 +48,58 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
         };
     }, [canvas, containerRef.current]);
 
+    // 构建右键菜单项：motions + expressions
+    const contextMenuItems = useMemo<NonNullable<MenuProps['items']>>(() => {
+        if (!l2d || loading !== 'loaded') return [];
+
+        const items: NonNullable<MenuProps['items']> = [];
+
+        // Motions
+        const motions = l2d.getMotions();
+        const groupNames = Object.keys(motions);
+        if (groupNames.length === 1) {
+            // 单 group：子项提升到上一级
+            const group = groupNames[0]!;
+            const files = motions[group] ?? [];
+            const prefix = group.trim() ? `${group.trim()} / ` : '';
+            items.push(...files.map((file, index) => ({
+                key: `motion-${group}-${index}`,
+                label: `${prefix}${file.split('/').pop()?.replace(/\..*$/, '') ?? file}`,
+                onClick: () => l2d.playMotion(group, index),
+            })));
+        } else if (groupNames.length > 1) {
+            // 多 group：空名分配默认名
+            items.push({
+                key: 'motions',
+                label: 'Motions',
+                children: groupNames.map((group, i) => ({
+                    key: `motion-group-${group}`,
+                    label: group.trim() || `group-${i + 1}`,
+                    children: (motions[group] ?? []).map((file, index) => ({
+                        key: `motion-${group}-${index}`,
+                        label: file.split('/').pop()?.replace(/\..*$/, '') ?? file,
+                        onClick: () => l2d.playMotion(group, index),
+                    })),
+                })),
+            });
+        }
+
+        // Expressions
+        const expressions = l2d.getExpressions();
+        if (expressions.length > 0) {
+            items.push({
+                key: 'expressions',
+                label: 'Expressions',
+                children: expressions.map((id) => ({
+                    key: `expr-${id}`,
+                    label: id,
+                    onClick: () => l2d.setExpression(id),
+                })),
+            });
+        }
+
+        return items;
+    }, [l2d, loading]);
 
     const containerStyle: CSSProperties = {
         visibility: loading === 'loaded' ? 'visible' : 'hidden',
@@ -59,7 +110,7 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
 
     const percent = Math.round(((loadInfo?.loaded ?? 0) / (loadInfo?.total ?? 1)) * 100);
 
-    return (
+    const content = (
         <>
             {loading !== 'loaded' ? (
                 <div style={{
@@ -85,5 +136,23 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
                 {/* canvas will be appended here by useEffect when ready */}
             </div>
         </>
+    );
+
+    if (!contextMenuItems || contextMenuItems.length === 0) {
+        return content;
+    }
+
+    return (
+        <Dropdown
+            menu={{ items: contextMenuItems ?? [] }}
+            trigger={['contextMenu']}
+            classNames={{
+                root: "max-h-100 overflow-auto",
+            }}
+        >
+            <div style={{ width: '100%', height: '100%' }}>
+                {content}
+            </div>
+        </Dropdown>
     );
 }

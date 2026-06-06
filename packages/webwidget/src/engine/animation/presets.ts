@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { AnimationEffect, AnimationDirection, AnimationConfig, MotionType } from '../model/animation';
+import type { AnimationDirection, AnimationConfig, MotionType } from '../model/animation';
 
 type MotionVariant = {
     opacity?: number;
@@ -156,13 +156,22 @@ export function getTransition(config: AnimationConfig) {
     };
 }
 
+function toMotionEasing(easing: string | undefined): string {
+    switch (easing) {
+        case 'ease-in': return 'easeIn';
+        case 'ease-out': return 'easeOut';
+        case 'ease-in-out': return 'easeInOut';
+        case 'linear': return 'linear';
+        default: return 'easeOut';
+    }
+}
+
 export function getMotionTransition(motionType: MotionType, baseConfig: AnimationConfig): Record<string, unknown> {
     switch (motionType) {
         case 'spring':
             return { type: 'spring', stiffness: 300, damping: 20 };
         case 'tween': {
-            const ease = baseConfig.easing ?? 'ease-out';
-            return { type: 'tween', duration: baseConfig.duration, ease };
+            return { type: 'tween', duration: baseConfig.duration, ease: toMotionEasing(baseConfig.easing) };
         }
         case 'transition':
             return { type: 'tween', duration: baseConfig.duration, ease: 'easeInOut' };

@@ -31,6 +31,7 @@ export const DEFAULT_LIVE2D_WIDGET_LAYOUT: WidgetLayout = {
     w: 5,
     h: 10,
     rotation: 0,
+    order: 1,
 }
 
 export const LIVE2D_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
@@ -104,13 +105,5 @@ export const LIVE2D_WIDGET_SETTINGS_SCHEMA: InspectorSchema = [
         order: 600,
         bind: 'props.resizeDelay',
         meta: { min: 0, max: 2000, step: 50 },
-    },
-    {
-        key: 'interaction',
-        label: '启用交互',
-        type: 'switch',
-        page: 'widget',
-        order: 700,
-        bind: 'props.interaction',
     },
 ];
