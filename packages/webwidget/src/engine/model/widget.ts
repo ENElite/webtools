@@ -1,18 +1,26 @@
 import type { WidgetKind, WidgetLayout, WidgetModel, WidgetRenderer, WidgetRendererMap, WidgetStyle, WidgetFlatProps } from './types';
+import { widgetRegistry } from './registry';
+import type { InspectorSchema } from '../editor';
 
-import { ClockWidget, DEFAULT_CLOCK_WIDGET_PROPS } from '../../components/clock';
-import { ImageWidget, DEFAULT_IMAGE_WIDGET_PROPS } from '../../components/image';
-import { VideoWidget, DEFAULT_VIDEO_WIDGET_PROPS } from '../../components/video';
-import { HtmlWidget, DEFAULT_HTML_WIDGET_PROPS } from '../../components/html';
-import { IframeWidget, DEFAULT_IFRAME_WIDGET_PROPS } from '../../components/iframe';
-import { TextWidget, DEFAULT_TEXT_WIDGET_PROPS } from '../../components/text';
-import { Live2dWidget, DEFAULT_LIVE2D_WIDGET_PROPS } from '../../components/live2d';
-import type { AnimationConfig, WidgetAnimation } from './animation';
+// Re-export WidgetKinds for convenience
+export { WidgetKinds } from './types';
 
-export function createWidgetRegistry(initial?: WidgetRendererMap): WidgetRendererMap {
-    return { ...(initial || {}) };
+// Re-export registry for external use
+export { widgetRegistry, type WidgetRegistration } from './registry';
+
+// Legacy API: createWidgetRegistry creates a renderer map from the registry
+export function createWidgetRegistry(): WidgetRendererMap {
+    const map: WidgetRendererMap = {};
+    for (const kind of widgetRegistry.getAllKinds()) {
+        const renderer = widgetRegistry.getRenderer(kind);
+        if (renderer) {
+            map[kind] = renderer;
+        }
+    }
+    return map;
 }
 
+// Legacy API: registerWidgetRenderer adds a renderer to a map (for backward compatibility)
 export function registerWidgetRenderer(
     registry: WidgetRendererMap,
     kind: WidgetKind,
@@ -24,6 +32,7 @@ export function registerWidgetRenderer(
     };
 }
 
+// Legacy API: resolveWidgetRenderer from a renderer map
 export function resolveWidgetRenderer(
     registry: WidgetRendererMap,
     kind: WidgetKind,
@@ -31,16 +40,14 @@ export function resolveWidgetRenderer(
     return registry[kind] || null;
 }
 
+// Create overlay renderer map from the registry
 export function createOverlayRendererMap(): WidgetRendererMap {
-    return createWidgetRegistry({
-        clock: ClockWidget,
-        image: ImageWidget,
-        video: VideoWidget,
-        text: TextWidget,
-        html: HtmlWidget,
-        iframe: IframeWidget,
-        live2d: Live2dWidget,
-    });
+    return createWidgetRegistry();
+}
+
+// Resolve widget settings schema from the registry
+export function resolveWidgetSettingsSchema(kind: WidgetKind): InspectorSchema | null {
+    return widgetRegistry.getSchema(kind);
 }
 
 export const DEFAULT_OVERLAY_Z_INDEX = 4;
@@ -56,6 +63,7 @@ export const DEFAULT_WIDGET_STYLE = {
     borderRadius: '0px',
     shadowRadius: 0,
     shadowColor: 'rgba(0, 0, 0, 0.5)',
+    overflow: false,
 } satisfies Partial<WidgetStyle>;
 
 export const DEFAULT_WIDGET_LAYOUT = {
@@ -67,6 +75,7 @@ export const DEFAULT_WIDGET_LAYOUT = {
     h: 16,
     rotation: 0,
     adapt: 'stretch',
+    order: 1,
 } satisfies Partial<WidgetLayout>;
 
 function createWidgetStyle(transform: Partial<WidgetStyle> = {}): WidgetStyle {
@@ -108,75 +117,37 @@ export function generateWidgetId(): string {
 }
 
 export function defaultWidgetLabel(kind: WidgetKind): string {
-    return {
-        text: '文本组件',
-        html: 'HTML 组件',
-        clock: '时钟组件',
-        image: '图片组件',
-        video: '视频组件',
-        iframe: 'URL 组件',
-        live2d: 'Live2D 组件',
-    }[kind];
+    return widgetRegistry.getLabel(kind);
 }
 
-function createDefaultAnimation(): WidgetAnimation {
-    const tween03: AnimationConfig = {
-        effect: 'fade',
-        motionType: 'tween',
-        loop: false,
-        delay: 0,
-        duration: 0.3,
-        intensity: 1,
-        easing: 'ease-out',
-    };
+import type { Connection } from './bindings';
 
+/**
+ * 创建默认连接（Qt 风格四元组）。
+ * target 默认为当前 widget 自身。
+ */
+export function createDefaultConnections(widgetId: string): Connection[] {
     return [
-        {
-            signal: { source: 'lifecycle', type: 'mount' },
-            motion: {
-                effect: 'fade',
-                motionType: 'tween',
-                loop: false,
-                delay: 0.5,
-                duration: 1,
-                intensity: 1,
-            },
-        },
-        { signal: { source: 'widget', type: 'style.opacity' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.backgroundColor' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.borderRadius' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.outline' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.outlineOffset' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.shadowRadius' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.shadowColor' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.backgroundEffect' }, motion: { ...tween03 } },
-        { signal: { source: 'widget', type: 'style.backgroundImageUrl' }, motion: { ...tween03 } },
+        // mount → animation（入场动画）
+        { signal: 'mount', target: widgetId, slot: 'animation', params: { duration: 1, delay: 0, easing: 'ease-out' } },
     ];
 }
 
 export function createWidget(
     kind: WidgetKind,
-    opts: { style?: Partial<WidgetStyle>; layout?: Partial<WidgetLayout>; animation?: WidgetAnimation } = {},
+    opts: { style?: Partial<WidgetStyle>; layout?: Partial<WidgetLayout>; connections?: Connection[] } = {},
 ): WidgetModel {
-    const props = {
-        text: DEFAULT_TEXT_WIDGET_PROPS,
-        html: DEFAULT_HTML_WIDGET_PROPS,
-        clock: DEFAULT_CLOCK_WIDGET_PROPS,
-        image: DEFAULT_IMAGE_WIDGET_PROPS,
-        video: DEFAULT_VIDEO_WIDGET_PROPS,
-        iframe: DEFAULT_IFRAME_WIDGET_PROPS,
-        live2d: DEFAULT_LIVE2D_WIDGET_PROPS,
-    };
+    const defaults = widgetRegistry.getDefaults(kind) ?? {};
 
     const id = generateWidgetId();
     return {
         id,
         kind,
-        label: defaultWidgetLabel(kind),
-        props: props[kind],
+        label: widgetRegistry.getLabel(kind),
+        props: defaults,
         style: createWidgetStyle(opts.style || {}),
         layout: createWidgetLayout(opts.layout || {}),
         autoHide: false,
-        animation: opts.animation ?? createDefaultAnimation(),
+        connections: opts.connections ?? createDefaultConnections(id),
     };
 }

@@ -1,8 +1,31 @@
-import type { ComponentType, Dispatch } from 'react';
-import type { WidgetAnimation } from './animation';
+import type { ComponentType } from 'react';
+import type { Connection } from './bindings';
+
+// ── 基础标识 ──────────────────────────────────────────────
 
 export type WidgetId = string;
-export type WidgetKind = 'text' | 'image' | 'video' | 'clock' | 'canvas' | 'html' | 'iframe' | 'live2d';
+
+// Branded string type for extensible widget kinds
+export type WidgetKind = string & { readonly __brand: unique symbol };
+
+// Built-in widget kinds as constants
+export const WidgetKinds = {
+    TEXT: 'text' as WidgetKind,
+    IMAGE: 'image' as WidgetKind,
+    VIDEO: 'video' as WidgetKind,
+    CLOCK: 'clock' as WidgetKind,
+    CANVAS: 'canvas' as WidgetKind,
+    HTML: 'html' as WidgetKind,
+    IFRAME: 'iframe' as WidgetKind,
+    LIVE2D: 'live2d' as WidgetKind,
+} as const;
+
+// ── Props ─────────────────────────────────────────────────
+
+export type WidgetPropPrimitive = string | number | boolean | Record<string, unknown>;
+export type WidgetFlatProps = Record<string, WidgetPropPrimitive>;
+
+// ── Widget 样式 ───────────────────────────────────────────
 
 export type WidgetStyle = {
     outline?: string;
@@ -14,10 +37,10 @@ export type WidgetStyle = {
     backgroundImageUrl?: string;
     shadowRadius?: number;
     shadowColor?: string;
+    overflow?: boolean;
 };
 
-export type WidgetPropPrimitive = string | number | boolean | Record<string, unknown>;
-export type WidgetFlatProps = Record<string, WidgetPropPrimitive>;
+// ── Widget 布局 ───────────────────────────────────────────
 
 export type WidgetHorizontalAnchor = 'left' | 'center' | 'right';
 export type WidgetVerticalAnchor = 'top' | 'center' | 'bottom';
@@ -30,8 +53,27 @@ export type WidgetLayout = {
     w: number;
     h: number;
     rotation: number;
-    adapt: 'stretch' | 'fixed';
+    adapt: 'stretch' | 'fixed' | 'stretch-ratio' | 'stick';
+    order: number;
 };
+
+// ── Widget 动画 ───────────────────────────────────────────
+
+/**
+ * 动画设置 — 控制 widget.style 属性的过渡动画
+ */
+export type WidgetAnimationSettings = {
+    /** 缓动曲线 */
+    easing?: string;
+    /** 过渡时长（秒） */
+    duration?: number;
+    /** 过渡延迟（秒） */
+    delay?: number;
+    /** 启用过渡动画的 CSS 属性列表 */
+    animatedProperties?: string[];
+};
+
+// ── Widget 模型 ───────────────────────────────────────────
 
 export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     id: WidgetId;
@@ -42,31 +84,13 @@ export type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     props: TProps;
     locked?: boolean;
     autoHide?: boolean;
-    animation?: WidgetAnimation;
+    /** Qt 风格信号槽连接 */
+    connections?: Connection[];
+    /** 动画设置（framer-motion 过渡配置） */
+    animation?: WidgetAnimationSettings;
 };
 
-export type OverlayAction =
-    | { type: 'set-active'; widgetId: WidgetId | null }
-    | { type: 'set-widgets'; widgets: WidgetModel[] }
-    | { type: 'add-widget'; widget: WidgetModel }
-    | { type: 'remove-widget'; widgetId: WidgetId }
-    | { type: 'update-widget'; widgetId: WidgetId; patch: Partial<Omit<WidgetModel, 'id'>> }
-    | { type: 'move-widget-up'; widgetId: WidgetId }
-    | { type: 'move-widget-down'; widgetId: WidgetId }
-    | { type: 'move-widget-to-top'; widgetId: WidgetId }
-    | { type: 'move-widget-to-bottom'; widgetId: WidgetId }
-    | { type: 'copy-widget'; widgetId: WidgetId; layout?: WidgetLayout };
-
-export type OverlayDispatch = Dispatch<OverlayAction>;
-
-export type SnapAxis = 'x' | 'y';
-export type SnapSource = 'edge' | 'widget';
-
-export type SnapGuideline = {
-    axis: SnapAxis;
-    value: number;
-    source: SnapSource;
-};
+// ── 渲染器 ────────────────────────────────────────────────
 
 export type WidgetRendererProps<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     widget: WidgetModel<TProps>;
