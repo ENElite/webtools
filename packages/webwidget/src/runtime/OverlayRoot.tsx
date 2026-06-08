@@ -59,6 +59,7 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
     const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
     const [widgetableVisibleWidgetId, setWidgetableVisibleWidgetId] = useState<string | null>(null);
+    const isDraggingOrResizingRef = useRef(false);
     const widgetableHideTimerRef = useRef<number | null>(null);
     const overlayBounds = useElementSize(overlayRef.current);
 
@@ -194,6 +195,9 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                         }}
                         onClick={() => activate(widget.id)}
                         onMouseEnter={() => {
+                            if (isDraggingOrResizingRef.current) {
+                                return;
+                            }
                             if (activeWidgetId === null || activeWidgetId === widget.id) {
                                 setHoveredWidgetId(widget.id);
                                 showWidgetableForWidget(widget.id);
@@ -202,10 +206,14 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                             }
                         }}
                         onMouseLeave={() => {
+                            if (isDraggingOrResizingRef.current) {
+                                return;
+                            }
                             if (activeWidgetId === null) {
                                 hideWidgetableLater(widget.id);
                             }
                         }}
+                        draggingOrResizingRef={isDraggingOrResizingRef}
                         onContextMenu={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -225,6 +233,9 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
                 overlayRef={overlayRef}
                 widgetElementRef={widgetElementRef}
                 widgets={widgets}
+                onDraggingOrResizingChange={(isDraggingOrResizing) => {
+                    isDraggingOrResizingRef.current = isDraggingOrResizing;
+                }}
                 onWidgetableMouseEnter={(widgetId) => {
                     if (activeWidgetId !== null) {
                         return;

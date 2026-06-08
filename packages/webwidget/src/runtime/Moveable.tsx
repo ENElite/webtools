@@ -4,6 +4,7 @@ import type { RefObject } from 'react';
 
 import { Widgetable } from './ables/widgetable';
 import { Dimensionable } from './ables/dimensionable';
+import { Orderable } from './ables/orderable';
 import type { WidgetModel } from '../engine/model';
 import { DEFAULT_SNAP_THRESHOLD } from '../engine/model/widget';
 
@@ -16,18 +17,12 @@ type OverlayMoveableProps = {
     overlayRef: RefObject<HTMLDivElement | null>;
     widgetElementRef: RefObject<Record<string, HTMLDivElement | null>>;
     widgets: WidgetModel[];
-    widgetableConfig?: {
-        widgetable?: boolean;
-        rotatable?: boolean;
-        roundable?: boolean;
-        resizable?: boolean;
-        dragTarget?: HTMLElement;
-    };
     onWidgetableMouseEnter: (widgetId: string) => void;
     onWidgetableMouseLeave: (widgetId: string) => void;
     onWidgetSettingsClick: (widgetId: string) => void;
     onWidgetLayoutChange: (widgetId: string, target: HTMLElement | null, container: HTMLElement | null) => void;
     onWidgetStyleChange: (widgetId: string, target: HTMLElement | null) => void;
+    onDraggingOrResizingChange?: (isDraggingOrResizing: boolean) => void;
 };
 
 export function OverlayMoveable({
@@ -36,12 +31,12 @@ export function OverlayMoveable({
     overlayRef,
     widgetElementRef,
     widgets,
-    widgetableConfig,
     onWidgetableMouseEnter,
     onWidgetableMouseLeave,
     onWidgetSettingsClick,
     onWidgetLayoutChange,
     onWidgetStyleChange,
+    onDraggingOrResizingChange,
 }: OverlayMoveableProps) {
     const moveableRef = useRef<Moveable | null>(null);
     const hoverableRef = useRef<Moveable | null>(null);
@@ -66,13 +61,6 @@ export function OverlayMoveable({
     }, [activeWidget, widgetElementRef, widgets, overlayRef]);
 
     const locked = activeWidget?.locked ?? false;
-    const widgetable = widgetableConfig?.widgetable ?? true;
-    const rotatable = widgetableConfig?.rotatable ?? !locked;
-    const roundable = widgetableConfig?.roundable ?? !locked;
-    const resizable = widgetableConfig?.resizable ?? !locked;
-    const draggable = !locked;
-
-    const widgetableLocked = activeWidget?.locked ?? false;
     const {
         toggleLock, resetRotation,
         moveUp, moveDown, moveToTop, moveToBottom,
@@ -110,15 +98,27 @@ export function OverlayMoveable({
         callbacks[actionType](widgetableWidget.id);
     }, [activeWidget, hoveredWidget, toggleLock, onWidgetSettingsClick, callbacks]);
 
+    const onDragStart = useCallback(() => {
+        onDraggingOrResizingChange?.(true);
+    }, [onDraggingOrResizingChange]);
+
     const onDrag = useCallback((e: { target: HTMLElement | SVGElement; transform: string }) => {
         e.target.style.transform = e.transform;
     }, []);
+
+    const onResizeStart = useCallback(() => {
+        onDraggingOrResizingChange?.(true);
+    }, [onDraggingOrResizingChange]);
 
     const onResize = useCallback((e: { target: HTMLElement | SVGElement; width: number; height: number; drag: { transform: string } }) => {
         e.target.style.width = `${e.width}px`;
         e.target.style.height = `${e.height}px`;
         e.target.style.transform = e.drag.transform;
     }, []);
+
+    const onRotateStart = useCallback(() => {
+        onDraggingOrResizingChange?.(true);
+    }, [onDraggingOrResizingChange]);
 
     const onRotate = useCallback((e: { target: HTMLElement | SVGElement; drag: { transform: string } }) => {
         e.target.style.transform = e.drag.transform;
@@ -132,31 +132,44 @@ export function OverlayMoveable({
     }, [activeWidget, onWidgetStyleChange]);
 
     const onDragEnd = useCallback((e: { target: HTMLElement | SVGElement }) => {
+        onDraggingOrResizingChange?.(false);
         if (activeWidget) {
             onWidgetLayoutChange(activeWidget.id, e.target as HTMLElement, overlayRef.current);
         }
-    }, [activeWidget, onWidgetLayoutChange, overlayRef]);
+    }, [activeWidget, onWidgetLayoutChange, overlayRef, onDraggingOrResizingChange]);
 
     const onResizeEnd = useCallback((e: { target: HTMLElement | SVGElement }) => {
+        onDraggingOrResizingChange?.(false);
         if (activeWidget) {
             onWidgetLayoutChange(activeWidget.id, e.target as HTMLElement, overlayRef.current);
         }
-    }, [activeWidget, onWidgetLayoutChange, overlayRef]);
+    }, [activeWidget, onWidgetLayoutChange, overlayRef, onDraggingOrResizingChange]);
 
     const onRotateEnd = useCallback((e: { target: HTMLElement | SVGElement }) => {
+        onDraggingOrResizingChange?.(false);
         if (activeWidget) {
             onWidgetLayoutChange(activeWidget.id, e.target as HTMLElement, overlayRef.current);
         }
-    }, [activeWidget, onWidgetLayoutChange, overlayRef]);
+    }, [activeWidget, onWidgetLayoutChange, overlayRef, onDraggingOrResizingChange]);
 
-    const activeProps = useMemo(() => ({
-        widgetable,
-        locked: widgetableLocked,
-        onWidgetableClicked,
+    const ableStaticProps = useMemo(() => ({
+        widgetable: true,
         dimensionable: true,
-        position: 'top-right',
-        padding: 2,
-    }), [widgetable, widgetableLocked, onWidgetableClicked]);
+        orderable: true,
+        widgetablePosition: 'bottom-left',
+        dimensionPosition: 'top-right',
+        orderPosition: 'top-left',
+        widgetablePadding: 2,
+        dimensionPadding: 2,
+        orderPadding: 2,
+    }), []);
+
+    const ableActiveProps = useMemo(() => ({
+        ...ableStaticProps,
+        locked,
+        onWidgetableClicked,
+        order: activeWidget?.layout.order ?? 0,
+    }), [locked, onWidgetableClicked, activeWidget?.layout.order]);
 
     return (
         <>
@@ -165,14 +178,15 @@ export function OverlayMoveable({
                     <Moveable
                         ref={moveableRef}
                         target={activeTarget}
-                        draggable={draggable}
-                        rotatable={rotatable}
-                        roundable={roundable}
-                        useMutationObserver={true}
-                        useResizeObserver={true}
-                        isDisplayShadowRoundControls={'horizontal'}
+                        draggable={!locked}
+                        rotatable={!locked}
+                        roundable={!locked}
+                        resizable={!locked}
+                        useMutationObserver
+                        useResizeObserver
+                        isDisplayShadowRoundControls='horizontal'
                         maxRoundControls={[1, 0]}
-                        roundClickable={'control'}
+                        roundClickable='control'
                         roundPadding={15}
                         snappable
                         snapGap
@@ -183,15 +197,17 @@ export function OverlayMoveable({
                         snapThreshold={DEFAULT_SNAP_THRESHOLD}
                         bounds={{ position: 'css', left: 0, top: 0, right: 0, bottom: 0 }}
                         snapRotationDegrees={[0, 45, 90, 135, 180, 225, 270, 315]}
-                        resizable={resizable}
                         keepRatio={false}
                         origin={false}
                         edge={false}
                         preventClickEventOnDrag
-                        ables={[Widgetable, Dimensionable]}
-                        props={activeProps}
+                        ables={[Widgetable, Dimensionable, Orderable]}
+                        props={ableActiveProps}
+                        onDragStart={onDragStart}
                         onDrag={onDrag}
+                        onResizeStart={onResizeStart}
                         onResize={onResize}
+                        onRotateStart={onRotateStart}
                         onRotate={onRotate}
                         onRound={onRound}
                         onDragEnd={onDragEnd}
@@ -214,14 +230,11 @@ export function OverlayMoveable({
                         edge={false}
                         hideDefaultLines
                         renderDirections={[]}
-                        ables={[Widgetable, Dimensionable]}
+                        ables={[Widgetable, Dimensionable, Orderable]}
                         props={{
-                            widgetable,
-                            dimensionable: true,
-                            locked: widgetableLocked,
+                            ...ableActiveProps,
                             onMouseEnter: () => onWidgetableMouseEnter(hoveredWidget.id),
                             onMouseLeave: () => onWidgetableMouseLeave(hoveredWidget.id),
-                            onWidgetableClicked,
                         }}
                     />
                 )

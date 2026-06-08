@@ -1,4 +1,5 @@
-import React, { useLayoutEffect, useCallback } from 'react';
+import React, { useLayoutEffect, useCallback, useRef } from 'react';
+import type { RefObject } from 'react';
 import { useIdle } from '@reactuses/core';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 
@@ -26,6 +27,7 @@ type WidgetProps = {
     onClick?: () => void;
     onMouseEnter?: () => void;
     onMouseLeave?: () => void;
+    draggingOrResizingRef?: RefObject<boolean>;
     onDoubleClick?: () => void;
     onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
 };
@@ -58,7 +60,7 @@ function buildWidgetLayoutStyle(
     layout: WidgetLayout,
     containerBounds: { width: number; height: number },
     effectiveLayout?: WidgetLayout,
-    fixedPixelSize?: { widthPx: number; heightPx: number },
+    fixedPixelSize?: { widthPx: number; heightPx: number }
 ): CSSProperties {
     const layoutToUse = effectiveLayout || layout;
     const containerWidth = containerBounds.width;
@@ -67,10 +69,10 @@ function buildWidgetLayoutStyle(
     const heightPx = fixedPixelSize?.heightPx ?? Math.max(0, (layoutToUse.h / 100) * containerHeight);
     const availableWidth = Math.max(containerWidth - widthPx, 0);
     const availableHeight = Math.max(containerHeight - heightPx, 0);
-    const translateX = ((layoutToUse.x / 100) * availableWidth)
-        - (layoutToUse.anchorX === 'center' ? widthPx / 2 : layoutToUse.anchorX === 'right' ? widthPx : 0);
-    const translateY = ((layoutToUse.y / 100) * availableHeight)
-        - (layoutToUse.anchorY === 'center' ? heightPx / 2 : layoutToUse.anchorY === 'bottom' ? heightPx : 0);
+    const translateX = ((layoutToUse.x / 100) * availableWidth) -
+        (layoutToUse.anchorX === 'center' ? widthPx / 2 : layoutToUse.anchorX === 'right' ? widthPx : 0);
+    const translateY = ((layoutToUse.y / 100) * availableHeight) -
+        (layoutToUse.anchorY === 'center' ? heightPx / 2 : layoutToUse.anchorY === 'bottom' ? heightPx : 0);
 
     const anchorLeft = layoutToUse.anchorX === 'left' ? '0%' : layoutToUse.anchorX === 'center' ? '50%' : '100%';
     const anchorTop = layoutToUse.anchorY === 'top' ? '0%' : layoutToUse.anchorY === 'center' ? '50%' : '100%';
@@ -96,6 +98,7 @@ export function Widget({
     onClick,
     onMouseEnter,
     onMouseLeave,
+    draggingOrResizingRef,
     onDoubleClick,
     onContextMenu,
 }: WidgetProps) {
@@ -155,12 +158,12 @@ export function Widget({
 
         const baseAvailableWidth = Math.max(baseContainer.width - fixedSize.widthPx, 0);
         const baseAvailableHeight = Math.max(baseContainer.height - fixedSize.heightPx, 0);
-        const baseLeft = getAnchorBaseX(widget.layout.anchorX, baseContainer.width)
-            - getAnchorOffsetX(widget.layout.anchorX, fixedSize.widthPx)
-            + ((widget.layout.x / 100) * baseAvailableWidth);
-        const baseTop = getAnchorBaseY(widget.layout.anchorY, baseContainer.height)
-            - getAnchorOffsetY(widget.layout.anchorY, fixedSize.heightPx)
-            + ((widget.layout.y / 100) * baseAvailableHeight);
+        const baseLeft = getAnchorBaseX(widget.layout.anchorX, baseContainer.width) -
+            getAnchorOffsetX(widget.layout.anchorX, fixedSize.widthPx) +
+            ((widget.layout.x / 100) * baseAvailableWidth);
+        const baseTop = getAnchorBaseY(widget.layout.anchorY, baseContainer.height) -
+            getAnchorOffsetY(widget.layout.anchorY, fixedSize.heightPx) +
+            ((widget.layout.y / 100) * baseAvailableHeight);
 
         const currentAvailableWidth = Math.max(containerBounds.width - fixedSize.widthPx, 0);
         const currentAvailableHeight = Math.max(containerBounds.height - fixedSize.heightPx, 0);
@@ -226,12 +229,12 @@ export function Widget({
         // Calculate position based on anchor and layout percentages
         const baseAvailableWidth = Math.max(baseContainer.width - fixedSize.widthPx, 0);
         const baseAvailableHeight = Math.max(baseContainer.height - fixedSize.heightPx, 0);
-        const baseLeft = getAnchorBaseX(widget.layout.anchorX, baseContainer.width)
-            - getAnchorOffsetX(widget.layout.anchorX, fixedSize.widthPx)
-            + ((widget.layout.x / 100) * baseAvailableWidth);
-        const baseTop = getAnchorBaseY(widget.layout.anchorY, baseContainer.height)
-            - getAnchorOffsetY(widget.layout.anchorY, fixedSize.heightPx)
-            + ((widget.layout.y / 100) * baseAvailableHeight);
+        const baseLeft = getAnchorBaseX(widget.layout.anchorX, baseContainer.width) -
+            getAnchorOffsetX(widget.layout.anchorX, fixedSize.widthPx) +
+            ((widget.layout.x / 100) * baseAvailableWidth);
+        const baseTop = getAnchorBaseY(widget.layout.anchorY, baseContainer.height) -
+            getAnchorOffsetY(widget.layout.anchorY, fixedSize.heightPx) +
+            ((widget.layout.y / 100) * baseAvailableHeight);
 
         // Scale the position relative to container center
         const centerX = containerBounds.width / 2;
@@ -272,14 +275,20 @@ export function Widget({
 
     // Mouse handlers that emit user signals
     const handleMouseEnter = useCallback(() => {
+        if (draggingOrResizingRef?.current) {
+            return;
+        }
         userRuntime.emitMouseEnter(widget.id);
         onMouseEnter?.();
-    }, [widget.id, userRuntime, onMouseEnter]);
+    }, [widget.id, userRuntime, onMouseEnter, draggingOrResizingRef]);
 
     const handleMouseLeave = useCallback(() => {
+        if (draggingOrResizingRef?.current) {
+            return;
+        }
         userRuntime.emitMouseLeave(widget.id);
         onMouseLeave?.();
-    }, [widget.id, userRuntime, onMouseLeave]);
+    }, [widget.id, userRuntime, onMouseLeave, draggingOrResizingRef]);
 
     const handleClick = useCallback(() => {
         userRuntime.emitMouseClick(widget.id);
@@ -293,7 +302,7 @@ export function Widget({
 
     return (
         <div
-            className={'widget group'}
+            className='widget group'
             ref={rootRef}
             onClick={handleClick}
             onMouseEnter={onMouseEnter}
@@ -306,7 +315,7 @@ export function Widget({
                         widget.layout,
                         containerBounds ?? { width: window.innerWidth, height: window.innerHeight },
                         activeAdaptState.effectiveLayout,
-                        activeAdaptState.fixedPixelSize,
+                        activeAdaptState.fixedPixelSize
                     )
                     : { visibility: 'hidden' }),
             }}
