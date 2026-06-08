@@ -40,11 +40,13 @@ function buildKonachanDescriptionItems(item: KonachanItem): DescriptionsProps['i
         { key: 'provider', label: '图源', children: 'Konachan' },
         { key: 'createdAt', label: '创建时间', children: formatDateTime(item.created_at) },
         {
-            key: 'file_url', label: '文件链接', children: (
+            key: 'file_url',
+            label: '文件链接',
+            children: (
                 <Typography.Link href={item.file_url} target='_blank' rel='noreferrer'>
                     原始文件
                 </Typography.Link>
-            )
+            ),
         },
         { key: 'fileSize', label: '文件大小', children: formatSize(item.file_size) },
         { key: 'dimension', label: '尺寸', children: `${item.width} × ${item.height}` },
@@ -97,38 +99,44 @@ function buildBirdPaperDescriptionItems(item: BirdPaperItem): DescriptionsProps[
                 )
                 : '--',
         },
-    ]
-};
+    ];
+}
 
 export function buildDescriptionItems(item: ProviderRecord): DescriptionsProps['items'] {
-    return [
-        // { key: 'id', label: 'ID', children: item.id },
-        // { key: 'provider', label: '来源', children: item.provider },
-        // {
-        //     key: 'preview',
-        //     label: '预览图',
-        //     children: item.preview
-        //         ? (
-        //             <img src={item.preview} alt={`preview-${item.id}`} style={{ maxWidth: 200 }} />
-        //         )
-        //         : '--',
-        // },
-        // {
-        //     key: 'url',
-        //     label: '文件链接',
-        //     children: (
-        //         <Typography.Link href={item.url} target='_blank' rel='noreferrer'>
-        //             原始文件
-        //         </Typography.Link>
-        //     ),
-        // },
+    const commonItems: DescriptionsProps['items'] = [
+        { key: 'id', label: 'ID', children: item.id },
+        { key: 'provider', label: '图源', children: item.provider },
+        {
+            key: 'preview',
+            label: '预览图',
+            children: item.preview
+                ? (
+                    <img src={item.preview} alt={`preview-${item.id}`} style={{ maxWidth: 200 }} />
+                )
+                : '--',
+        },
+        {
+            key: 'url',
+            label: '文件链接',
+            children: (
+                <Typography.Link href={item.url} target='_blank' rel='noreferrer'>
+                    原始文件
+                </Typography.Link>
+            ),
+        },
     ];
+
+    let providerItems: DescriptionsProps['items'] = [];
     switch (item.provider) {
         case 'Konachan':
-            return buildKonachanDescriptionItems(item.raw) ?? [];
+            providerItems = buildKonachanDescriptionItems(item.raw) ?? [];
+            break;
         case 'BirdPaper':
-            return buildBirdPaperDescriptionItems(item.raw) ?? [];
+            providerItems = buildBirdPaperDescriptionItems(item.raw) ?? [];
+            break;
         default:
-            return [];
+            break;
     }
+
+    return [...commonItems, ...providerItems];
 }

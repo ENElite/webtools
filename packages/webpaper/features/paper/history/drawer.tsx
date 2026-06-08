@@ -15,7 +15,6 @@ type HistoryDrawerProps = {
     onClose: () => void;
 };
 
-
 export function HistoryDrawer({ open, size, items, search, onSearchChange, onSetCurrent, onClose }: HistoryDrawerProps) {
     const [selected, setSelected] = useState<ProviderRecord | null>(null);
     const [previewVisible, setPreviewVisible] = useState(false);
@@ -111,28 +110,30 @@ export function HistoryDrawer({ open, size, items, search, onSearchChange, onSet
             <Space orientation='vertical' style={{ width: '100%' }} size='middle'>
                 <Input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder='搜索 tag / ID / provider' />
 
-                {visibleItems.length === 0 ? (
-                    <Empty description='没有历史记录' />
-                ) : (
-                    <div style={{ height: '60vh' }}>
-                        <ImageVirtualGrid
-                            items={visibleItems.map((it) => ({
-                                src: it.preview || it.url || '',
-                                alt: String(it.id),
-                                title: `${it.provider}-${it.id}`,
-                                key: String(it.id),
-                            }))}
-                            layoutMode='featured'
-                            aspectRatio={16 / 9}
-                            gap={0}
-                            overscan={1}
-                            renderItem={({ index }) => {
-                                const record = visibleItems[index];
-                                return record ? renderHistoryTile(record) : null;
-                            }}
-                        />
-                    </div>
-                )}
+                {visibleItems.length === 0
+                    ? (
+                        <Empty description='没有历史记录' />
+                    )
+                    : (
+                        <div style={{ height: '60vh' }}>
+                            <ImageVirtualGrid
+                                items={visibleItems.map((it) => ({
+                                    src: it.preview || it.url || '',
+                                    alt: String(it.id),
+                                    title: `${it.provider}-${it.id}`,
+                                    key: String(it.id),
+                                }))}
+                                layoutMode='featured'
+                                aspectRatio={16 / 9}
+                                gap={0}
+                                overscan={1}
+                                renderItem={({ index }) => {
+                                    const record = visibleItems[index];
+                                    return record ? renderHistoryTile(record) : null;
+                                }}
+                            />
+                        </div>
+                    )}
             </Space>
 
             <div className='hidden'>
@@ -155,10 +156,13 @@ export function HistoryDrawer({ open, size, items, search, onSearchChange, onSet
             </div>
 
             <Modal
-                title={selected?.provider}
+                title={selected ? `#${selected.id} - ${selected.provider}` : ''}
                 open={Boolean(selected)}
                 onCancel={() => setSelected(null)}
                 footer={null}
+                width={960}
+                destroyOnHidden
+                closable
             >
                 {selected && (
                     <Space orientation='vertical' size='middle' style={{ width: '100%' }}>
