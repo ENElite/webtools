@@ -1,4 +1,3 @@
-
 import { CLOCK_WIDGET_SETTINGS_SCHEMA } from '../components/clock';
 import { IMAGE_WIDGET_SETTINGS_SCHEMA } from '../components/image';
 import { VIDEO_WIDGET_SETTINGS_SCHEMA } from '../components/video';
@@ -80,9 +79,9 @@ const WIDGET_BASE_SETTINGS_SCHEMA: InspectorSchema = [
         meta: {
             options: [
                 { label: '固定', value: 'fixed' },
+                { label: '固定尺寸', value: 'stick' },
                 { label: '拉伸', value: 'stretch' },
                 { label: '等比拉伸', value: 'stretch-ratio' },
-                { label: '固定尺寸', value: 'stick' },
             ],
         },
     },

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useCallback, useRef } from 'react';
+import React, { useLayoutEffect, useCallback } from 'react';
 import type { RefObject } from 'react';
 import { useIdle } from '@reactuses/core';
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
@@ -129,7 +129,7 @@ export function Widget({
     }, []);
 
     const fixedAdaptState = React.useMemo(() => {
-        if ((widget.layout.adapt !== 'fixed' && widget.layout.adapt !== 'stick') || !containerBounds) {
+        if (widget.layout.adapt !== 'fixed' || !containerBounds || containerBounds.width === 0 || containerBounds.height === 0) {
             return {
                 effectiveLayout: undefined as WidgetLayout | undefined,
                 fixedPixelSize: undefined as { widthPx: number; heightPx: number } | undefined,
@@ -189,9 +189,49 @@ export function Widget({
         };
     }, [widget.layout, containerBounds]);
 
+    // Handle 'stick' adapt mode: fixed pixel size, but position percentage stays unchanged
+    // so the widget follows the container's anchor-relative proportional position.
+    const stickAdaptState = React.useMemo(() => {
+        if (widget.layout.adapt !== 'stick' || !containerBounds || containerBounds.width === 0 || containerBounds.height === 0) {
+            return {
+                effectiveLayout: undefined as WidgetLayout | undefined,
+                fixedPixelSize: undefined as { widthPx: number; heightPx: number } | undefined,
+            };
+        }
+
+        const currentLayoutId = `${widget.layout.anchorX}-${widget.layout.anchorY}-${widget.layout.x}-${widget.layout.y}-${widget.layout.w}-${widget.layout.h}`;
+
+        if (layoutIdRef.current !== currentLayoutId) {
+            const widthPx = Math.max(0, (widget.layout.w / 100) * containerBounds.width);
+            const heightPx = Math.max(0, (widget.layout.h / 100) * containerBounds.height);
+            fixedSizeRef.current = { widthPx, heightPx };
+            baseContainerSizeRef.current = { ...containerBounds };
+            layoutIdRef.current = currentLayoutId;
+        }
+
+        const fixedSize = fixedSizeRef.current;
+
+        if (!fixedSize) {
+            return {
+                effectiveLayout: undefined as WidgetLayout | undefined,
+                fixedPixelSize: undefined as { widthPx: number; heightPx: number } | undefined,
+            };
+        }
+
+        // effectiveLayout = undefined → buildWidgetLayoutStyle uses original layout x/y percentages
+        // fixedPixelSize → overrides w/h with fixed pixel values
+        return {
+            effectiveLayout: undefined as WidgetLayout | undefined,
+            fixedPixelSize: fixedSize,
+        };
+    }, [widget.layout, containerBounds]);
+
     // Handle stretch-ratio adapt mode: maintain aspect ratio while scaling
+    // Unlike 'fixed' (constant pixel size) or 'stretch' (independent w/h),
+    // 'stretch-ratio' scales the widget proportionally to the container size change
+    // while preserving the original aspect ratio.
     const stretchRatioAdaptState = React.useMemo(() => {
-        if (widget.layout.adapt !== 'stretch-ratio' || !containerBounds) {
+        if (widget.layout.adapt !== 'stretch-ratio' || !containerBounds || containerBounds.width === 0 || containerBounds.height === 0) {
             return {
                 effectiveLayout: undefined as WidgetLayout | undefined,
                 fixedPixelSize: undefined as { widthPx: number; heightPx: number } | undefined,
@@ -218,15 +258,19 @@ export function Widget({
             };
         }
 
-        // Scale uniformly to fit the container while maintaining aspect ratio
-        const maxScaleX = containerBounds.width / fixedSize.widthPx;
-        const maxScaleY = containerBounds.height / fixedSize.heightPx;
-        const scale = Math.min(maxScaleX, maxScaleY);
+        // Scale proportional to container size change (NOT to fill the container).
+        // When the container doubles in size, the widget doubles; when unchanged, scale=1.
+        // Use the smaller axis scale to ensure the widget fits within the container
+        // while maintaining its aspect ratio.
+        const scaleX = containerBounds.width / baseContainer.width;
+        const scaleY = containerBounds.height / baseContainer.height;
+        const scale = Math.min(scaleX, scaleY);
 
         const scaledWidth = fixedSize.widthPx * scale;
         const scaledHeight = fixedSize.heightPx * scale;
 
-        // Calculate position based on anchor and layout percentages
+        // Calculate position: same approach as 'fixed' mode (anchor-relative),
+        // but scaled with the container size change.
         const baseAvailableWidth = Math.max(baseContainer.width - fixedSize.widthPx, 0);
         const baseAvailableHeight = Math.max(baseContainer.height - fixedSize.heightPx, 0);
         const baseLeft = getAnchorBaseX(widget.layout.anchorX, baseContainer.width) -
@@ -236,11 +280,13 @@ export function Widget({
             getAnchorOffsetY(widget.layout.anchorY, fixedSize.heightPx) +
             ((widget.layout.y / 100) * baseAvailableHeight);
 
-        // Scale the position relative to container center
-        const centerX = containerBounds.width / 2;
-        const centerY = containerBounds.height / 2;
-        const scaledX = centerX + (baseLeft - baseContainer.width / 2) * scale;
-        const scaledY = centerY + (baseTop - baseContainer.height / 2) * scale;
+        // Scale the position relative to the anchor base point
+        const anchorBaseX_current = getAnchorBaseX(widget.layout.anchorX, containerBounds.width);
+        const anchorBaseY_current = getAnchorBaseY(widget.layout.anchorY, containerBounds.height);
+        const anchorBaseX_base = getAnchorBaseX(widget.layout.anchorX, baseContainer.width);
+        const anchorBaseY_base = getAnchorBaseY(widget.layout.anchorY, baseContainer.height);
+        const scaledX = anchorBaseX_current + (baseLeft - anchorBaseX_base) * scale;
+        const scaledY = anchorBaseY_current + (baseTop - anchorBaseY_base) * scale;
 
         // Convert back to percentage-based layout
         const currentAvailableWidth = Math.max(containerBounds.width - scaledWidth, 0);
@@ -296,9 +342,12 @@ export function Widget({
     }, [widget.id, userRuntime, onClick]);
 
     // Determine which adapt state to use
-    const activeAdaptState = widget.layout.adapt === 'stretch-ratio'
-        ? stretchRatioAdaptState
-        : fixedAdaptState;
+    const activeAdaptState =
+        widget.layout.adapt === 'stretch-ratio'
+            ? stretchRatioAdaptState
+            : widget.layout.adapt === 'stick'
+                ? stickAdaptState
+                : fixedAdaptState;
 
     return (
         <div
