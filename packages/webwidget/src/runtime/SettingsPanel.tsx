@@ -5,7 +5,7 @@ import type { WidgetModel } from '../engine/model';
 import { WIDGET_PAGE_REGISTRY } from '../engine/editor';
 import type { Patch } from '../engine/editor';
 import { useOverlayStore } from '../store';
-import { SettingsFormPanel } from './settings_panel';
+import { SettingsFormPanel } from '../components/settings';
 
 import { UpdateWidgetCommand } from '../engine/commands';
 import { resolveWidgetSettingsSchema } from './schema';

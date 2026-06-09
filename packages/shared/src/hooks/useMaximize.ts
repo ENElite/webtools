@@ -37,7 +37,7 @@ function getContainerSize(container: HTMLElement | SVGElement | null): { width: 
 function toggleMaximizeByRequest(
     moveable: Moveable,
     target: HTMLElement,
-    container: HTMLElement | SVGElement | null,
+    container: HTMLElement | SVGElement | null
 ): boolean {
     if (maximizedTargetSnapshotMap.has(target)) {
         const snapshot = maximizedTargetSnapshotMap.get(target);
