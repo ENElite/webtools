@@ -78,11 +78,11 @@ type PageDefinition = {
 type PageRegistry = ReadonlyArray<PageDefinition>;
 ```
 
-## 编辑器组件
+## 编辑器组件（19 种）
 
-### AnimationSlotsEditor
+### AnimationSettingsEditor
 
-动画槽编辑器，用于配置小组件的动画触发和效果。
+动画设置编辑器，替代旧的 `AnimationSlotsEditor`。配置 CSS 属性过渡动画的缓动曲线、时长、延迟，以及选择参与过渡的 CSS 属性。
 
 ### BorderEditor
 
@@ -96,6 +96,10 @@ type PageRegistry = ReadonlyArray<PageDefinition>;
 
 代码编辑器（基于 Monaco Editor），用于编辑 HTML/JavaScript/CSS。
 
+### CodePicker
+
+代码选择器，提供代码片段的快速选择和插入。
+
 ### ColorEditor
 
 颜色选择器，支持颜色值输入和颜色面板。
@@ -104,21 +108,33 @@ type PageRegistry = ReadonlyArray<PageDefinition>;
 
 组合器编辑器，组合多个属性为一个编辑控件。
 
+### ConnectionEditor
+
+连接编辑器，用于配置小组件的信号-槽连接（Signal-Slot Connection）。支持选择目标 widget、信号类型、Slot 和参数。
+
 ### EnumEditor
 
 枚举选择器，从预定义选项中选择。
 
 ### FontEditor
 
-字体选择器，支持系统字体和本地字体。
+字体选择器，支持系统字体、本地字体（通过 `window.queryLocalFonts()`）和 URL 字体加载。
 
 ### ImageEditor
 
 图片选择器，配置图片 URL。
 
+### MonacoCodeEditor
+
+Monaco 代码编辑器，提供完整的代码编辑体验（语法高亮、自动补全等）。
+
 ### NumberEditor
 
 数字输入框，支持范围约束。
+
+### PropertyTagsEditor
+
+属性标签编辑器，管理带属性的标签列表。
 
 ### SliderEditor
 

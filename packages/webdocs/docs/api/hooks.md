@@ -1,6 +1,8 @@
 # Hooks
 
-## webwidget Hooks
+## @webtools/shared Hooks
+
+以下 Hooks 定义在 `@webtools/shared` 包中，由 webwidget 和 webpaper 共享使用：
 
 ### useIntervalFn
 
@@ -9,14 +11,6 @@ function useIntervalFn(fn: () => void, delay: number | null): void;
 ```
 
 定时器 Hook，自动清理。`delay` 为 `null` 时暂停。
-
-### useLive2D
-
-```typescript
-function useLive2D(containerRef: RefObject<HTMLCanvasElement>, modelPath: string): void;
-```
-
-Live2D 模型加载与渲染 Hook。
 
 ### useLocalFonts
 
@@ -71,6 +65,24 @@ function usePreloadImage(src: string): {
 
 图片预加载 Hook，返回加载状态。
 
+### useTimestamp
+
+```typescript
+function useTimestamp(interval?: number): number;
+```
+
+返回当前时间戳，可选自动更新间隔。
+
+## webwidget Hooks
+
+### useLive2D
+
+```typescript
+function useLive2D(containerRef: RefObject<HTMLCanvasElement>, modelPath: string): void;
+```
+
+Live2D 模型加载与渲染 Hook。
+
 ### useScaledCanvas
 
 ```typescript
@@ -82,55 +94,97 @@ function useScaledCanvas(
 
 Canvas 缩放 Hook，处理 DPI 适配。
 
-### useTimestamp
-
-```typescript
-function useTimestamp(interval?: number): number;
-```
-
-返回当前时间戳，可选自动更新间隔。
-
 ## webpaper Hooks
 
 ### useFetch
 
+功能完整的数据请求 Hook，支持链式 API、生命周期回调、自动重试：
+
 ```typescript
 function useFetch<T>(
     url: string,
-    params?: Record<string, unknown>
-): {
-    data: T | null;
-    loading: boolean;
-    error: Error | null;
-    refetch: () => void;
+    options?: RequestInit,
+    config?: UseFetchOptions<T>
+): UseFetchReturn<T>;
+```
+
+**状态属性**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `data` | `T \| null` | 解析后的响应数据 |
+| `isFetching` | `boolean` | 是否正在请求 |
+| `error` | `Error \| null` | 请求错误 |
+| `aborted` | `boolean` | 是否被取消 |
+| `canAbort` | `boolean` | 是否可以取消 |
+| `response` | `Response \| null` | 原始 Response 对象 |
+
+**方法**：
+
+| 方法 | 说明 |
+|------|------|
+| `execute(opts?)` | 手动执行请求 |
+| `abort()` | 取消当前请求 |
+| `refetch()` | 重新请求 |
+| `updateUrl(url, execute?)` | 更新 URL 并可选执行 |
+| `onResponse(cb)` | 注册响应回调 |
+| `onError(cb)` | 注册错误回调 |
+| `onFinally(cb)` | 注册完成回调 |
+
+**链式 HTTP 方法**：
+
+```typescript
+const { data } = useFetch('/api')
+    .post()
+    .json<{ id: number }>();
+```
+
+支持 `.get()`、`.post()`、`.put()`、`.delete()`、`.patch()`、`.head()`、`.options()`。
+
+**链式响应格式**：
+
+```typescript
+const { data } = useFetch('/api/data')
+    .json<{ items: Item[] }>();    // 解析为 JSON
+    .text();                        // 解析为文本
+    .blob();                        // 解析为 Blob
+    .arrayBuffer();                 // 解析为 ArrayBuffer
+    .custom(parser);                // 自定义解析器
+```
+
+**配置选项**：
+
+```typescript
+type UseFetchOptions<T> = {
+    immediate?: boolean;      // 立即执行（默认 true）
+    refetch?: boolean;        // 依赖变化时重新请求（默认 true）
+    retry?: number | 'inf';   // 重试次数
+    retryDelay?: number | 'auto';  // 重试延迟（'auto' 为指数退避）
+    deps?: DependencyList;    // 依赖数组
+    beforeFetch?: (ctx) => void;   // 请求前回调
+    afterFetch?: (ctx) => void;    // 请求后回调
+    onResponse?: (ctx) => void;    // 响应回调
+    onError?: (ctx) => void;       // 错误回调
+    onFinally?: () => void;        // 完成回调
 };
 ```
 
-数据请求 Hook，支持自动重试。
+**工厂函数**：
 
-### useIntervalFn
+```typescript
+function createFetch(baseUrl: string, baseOptions?: RequestInit, baseConfig?: UseFetchOptions<any>);
+```
 
-同 webwidget 的 `useIntervalFn`。
+创建预配置的 `useFetch` 实例：
 
-### useLocalFonts
+```typescript
+const useApi = createFetch('https://api.example.com', {
+    headers: { Authorization: 'Bearer token' },
+});
 
-同 webwidget 的 `useLocalFonts`。
-
-### usePlaybackScheduler
-
-同 webwidget 的 `usePlaybackScheduler`。
-
-### usePosition
-
-同 webwidget 的 `usePosition`。
-
-### usePreloadImage
-
-同 webwidget 的 `usePreloadImage`。
-
-### useTimestamp
-
-同 webwidget 的 `useTimestamp`。
+// 使用
+const { data } = useApi('/users');
+```
 
 ## Store Hooks
 

@@ -2,13 +2,102 @@
 
 ## 概述
 
-动画系统基于 Framer Motion，提供声明式的动画配置和运行时编译。小组件通过动画槽（Animation Slot）绑定信号，当信号触发时播放对应的动画。
+动画系统由两层组成：
 
-## 动画模型
+1. **StyleAnimator（CSS 属性过渡动画）**：将 `widget.style` 的动画属性通过 Framer Motion 的 `animate` prop 实现平滑过渡
+2. **Slot 系统（窗口级动画）**：通过信号-槽机制触发预设动画效果（fade、slide、scale 等）
+
+## 第一层：StyleAnimator — CSS 属性过渡
+
+### WidgetAnimationSettings
+
+小组件模型上的动画设置，控制 `widget.style` 属性的过渡动画：
+
+```typescript
+type WidgetAnimationSettings = {
+    easing?: string;           // 缓动曲线（ease-in / ease-out / ease-in-out / linear）
+    duration?: number;         // 过渡时长（秒），默认 0.3
+    delay?: number;            // 过渡延迟（秒），默认 0
+    animatedProperties?: string[];  // 启用过渡动画的 CSS 属性列表
+};
+```
+
+### 属性分离
+
+`StyleAnimator` 将 `widget.style` 分为两组：
+
+- **animatedProps**：在 `animatedProperties` 列表中的属性 → 放入 `motion.div` 的 `animate` prop，有过渡动画
+- **staticProps**：不在列表中的属性 → 放入 `motion.div` 的 `style` prop，立即变化
+
+这样未选中的属性不会被 Framer Motion 默认过渡影响。
+
+### 可动画属性
+
+```typescript
+const ALL_ANIMATABLE_PROPS = new Set([
+    'opacity', 'backgroundColor', 'borderRadius', 'outline', 'outlineOffset',
+    'boxShadow', 'backdropFilter', 'backgroundImage',
+]);
+```
+
+### 工作流程
+
+```
+widget.style + widget.animation
+         │
+         ▼
+    buildFullStyle()  ──→ 完整 CSSProperties
+         │
+         ▼
+    splitStyle()  ──→ animated (CSSProperties) + static (CSSProperties)
+         │
+         ▼
+    buildTransition()  ──→ transition 配置（每个属性独立的 duration/easing/delay）
+         │
+         ▼
+    motion.div
+        ├── style = { ...staticProps, ...externalStyle }
+        ├── animate = animated
+        └── transition = transition
+```
+
+## 第二层：Slot 系统 — 窗口级动画
+
+### 动画 Slot
+
+动画效果通过 Slot 系统注册和执行。`animationSlot` 是内置的窗口级动画 Slot：
+
+```typescript
+const ANIMATION_SLOT: SlotDefinition = {
+    type: 'animation',
+    label: '窗口动画',
+    group: '动画',
+    accepts: ['lifecycle', 'user', 'system'],  // 接受的信号前缀
+    paramSchema: [...],  // 参数定义，编辑器自动生成表单
+    execute(params, ctx) { ... },
+};
+```
+
+### 触发机制
+
+动画 Slot 通过 Connection 连接信号：
+
+```
+信号 (lifecycle.mount / user.mouse.click / ...)
+  │
+  ▼
+WidgetRuntime 连接路由
+  │
+  ▼
+animationSlot.execute(params, ctx)
+  │
+  ▼
+buildPreset(config) → Framer Motion controls.start()
+```
 
 ### AnimationConfig
 
-动画配置的核心类型：
+动画配置的核心类型（用于 Slot 参数和预设构建）：
 
 ```typescript
 type AnimationConfig = {
@@ -22,30 +111,6 @@ type AnimationConfig = {
     easing?: AnimationEasing;    // 缓动函数
 };
 ```
-
-### AnimationSlot
-
-动画槽将信号与动画配置关联：
-
-```typescript
-type AnimationSlot = {
-    signal: AnimationTrigger;    // 触发信号
-    motion: AnimationConfig;     // 动画配置
-};
-
-type WidgetAnimation = AnimationSlot[];
-```
-
-### AnimationTrigger
-
-```typescript
-type AnimationTrigger = {
-    source: AnimationTriggerSource;  // 'widget' | 'system' | 'user' | 'lifecycle'
-    type: string;                     // 信号类型
-};
-```
-
-## 动画效果
 
 ### 11 种预设效果
 
@@ -133,15 +198,21 @@ function buildPreset(config: AnimationConfig): PresetResult {
 | `user.mouse.click` | 鼠标点击 |
 | `widget.style.*` | 属性变化（透明度、背景色、边框等） |
 
-## 运行时编译
+## Slot 参数 Schema
 
-`animationRuntime.compile(widgetId, animation)` 将声明式动画配置编译为 Framer Motion 的 `animate`/`exit` 配置：
+动画 Slot 的参数通过 `paramSchema` 定义，编辑器自动生成对应的表单控件：
 
-1. 遍历 `WidgetAnimation` 数组
-2. 对每个 slot，匹配当前信号
-3. 调用 `buildPreset(config)` 生成 motion variant
-4. 调用 `getTransition(config)` 生成 transition 配置
-5. 返回清理函数
+```typescript
+type SlotParamSchemaItem = {
+    key: string;
+    label: string;
+    type: 'number' | 'string' | 'boolean' | 'enum' | 'color' | 'slider' | 'widgetRef';
+    default?: SlotParamValue;
+    meta?: Record<string, unknown>;
+};
+```
+
+支持条件显示（`visibleWhen`），例如方向选项仅在 effect 为 `slide` 时显示。
 
 ## 默认配置
 
@@ -158,8 +229,9 @@ const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
 
 ## 设计决策
 
-1. **声明式配置**：动画通过 JSON 配置定义，运行时编译为 Framer Motion
-2. **信号驱动**：动画槽绑定信号，实现事件驱动的动画触发
-3. **强度参数**：`intensity` 统一控制动画幅度，支持 0-1 范围调节
-4. **预设系统**：内置常见动画效果，降低使用门槛
-5. **可组合**：多个动画槽可以同时绑定不同信号
+1. **双层动画**：CSS 属性过渡（StyleAnimator）+ 窗口级动画（Slot 系统），各司其职
+2. **声明式配置**：动画通过 JSON 配置定义，运行时编译为 Framer Motion
+3. **信号驱动**：动画 Slot 绑定信号，实现事件驱动的动画触发
+4. **强度参数**：`intensity` 统一控制动画幅度，支持 0-1 范围调节
+5. **预设系统**：内置常见动画效果，降低使用门槛
+6. **属性选择**：用户可精确选择哪些 style 属性参与过渡动画

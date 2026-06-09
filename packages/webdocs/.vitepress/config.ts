@@ -44,6 +44,7 @@ export default defineConfig({
                         { text: '信号系统', link: '/design/signal-system' },
                         { text: '命令模式', link: '/design/command-pattern' },
                         { text: '动画系统', link: '/design/animation' },
+                        { text: '信号槽连接系统', link: '/design/signal-slot-system' },
                         { text: '数据提供者', link: '/design/providers' },
                         { text: '数据提供者（详细）', link: '/design/providers-detail' },
                         { text: 'ImageHero 显示模式', link: '/design/imagehero-modes' },

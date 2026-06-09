@@ -72,11 +72,13 @@ packages/webpaper/
 - JSON 设置
 - BirdPaper 设置
 
-**recordStore** — 数据/导航状态：
-- 实体管理（entities）
-- 查询与分页
-- 历史浏览模式
-- 自动轮播与预加载
+**recordStore** — 数据/导航状态（Slice 架构）：
+- **数据层**：实体管理（entities）、查询缓存（queries: `Record<string, QueryState>`）
+- **导航层**：游标管理、历史浏览模式（historyCursor）、查询切换过渡态
+- **自动播放**：autoPlay 定时器、预加载队列（pendingPreloadUrl）
+- **查询管理**：switchQuery、invalidateQuery、invalidateAll
+- **派生数据**：currentQuery、currentRecord、getHistory
+- **常量**：CACHE_TTL（5分钟）、PAGE_SIZE（10）、PREFETCH_THRESHOLD（2）
 
 ### AI 编辑器
 
@@ -109,9 +111,18 @@ packages/webpaper/
 
 ## 自定义 Hooks
 
+### webpaper 本地 Hooks
+
 | Hook | 说明 |
 |------|------|
-| `useFetch` | 数据请求 |
+| `useFetch` | 功能完整的数据请求 Hook，支持链式 API、生命周期回调、自动重试（665 行） |
+
+### 共享 Hooks（来自 @webtools/shared）
+
+以下 Hooks 由 `@webtools/shared` 包提供，webpaper 通过共享包引用：
+
+| Hook | 说明 |
+|------|------|
 | `useIntervalFn` | 定时器 |
 | `useLocalFonts` | 本地字体加载 |
 | `usePlaybackScheduler` | 播放调度 |

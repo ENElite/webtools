@@ -14,7 +14,8 @@ type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
     props: TProps;
     locked?: boolean;
     autoHide?: boolean;
-    animation?: WidgetAnimation;
+    connections?: Connection[];       // Qt 风格信号槽连接
+    animation?: WidgetAnimationSettings;  // CSS 属性过渡动画设置
 };
 ```
 
@@ -28,26 +29,49 @@ type WidgetModel<TProps extends WidgetFlatProps = WidgetFlatProps> = {
 | `props` | `TProps` | 是 | 类型特定属性 |
 | `locked` | `boolean` | 否 | 是否锁定（禁止拖拽/缩放） |
 | `autoHide` | `boolean` | 否 | 空闲时自动隐藏 |
-| `animation` | `WidgetAnimation` | 否 | 动画配置 |
+| `connections` | `Connection[]` | 否 | Qt 风格信号槽连接列表 |
+| `animation` | `WidgetAnimationSettings` | 否 | CSS 属性过渡动画设置 |
 
 ## WidgetKind
 
-小组件类型枚举。
+小组件类型，使用 branded string 类型以支持扩展：
 
 ```typescript
-type WidgetKind = 'text' | 'image' | 'video' | 'clock' | 'canvas' | 'html' | 'iframe' | 'live2d';
+// Branded string type — 可扩展的小组件类型
+type WidgetKind = string & { readonly __brand: unique symbol };
+
+// 内置小组件类型常量
+const WidgetKinds = {
+    TEXT: 'text' as WidgetKind,
+    IMAGE: 'image' as WidgetKind,
+    VIDEO: 'video' as WidgetKind,
+    CLOCK: 'clock' as WidgetKind,
+    CANVAS: 'canvas' as WidgetKind,
+    HTML: 'html' as WidgetKind,
+    IFRAME: 'iframe' as WidgetKind,
+    LIVE2D: 'live2d' as WidgetKind,
+} as const;
 ```
 
-| 值 | 说明 |
-|----|------|
-| `text` | 文本组件（支持跑马灯、描边、阴影） |
-| `image` | 图片展示 |
-| `video` | 视频播放 |
-| `clock` | 数字翻页时钟（支持中英文/数字格式） |
-| `canvas` | Canvas 画布 |
-| `html` | 原始 HTML 渲染 |
-| `iframe` | URL 嵌入 |
-| `live2d` | Live2D 模型渲染 |
+使用 `WidgetKinds` 常量而非字符串字面量，确保类型安全：
+
+```typescript
+import { WidgetKinds } from '@webtools/webwidget';
+
+const widget = createWidget(WidgetKinds.TEXT);  // ✓ 类型安全
+const widget2 = createWidget('text');            // ✓ 也支持（WidgetKind 是 string 的子类型）
+```
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `WidgetKinds.TEXT` | `'text'` | 文本组件（支持跑马灯、描边、阴影） |
+| `WidgetKinds.IMAGE` | `'image'` | 图片展示 |
+| `WidgetKinds.VIDEO` | `'video'` | 视频播放 |
+| `WidgetKinds.CLOCK` | `'clock'` | 数字翻页时钟（支持中英文/数字格式） |
+| `WidgetKinds.CANVAS` | `'canvas'` | Canvas 画布 |
+| `WidgetKinds.HTML` | `'html'` | 原始 HTML 渲染 |
+| `WidgetKinds.IFRAME` | `'iframe'` | URL 嵌入 |
+| `WidgetKinds.LIVE2D` | `'live2d'` | Live2D 模型渲染 |
 
 ## WidgetId
 
@@ -74,6 +98,35 @@ type WidgetStyle = {
     backgroundImageUrl?: string;   // 背景图片 URL
     shadowRadius?: number;         // 阴影半径
     shadowColor?: string;          // 阴影颜色
+    overflow?: boolean;            // 容器裁剪（true=visible, false=hidden）
+};
+```
+
+## WidgetAnimationSettings
+
+CSS 属性过渡动画设置，控制 `widget.style` 属性的过渡效果：
+
+```typescript
+type WidgetAnimationSettings = {
+    easing?: string;           // 缓动曲线（ease-in / ease-out / ease-in-out / linear）
+    duration?: number;         // 过渡时长（秒），默认 0.3
+    delay?: number;            // 过渡延迟（秒），默认 0
+    animatedProperties?: string[];  // 启用过渡动画的 CSS 属性列表
+};
+```
+
+当 `animatedProperties` 未指定时，默认所有可动画属性都参与过渡。
+
+## Connection
+
+Qt 风格信号槽连接四元组：
+
+```typescript
+type Connection = {
+    signal: string;    // signal 标识符（如 'user.mouse.click'、'model.style.opacity'）
+    target: string;    // 目标 widgetId（空字符串表示自身）
+    slot: string;      // slot 标识符（如 'animation'）
+    params?: Record<string, SlotParamValue>;  // slot 参数
 };
 ```
 
