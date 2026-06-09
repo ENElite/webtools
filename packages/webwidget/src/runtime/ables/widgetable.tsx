@@ -1,6 +1,7 @@
 import { Button, Space } from 'antd';
 import { Icon } from '@iconify/react';
 import type { Able, MoveableManagerInterface, Renderer } from 'react-moveable';
+import { getPositionStyles, type Position } from './positionUtils';
 export type WidgetableButtonType =
     | 'move-widget-up'
     | 'move-widget-down'
@@ -13,6 +14,8 @@ export type WidgetableButtonType =
     | 'open-widget-settings';
 
 type WidgetableProps = {
+    widgetablePosition?: Position;
+    widgetablePadding?: number;
     locked: boolean;
     onMouseEnter?: () => void;
     onMouseLeave?: () => void;
@@ -33,18 +36,17 @@ const WIDGETABLE_BUTTONS: Array<{ type: WidgetableButtonType; title: string; ico
 
 export const Widgetable = {
     name: 'widgetable',
-    props: ['locked', 'onWidgetableMouseEnter', 'onWidgetableMouseLeave', 'onWidgetableClicked'],
+    props: ['locked', 'onWidgetableMouseEnter', 'onWidgetableMouseLeave', 'onWidgetableClicked', 'widgetablePosition', 'widgetablePadding'],
     events: [],
     render(moveable: MoveableManagerInterface<WidgetableProps>, _: Renderer) {
         const onWidgetableClicked = moveable.props.onWidgetableClicked;
         const onMouseEnter = moveable.props.onMouseEnter;
         const onMouseLeave = moveable.props.onMouseLeave;
         const locked = moveable.props.locked;
+        const widgetablePosition = moveable.props.widgetablePosition ?? 'bottom-left';
+        const padding = moveable.props.widgetablePadding ?? 10;
         const WidgetableViewer = moveable.useCSS('div', `
             {
-                position: absolute;
-                left: 0px;
-                top: 0px;
                 will-change: transform;
                 transform-origin: 0px 0px;
             }
@@ -64,26 +66,28 @@ export const Widgetable = {
 
             return button;
         });
-
-        const rect = moveable.getRect();
-        const { pos3: pos } = moveable.state;
-        return <WidgetableViewer key={"widgetable-viewer"} className='widgetable-viewer' style={{
-            transform: `translate(${pos[0]}px, ${pos[1]}px) rotate(${rect.rotation}deg) translate(0px, 10px)`,
-        }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-            <Space.Compact key={"widgetable-buttons"}>
-                {buttons.map(({ type, title, iconId }) => (
-                    <Button
-                        key={type}
-                        size="small"
-                        type="primary"
-                        title={title}
-                        onClick={() => onWidgetableClicked?.(type)}
-                        className='widgetable-button'
-                    >
-                        <Icon icon={iconId} width={16} height={16} aria-hidden />
-                    </Button>
-                ))}
-            </Space.Compact>
-        </WidgetableViewer>
+        const positionStyles = getPositionStyles(widgetablePosition, moveable, { padding });
+        return (
+            <WidgetableViewer
+                key='widgetable-viewer' className='widgetable-viewer' style={{
+                    ...positionStyles,
+                }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
+            >
+                <Space.Compact key='widgetable-buttons'>
+                    {buttons.map(({ type, title, iconId }) => (
+                        <Button
+                            key={type}
+                            size='small'
+                            type='primary'
+                            title={title}
+                            onClick={() => onWidgetableClicked?.(type)}
+                            className='widgetable-button'
+                        >
+                            <Icon icon={iconId} width={16} height={16} aria-hidden />
+                        </Button>
+                    ))}
+                </Space.Compact>
+            </WidgetableViewer>
+        );
     },
 } as Able;
