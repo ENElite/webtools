@@ -133,8 +133,6 @@ export function snapshotLayoutFromStyle(
     anchorY: LayoutVerticalAnchor = "top",
     adapt: "stretch" | "fixed" | "stretch-ratio" | "stick" = "fixed"
 ): Omit<WidgetLayout, 'order'> {
-    // Use getBoundingClientRect so we measure the element's actual rendered
-    // position and size (including transforms) relative to the container.
     const containerRect = container?.getBoundingClientRect();
     const containerWidth = containerRect?.width ?? window.innerWidth;
     const containerHeight = containerRect?.height ?? window.innerHeight;
@@ -142,12 +140,31 @@ export function snapshotLayoutFromStyle(
     const rect = target.getBoundingClientRect();
     const containerLeft = containerRect?.left ?? 0;
     const containerTop = containerRect?.top ?? 0;
+    const { x: translateX, y: translateY, rotation } = parseTransformString(target.style.transform);
 
-    const x = rect.left - containerLeft;
-    const y = rect.top - containerTop;
-    const w = rect.width;
-    const h = rect.height;
-    const { rotation } = parseTransformString(target.style.transform);
+    let x: number;
+    let y: number;
+    let w: number;
+    let h: number;
+
+    if (rotation !== 0) {
+        // getBoundingClientRect() returns the axis-aligned bounding box of the
+        // rotated element — both position and dimensions differ from the CSS
+        // values. Read the true values directly from CSS instead:
+        //   - translate from the transform string encodes the CSS position
+        //     (anchorBase + translate = CSS top-left corner)
+        //   - offsetWidth/offsetHeight give the CSS dimensions, unaffected
+        //     by CSS transforms
+        w = target.offsetWidth;
+        h = target.offsetHeight;
+        x = getAnchorBaseX(anchorX, containerWidth) + translateX;
+        y = getAnchorBaseY(anchorY, containerHeight) + translateY;
+    } else {
+        x = rect.left - containerLeft;
+        y = rect.top - containerTop;
+        w = rect.width;
+        h = rect.height;
+    }
 
     return layoutFromPx(
         { x, y, w, h, rotation },

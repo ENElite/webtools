@@ -8,7 +8,7 @@ import {
     MoveWidgetCommand,
     CopyWidgetCommand,
 } from '../engine/commands';
-import { layoutFromPx, parseTransformString } from '../runtime/transform_utils';
+import { snapshotLayoutFromStyle } from '../runtime/transform_utils';
 import type { Patch } from '../engine/editor/types';
 
 export type WidgetActionEvent =
@@ -153,25 +153,9 @@ export function useWidgetStore() {
                 return;
             }
 
-            const containerRect = container?.getBoundingClientRect();
-            const containerWidth = containerRect?.width ?? window.innerWidth;
-            const containerHeight = containerRect?.height ?? window.innerHeight;
-
-            const rotation = parseTransformString(target.style.transform).rotation;
-            const targetRect = target.getBoundingClientRect();
-            const containerLeft = containerRect?.left ?? 0;
-            const containerTop = containerRect?.top ?? 0;
-
-            const layout = layoutFromPx(
-                {
-                    x: targetRect.left - containerLeft,
-                    y: targetRect.top - containerTop,
-                    w: targetRect.width,
-                    h: targetRect.height,
-                    rotation,
-                },
-                containerWidth,
-                containerHeight,
+            const layout = snapshotLayoutFromStyle(
+                target,
+                container,
                 widget.layout.anchorX,
                 widget.layout.anchorY,
                 widget.layout.adapt,
