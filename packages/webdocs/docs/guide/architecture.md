@@ -21,6 +21,7 @@ WebTools 采用分层架构，将核心引擎（webwidget）与应用层（webpa
 │  │  ┌────────────────────────────────────────────┐   │ │
 │  │  │        Store (Zustand)                     │   │ │
 │  │  │  paperStore  │  recordStore (slice 架构)   │   │ │
+│  │  │  widgetPersistence (localStorage)          │   │ │
 │  │  └────────────────────────────────────────────┘   │ │
 │  └───────────────────────────────────────────────────┘ │
 ├───────────────────────────────────────────────────────┤
@@ -47,7 +48,7 @@ WebTools 采用分层架构，将核心引擎（webwidget）与应用层（webpa
 │                       基础设施                          │
 │  React 19 │ Zustand 5 │ Framer Motion 12              │
 │  react-moveable │ Tailwind CSS 4                      │
-└───────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────┘
 ```
 
 ## 核心设计模式
@@ -83,6 +84,13 @@ interface Command {
 ```
 
 具体命令类包括：`AddWidgetCommand`、`RemoveWidgetCommand`、`UpdateWidgetCommand`、`MoveWidgetCommand`、`ChangeWidgetLayoutCommand`、`CopyWidgetCommand`、`BatchCommand`。
+
+### Store 持久化
+
+webpaper 实现了双层持久化策略：
+
+1. **设置持久化**（paperStore）：使用 zustand `persist` 中间件，只持久化设置项到 localStorage
+2. **小组件持久化**（overlayStore）：通过 `widgetPersistence.ts` 手动实现，优先从 localStorage 恢复，无数据时创建默认小组件
 
 ### 3. 信号/事件总线（Signal Bus）
 

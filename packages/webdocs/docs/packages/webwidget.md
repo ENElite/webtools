@@ -147,7 +147,11 @@ Schema 驱动的属性编辑器，支持 19 种编辑器组件：
 ### Store — 状态管理
 
 - **overlayStore**：核心 Zustand store，管理小组件列表、激活状态、撤销/重做
+  - 初始状态为空（`widgets: []`），由消费者（如 webpaper）通过 `initWidgets()` 初始化
+  - 支持通过 `setWidgets()` 批量设置小组件
 - **widgetStore**：派生 store，提供 move-up/down/top/bottom、remove、copy、reset-rotation、toggle-lock 操作
+
+> **注意**：默认小组件的创建已移至应用层（webpaper），webwidget 引擎不再内置默认小组件。
 
 ## 小组件实现
 

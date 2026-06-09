@@ -27,8 +27,9 @@ packages/webpaper/
 │   ├── bird/               # BirdPaper 适配器
 │   └── json/               # JSON API 适配器
 ├── store/                  # Zustand 状态管理
-│   ├── paperStore.ts       # 应用设置
-│   └── recordStore.ts      # 数据/导航状态
+│   ├── paperStore.ts       # 应用设置（支持持久化）
+│   ├── recordStore.ts      # 数据/导航状态
+│   └── widgetPersistence.ts # 小组件持久化（localStorage）
 ├── components/             # UI 组件
 │   ├── editor/             # AI 编辑器
 │   ├── settings/           # 设置组件
@@ -64,13 +65,15 @@ packages/webpaper/
 
 ### 状态管理
 
-两个 Zustand store：
+三个 Zustand store：
 
-**paperStore** — 应用设置状态：
+**paperStore** — 应用设置状态（支持持久化）：
 - 共享设置（通用配置）
 - Konachan 设置
 - JSON 设置
 - BirdPaper 设置
+- 使用 zustand `persist` 中间件，只持久化设置项到 localStorage（key: `webpaper-settings`）
+- `settingsVisible` 等运行时状态不持久化
 
 **recordStore** — 数据/导航状态（Slice 架构）：
 - **数据层**：实体管理（entities）、查询缓存（queries: `Record<string, QueryState>`）
@@ -79,6 +82,11 @@ packages/webpaper/
 - **查询管理**：switchQuery、invalidateQuery、invalidateAll
 - **派生数据**：currentQuery、currentRecord、getHistory
 - **常量**：CACHE_TTL（5分钟）、PAGE_SIZE（10）、PREFETCH_THRESHOLD（2）
+
+**overlayStore**（来自 @webtools/webwidget）— 小组件状态（支持持久化）：
+- 通过 `widgetPersistence.ts` 模块实现持久化
+- 使用 localStorage 存储（key: `webpaper-widgets`）
+- 优先从 localStorage 恢复，无数据时创建默认小组件（TEXT、LIVE2D、CLOCK）
 
 ### AI 编辑器
 

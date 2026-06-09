@@ -120,3 +120,4 @@ function createOverlayRendererMap(
 3. **类型特化 Props**：每个 `WidgetKind` 有独立的 props 类型，通过泛型约束
 4. **不可变模型**：所有修改通过命令模式产生新模型实例
 5. **z-index 层级控制**：使用 `order` 属性（渲染为 CSS `z-index`）而非 DOM 顺序控制层叠，避免 iframe 等嵌入内容在层级变化时刷新
+6. **应用层初始化**：webwidget 引擎不内置默认小组件，由消费者（如 webpaper）通过 `initWidgets()` 初始化，支持从持久化存储恢复
