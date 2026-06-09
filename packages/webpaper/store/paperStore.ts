@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 import { DEFAULT_KONACHAN_SETTINGS, type KonachanProviderSettings } from '@/providers/konachan/schema';
 import { DEFAULT_JSON_SETTINGS, type JsonProviderSettings } from '@/providers/json/schema';
@@ -39,44 +40,57 @@ function cloneBirdSettings(settings: BirdProviderSettings) {
     return { ...settings };
 }
 
-export const usePaperStore = create<PaperState>((set, get) => ({
-    settingsVisible: false,
-    sharedSettings: cloneSharedSettings(DEFAULT_SHARED_SETTINGS),
-    konachanSettings: cloneKonachanSettings(DEFAULT_KONACHAN_SETTINGS),
-    jsonSettings: cloneJsonSettings(DEFAULT_JSON_SETTINGS),
-    birdSettings: cloneBirdSettings(DEFAULT_BIRD_PROVIDER_SETTINGS),
+export const usePaperStore = create<PaperState>()(
+    persist(
+        (set, get) => ({
+            settingsVisible: false,
+            sharedSettings: cloneSharedSettings(DEFAULT_SHARED_SETTINGS),
+            konachanSettings: cloneKonachanSettings(DEFAULT_KONACHAN_SETTINGS),
+            jsonSettings: cloneJsonSettings(DEFAULT_JSON_SETTINGS),
+            birdSettings: cloneBirdSettings(DEFAULT_BIRD_PROVIDER_SETTINGS),
 
-    toggleSettings: () => {
-        set({ settingsVisible: !get().settingsVisible });
-    },
+            toggleSettings: () => {
+                set({ settingsVisible: !get().settingsVisible });
+            },
 
-    setSharedSettings: (settings) => {
-        set({ sharedSettings: cloneSharedSettings(settings) });
-    },
+            setSharedSettings: (settings) => {
+                set({ sharedSettings: cloneSharedSettings(settings) });
+            },
 
-    setKonachanSettings: (settings) => {
-        set({ konachanSettings: cloneKonachanSettings(settings) });
-    },
+            setKonachanSettings: (settings) => {
+                set({ konachanSettings: cloneKonachanSettings(settings) });
+            },
 
-    setJsonSettings: (settings) => {
-        set({ jsonSettings: cloneJsonSettings(settings) });
-    },
+            setJsonSettings: (settings) => {
+                set({ jsonSettings: cloneJsonSettings(settings) });
+            },
 
-    setBirdSettings: (settings) => {
-        set({ birdSettings: { ...settings } });
-    },
+            setBirdSettings: (settings) => {
+                set({ birdSettings: { ...settings } });
+            },
 
-    resetSettings: () => {
-        const shared = cloneSharedSettings(DEFAULT_SHARED_SETTINGS);
-        const konachan = cloneKonachanSettings(DEFAULT_KONACHAN_SETTINGS);
-        const json = cloneJsonSettings(DEFAULT_JSON_SETTINGS);
-        const bird = cloneBirdSettings(DEFAULT_BIRD_PROVIDER_SETTINGS);
+            resetSettings: () => {
+                const shared = cloneSharedSettings(DEFAULT_SHARED_SETTINGS);
+                const konachan = cloneKonachanSettings(DEFAULT_KONACHAN_SETTINGS);
+                const json = cloneJsonSettings(DEFAULT_JSON_SETTINGS);
+                const bird = cloneBirdSettings(DEFAULT_BIRD_PROVIDER_SETTINGS);
 
-        set({
-            sharedSettings: shared,
-            konachanSettings: konachan,
-            jsonSettings: json,
-            birdSettings: bird,
-        });
-    },
-}));
+                set({
+                    sharedSettings: shared,
+                    konachanSettings: konachan,
+                    jsonSettings: json,
+                    birdSettings: bird,
+                });
+            },
+        }),
+        {
+            name: 'webpaper-settings',
+            partialize: (state) => ({
+                sharedSettings: state.sharedSettings,
+                konachanSettings: state.konachanSettings,
+                jsonSettings: state.jsonSettings,
+                birdSettings: state.birdSettings,
+            }),
+        }
+    )
+);

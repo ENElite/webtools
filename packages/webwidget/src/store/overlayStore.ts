@@ -21,6 +21,7 @@ export type OverlayState = {
 
     // State Setters (Non-command operations)
     setWidgets: (widgets: WidgetModel[]) => void;
+    initWidgets: (widgets: WidgetModel[]) => void;
     setActiveWidget: (widgetId: WidgetId | null) => void;
     requestWidgetSettings: (widgetId: WidgetId) => void;
     clearWidgetSettingsRequest: () => void;
@@ -141,8 +142,8 @@ function hasPatch(command: Command): command is Command & { patch: { set?: Recor
 }
 
 export const useOverlayStore = create<OverlayState>((set) => ({
-    // Initial State
-    widgets: createDefaultWidgets(),
+    // Initial State - empty, will be initialized by consumer
+    widgets: [],
     activeWidgetId: null,
     pendingSettingsWidgetId: null,
     canUndo: false,
@@ -161,6 +162,10 @@ export const useOverlayStore = create<OverlayState>((set) => ({
                 activeWidgetId,
             };
         });
+    },
+
+    initWidgets: (widgets) => {
+        set({ widgets: widgets.slice() });
     },
 
     setActiveWidget: (widgetId) => {

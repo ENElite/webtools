@@ -7,12 +7,13 @@ import { usePaperStore, useRecordStore } from '@/store';
 import {
     OverlayRoot,
     createOverlayRendererMap,
-} from '@webtools/webwidget'
+} from '@webtools/webwidget';
 import type { ProviderRecord } from '@/providers';
 
 import { useWebpaperEffects } from './hooks/useWebpaperEffects';
 import { useWebpaperActions } from './hooks/useWebpaperActions';
 import { useContextMenuItems } from './components/ContextMenu';
+import { useInitOverlayWidgets, usePersistOverlayWidgets } from '@/store/widgetPersistence';
 
 export function Webpaper() {
     const [api, contextHolder] = notification.useNotification({ placement: 'topRight' });
@@ -23,6 +24,10 @@ export function Webpaper() {
     }, [api]);
 
     const overlayRenderers = useMemo(() => createOverlayRendererMap(), []);
+
+    // Initialize overlay widgets from persistence or defaults
+    useInitOverlayWidgets();
+    usePersistOverlayWidgets();
 
     // Effects (wake lock, auto-play, preload)
     useWebpaperEffects();
@@ -53,8 +58,8 @@ export function Webpaper() {
     const goToHistory = useRecordStore((state) => state.goToHistory);
 
     const currentRecordIndex = useMemo(() => {
-        if (!currentRecord) return -1
-        return history.findIndex((item) => item.id === currentRecord.id)
+        if (!currentRecord) return -1;
+        return history.findIndex((item) => item.id === currentRecord.id);
     }, [currentRecord, history]);
 
     const inHistoryMode = isHistoryMode();
@@ -97,9 +102,9 @@ export function Webpaper() {
                     search={historySearch}
                     onSearchChange={setHistorySearch}
                     onSetCurrent={(record: ProviderRecord) => {
-                        const nextIndex = history.findIndex((item) => String(item.id) === String(record.id))
+                        const nextIndex = history.findIndex((item) => String(item.id) === String(record.id));
                         if (nextIndex >= 0) {
-                            void goToHistory(nextIndex)
+                            goToHistory(nextIndex);
                         }
                     }}
                     onClose={() => setHistoryVisible(false)}
