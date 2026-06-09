@@ -168,8 +168,7 @@ export function OverlayMoveable({
         ...ableStaticProps,
         locked,
         onWidgetableClicked,
-        order: activeWidget?.layout.order ?? 0,
-    }), [locked, onWidgetableClicked, activeWidget?.layout.order]);
+    }), [locked, onWidgetableClicked]);
 
     return (
         <>
@@ -202,7 +201,10 @@ export function OverlayMoveable({
                         edge={false}
                         preventClickEventOnDrag
                         ables={[Widgetable, Dimensionable, Orderable]}
-                        props={ableActiveProps}
+                        props={{
+                            ...ableActiveProps,
+                            order: activeWidget.layout.order,
+                        }}
                         onDragStart={onDragStart}
                         onDrag={onDrag}
                         onResizeStart={onResizeStart}
@@ -233,6 +235,7 @@ export function OverlayMoveable({
                         ables={[Widgetable, Dimensionable, Orderable]}
                         props={{
                             ...ableActiveProps,
+                            order: hoveredWidget.layout.order,
                             onMouseEnter: () => onWidgetableMouseEnter(hoveredWidget.id),
                             onMouseLeave: () => onWidgetableMouseLeave(hoveredWidget.id),
                         }}
