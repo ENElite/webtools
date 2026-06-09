@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 
 import { AnimatedChar } from './AnimatedChar';
@@ -16,15 +16,12 @@ interface AnimatedTextProps {
  * so toggling animation on/off doesn't cause layout shifts.
  */
 function renderChars(
-    text: string,
-    prevText: string | null,
+    chars: string[],
+    prevChars: string[] | null,
     duration: number,
     style?: CSSProperties,
     animated?: boolean,
 ): ReactElement {
-    const chars = Array.from(text);
-    const prevChars = prevText !== null ? Array.from(prevText) : null;
-
     return (
         <div style={{ display: 'flex' }}>
             {chars.map((char, i) => {
@@ -53,6 +50,7 @@ function renderChars(
 
 export function AnimatedText({ text, style, animated = false, duration = 0.3 }: AnimatedTextProps) {
     const prevTextRef = useRef<string | null>(null);
+    const prevAnimatedRef = useRef(animated);
 
     const prevText = useMemo(() => {
         const prev = prevTextRef.current;
@@ -60,5 +58,26 @@ export function AnimatedText({ text, style, animated = false, duration = 0.3 }: 
         return prev;
     }, [text]);
 
-    return renderChars(text, prevText, duration, style, animated);
+    // Track animated transitions. When animation is first enabled,
+    // mark justEnabled so we can use null prevChars on this render.
+    const justEnabled = animated && !prevAnimatedRef.current;
+
+    useEffect(() => {
+        if (animated && !prevAnimatedRef.current) {
+            // Sync prevTextRef so next text change compares correctly
+            prevTextRef.current = text;
+        }
+        prevAnimatedRef.current = animated;
+    }, [animated, text]);
+
+    // On the first render after enabling animation, use null prevChars
+    // so no characters are treated as "changed" and no animation fires.
+    const chars = Array.from(text);
+    const prevChars = justEnabled
+        ? null
+        : prevText !== null
+            ? Array.from(prevText)
+            : null;
+
+    return renderChars(chars, prevChars, duration, style, animated);
 }
