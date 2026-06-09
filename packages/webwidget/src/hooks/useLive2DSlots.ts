@@ -13,7 +13,7 @@ import { useEffect, useRef } from 'react';
 import type { L2D } from 'l2d';
 import { widgetRuntimeRegistry } from '../runtime/WidgetRuntimeRegistry';
 
-type ModelLoadingState = 'unloaded' | 'loading' | 'loaded';
+type ModelLoadingState = 'unloaded' | 'loading' | 'loaded' | 'error';
 
 /**
  * 从 motion 文件路径中提取可读名称。

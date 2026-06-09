@@ -7,8 +7,11 @@ import { SettingsPanel } from './SettingsPanel';
 import { useElementSize } from '@reactuses/core';
 import { useOverlayStore, useWidgetStore } from '../store';
 import type { WidgetRendererMap } from '../engine/model';
+import type { ErrorFallbackProps } from './ErrorBoundary';
+import type { ComponentType } from 'react';
 
 import { Widget } from './Widget';
+import { ErrorBoundary } from './ErrorBoundary';
 import { RuntimeProvider } from './RuntimeProvider';
 import { useRuntime } from './useRuntime';
 import { DevtoolsPanel } from '../devtools/DevtoolsPanel';
@@ -33,9 +36,11 @@ function SystemIdleEmitter() {
 type OverlayRootProps = {
     renderers: WidgetRendererMap;
     onWidgetContextMenu?: () => void;
+    /** 自定义 widget 错误回退组件，覆盖默认的 antd Result */
+    errorFallback?: ComponentType<ErrorFallbackProps>;
 };
 
-export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps) {
+export function OverlayRoot({ renderers, onWidgetContextMenu, errorFallback }: OverlayRootProps) {
     const OVERLAY_LOG_PREFIX = '[OverlayRoot]';
     const {
         activeWidgetId,
@@ -163,111 +168,113 @@ export function OverlayRoot({ renderers, onWidgetContextMenu }: OverlayRootProps
     return (
         <RuntimeProvider executeCommand={executeCommand} getWidget={(id) => findWidget(id)}>
             <SystemIdleEmitter />
-            <div
-                ref={overlayRef}
-                className='absolute inset-0 overflow-hidden'
-                style={{ zIndex: DEFAULT_OVERLAY_Z_INDEX }}
-                onMouseDown={(event) => {
-                    if (event.target !== event.currentTarget) {
-                        return;
-                    }
-                    activate(null);
-                    setHoveredWidgetId(null);
-                    hideWidgetableNow();
-                }}
-            >
-            {widgets.map((widget) => {
-                const WidgetRenderer = resolveWidgetRenderer(renderers, widget.kind);
-                if (!WidgetRenderer) {
-                    return null;
-                }
-
-                return (
-                    <Widget
-                        key={widget.id}
-                        widget={widget}
-                        containerBounds={{
-                            width: overlayBounds[0],
-                            height: overlayBounds[1],
-                        }}
-                        rootRef={(element) => {
-                            widgetElementRef.current[widget.id] = element;
-                        }}
-                        onClick={() => activate(widget.id)}
-                        onMouseEnter={() => {
-                            if (isDraggingOrResizingRef.current) {
-                                return;
+            <ErrorBoundary errorFallback={errorFallback}>
+                <div
+                    ref={overlayRef}
+                    className='absolute inset-0 overflow-hidden'
+                    style={{ zIndex: DEFAULT_OVERLAY_Z_INDEX }}
+                    onMouseDown={(event) => {
+                        if (event.target !== event.currentTarget) {
+                            return;
+                        }
+                        activate(null);
+                        setHoveredWidgetId(null);
+                        hideWidgetableNow();
+                    }}
+                >
+                        {widgets.map((widget) => {
+                            const WidgetRenderer = resolveWidgetRenderer(renderers, widget.kind);
+                            if (!WidgetRenderer) {
+                                return null;
                             }
-                            if (activeWidgetId === null || activeWidgetId === widget.id) {
-                                setHoveredWidgetId(widget.id);
-                                showWidgetableForWidget(widget.id);
-                            } else {
-                                setHoveredWidgetId(null);
-                            }
-                        }}
-                        onMouseLeave={() => {
-                            if (isDraggingOrResizingRef.current) {
-                                return;
-                            }
-                            if (activeWidgetId === null) {
-                                hideWidgetableLater(widget.id);
-                            }
-                        }}
-                        draggingOrResizingRef={isDraggingOrResizingRef}
-                        onContextMenu={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            activate(widget.id);
-                            onWidgetContextMenu?.();
-                        }}
-                    >
-                        <WidgetRenderer widget={widget} />
-                    </Widget>
-                );
-            })}
 
-            <OverlayMoveable
-                activeWidget={activeWidget}
-                hoveredWidget={hoveredWidget}
-                widgetableVisibleWidgetId={widgetableVisibleWidgetId}
-                overlayRef={overlayRef}
-                widgetElementRef={widgetElementRef}
-                widgets={widgets}
-                onDraggingOrResizingChange={(isDraggingOrResizing) => {
-                    isDraggingOrResizingRef.current = isDraggingOrResizing;
-                }}
-                onWidgetableMouseEnter={(widgetId) => {
-                    if (activeWidgetId !== null) {
-                        return;
-                    }
-                    setHoveredWidgetId(widgetId);
-                    showWidgetableForWidget(widgetId);
-                }}
-                onWidgetableMouseLeave={(widgetId) => {
-                    if (activeWidgetId === null) {
-                        hideWidgetableLater(widgetId);
-                    }
-                }}
-                onWidgetSettingsClick={(widgetId) => {
-                    setSettingsWidgetId(widgetId);
-                    activate(null);
-                }}
-                onWidgetLayoutChange={onWidgetLayoutChange}
-                onWidgetStyleChange={onWidgetStyleChange}
-            />
+                            return (
+                                <Widget
+                                    key={widget.id}
+                                    widget={widget}
+                                    containerBounds={{
+                                        width: overlayBounds[0],
+                                        height: overlayBounds[1],
+                                    }}
+                                    rootRef={(element) => {
+                                        widgetElementRef.current[widget.id] = element;
+                                    }}
+                                    onClick={() => activate(widget.id)}
+                                    onMouseEnter={() => {
+                                        if (isDraggingOrResizingRef.current) {
+                                            return;
+                                        }
+                                        if (activeWidgetId === null || activeWidgetId === widget.id) {
+                                            setHoveredWidgetId(widget.id);
+                                            showWidgetableForWidget(widget.id);
+                                        } else {
+                                            setHoveredWidgetId(null);
+                                        }
+                                    }}
+                                    onMouseLeave={() => {
+                                        if (isDraggingOrResizingRef.current) {
+                                            return;
+                                        }
+                                        if (activeWidgetId === null) {
+                                            hideWidgetableLater(widget.id);
+                                        }
+                                    }}
+                                    draggingOrResizingRef={isDraggingOrResizingRef}
+                                    onContextMenu={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        activate(widget.id);
+                                        onWidgetContextMenu?.();
+                                    }}
+                                >
+                                    <WidgetRenderer widget={widget} />
+                                </Widget>
+                            );
+                        })}
 
-            {settingsSourceWidget
-                ? (
-                    <SettingsPanel
-                        sourceWidget={settingsSourceWidget}
-                        container={overlayRef.current || document.body}
-                        onClose={() => setSettingsWidgetId(null)}
-                    />
-                )
-                : null}
+                        <OverlayMoveable
+                            activeWidget={activeWidget}
+                            hoveredWidget={hoveredWidget}
+                            widgetableVisibleWidgetId={widgetableVisibleWidgetId}
+                            overlayRef={overlayRef}
+                            widgetElementRef={widgetElementRef}
+                            widgets={widgets}
+                            onDraggingOrResizingChange={(isDraggingOrResizing) => {
+                                isDraggingOrResizingRef.current = isDraggingOrResizing;
+                            }}
+                            onWidgetableMouseEnter={(widgetId) => {
+                                if (activeWidgetId !== null) {
+                                    return;
+                                }
+                                setHoveredWidgetId(widgetId);
+                                showWidgetableForWidget(widgetId);
+                            }}
+                            onWidgetableMouseLeave={(widgetId) => {
+                                if (activeWidgetId === null) {
+                                    hideWidgetableLater(widgetId);
+                                }
+                            }}
+                            onWidgetSettingsClick={(widgetId) => {
+                                setSettingsWidgetId(widgetId);
+                                activate(null);
+                            }}
+                            onWidgetLayoutChange={onWidgetLayoutChange}
+                            onWidgetStyleChange={onWidgetStyleChange}
+                        />
 
-            <DevtoolsPanel />
-            </div>
+                        {settingsSourceWidget
+                            ? (
+                                <SettingsPanel
+                                    sourceWidget={settingsSourceWidget}
+                                    container={overlayRef.current || document.body}
+                                    onClose={() => setSettingsWidgetId(null)}
+                                />
+                            )
+                            : null}
+
+                        <DevtoolsPanel />
+                    </div>
+            </ErrorBoundary>
         </RuntimeProvider>
     );
 }

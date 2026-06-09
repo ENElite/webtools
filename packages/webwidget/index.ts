@@ -72,8 +72,10 @@ export {
     OverlayRoot,
     Widget,
     RuntimeProvider,
+    ErrorBoundary,
     useRuntime,
 } from './src/runtime';
+export type { ErrorFallbackProps } from './src/runtime';
 
 // Store
 export {

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { L2D } from 'l2d';
@@ -10,7 +10,7 @@ export type UseLive2DOptions = {
     renderPrecision?: number;
 };
 
-type ModelLoadingState = 'unloaded' | 'loading' | 'loaded';
+type ModelLoadingState = 'unloaded' | 'loading' | 'loaded' | 'error';
 
 /**
  * 追踪活跃的 L2D 实例数量。用于在组件卸载时安全清理。
@@ -49,6 +49,7 @@ export function useLive2D(
     const l2dRef = useRef<L2D | null>(null);
     const [loading, setLoading] = useState<ModelLoadingState>('unloaded');
     const [loadInfo, setLoadInfo] = useState<{ loaded: number; total: number; file?: string } | null>(null);
+    const [error, setError] = useState<Error | null>(null);
     // 创建缩放 canvas，拦截 l2d 对 canvas 尺寸的修改
     const { pixelRatio } = useDevicePixelRatio();
     // 只在挂载时创建 canvas，modelPath 变化时复用现有实例
@@ -64,39 +65,49 @@ export function useLive2D(
     // 初始化 live2d：当 scaledCanvas 发生变化时重新 init 并 load
     useAsyncEffect(async () => {
         if (!scaledCanvas) return;
-        const { init } = await import('l2d');
-        // 如果已有实例则销毁
-        if (l2dRef.current) {
-            try { l2dRef.current.destroy(); } catch (e) { }
-            untrackInstance(l2dRef.current);
-            l2dRef.current = null;
-            setL2d(null);
+
+        setError(null);
+
+        try {
+            const { init } = await import('l2d');
+            // 如果已有实例则销毁
+            if (l2dRef.current) {
+                try { l2dRef.current.destroy(); } catch (e) { }
+                untrackInstance(l2dRef.current);
+                l2dRef.current = null;
+                setL2d(null);
+            }
+
+            // 将缩放后的 canvas 传给 l2d，这样 l2d 修改 width/height 时实际上会被拦截
+            const l2dInstance = init(scaledCanvas);
+            trackInstance(l2dInstance);
+            l2dRef.current = l2dInstance;
+            setL2d(l2dInstance);
+
+            const handleLoadStart = (total: number) => {
+                setLoading('unloaded');
+                setLoadInfo({ loaded: 0, total });
+            };
+            const handleLoadProgress = (loaded: number, total: number, file: string) => {
+                setLoading('loading');
+                setLoadInfo({ loaded, total, file });
+            };
+            const handleLoaded = () => {
+                setLoading('loaded');
+                setLoadInfo(null);
+            };
+            l2dInstance.on('loadstart', handleLoadStart);
+            l2dInstance.on('loadprogress', handleLoadProgress);
+            l2dInstance.on('loaded', handleLoaded);
+
+            // load 返回一个 promise
+            await l2dInstance.load({ path: modelPath, scale: scale / 100 });
+        } catch (e) {
+            const err = e instanceof Error ? e : new Error(String(e));
+            setError(err);
+            setLoading('error');
+            throw err; // 抛出以触发 ErrorBoundary
         }
-
-        // 将缩放后的 canvas 传给 l2d，这样 l2d 修改 width/height 时实际上会被拦截
-        const l2dInstance = init(scaledCanvas);
-        trackInstance(l2dInstance);
-        l2dRef.current = l2dInstance;
-        setL2d(l2dInstance);
-
-        const handleLoadStart = (total: number) => {
-            setLoading('unloaded');
-            setLoadInfo({ loaded: 0, total });
-        };
-        const handleLoadProgress = (loaded: number, total: number, file: string) => {
-            setLoading('loading');
-            setLoadInfo({ loaded, total, file });
-        };
-        const handleLoaded = () => {
-            setLoading('loaded');
-            setLoadInfo(null);
-        };
-        l2dInstance.on('loadstart', handleLoadStart);
-        l2dInstance.on('loadprogress', handleLoadProgress);
-        l2dInstance.on('loaded', handleLoaded);
-
-        // load 返回一个 promise
-        await l2dInstance.load({ path: modelPath, scale: scale / 100 });
     }, () => {
         // cleanup: 不调用 destroy()！
         // l2d 库的 Cubism6 模型 release() 会调用 CubismFramework.dispose()，
@@ -117,64 +128,67 @@ export function useLive2D(
         let cancelled = false;
 
         (async () => {
-            const { init } = await import('l2d');
+            setError(null);
 
-            // 创建新的离屏 canvas
-            const newCanvas = document.createElement('canvas');
-            newCanvas.style.display = 'block';
+            try {
+                const { init } = await import('l2d');
 
-            const newL2d = init(newCanvas);
-            if (cancelled) {
-                try { newL2d.destroy(); } catch (e) { }
-                return;
+                // 创建新的离屏 canvas
+                const newCanvas = document.createElement('canvas');
+                newCanvas.style.display = 'block';
+
+                const newL2d = init(newCanvas);
+                if (cancelled) {
+                    try { newL2d.destroy(); } catch (e) { }
+                    return;
+                }
+
+                trackInstance(newL2d);
+
+                // 设置 loading 事件
+                const handleLoadStart = (total: number) => {
+                    setLoading('unloaded');
+                    setLoadInfo({ loaded: 0, total });
+                };
+                const handleLoadProgress = (loaded: number, total: number, file: string) => {
+                    setLoading('loading');
+                    setLoadInfo({ loaded, total, file });
+                };
+                const handleLoaded = () => {
+                    setLoading('loaded');
+                    setLoadInfo(null);
+                };
+                newL2d.on('loadstart', handleLoadStart);
+                newL2d.on('loadprogress', handleLoadProgress);
+                newL2d.on('loaded', handleLoaded);
+
+                // 加载新模型
+                await newL2d.load({ path: modelPath, scale: scale / 100 });
+
+                if (cancelled) {
+                    untrackInstance(newL2d);
+                    try { newL2d.destroy(); } catch (e) { }
+                    return;
+                }
+
+                // 新模型已加载，替换 canvas 并更新状态
+                l2dRef.current = newL2d;
+                setL2d(newL2d);
+
+                // 将新 canvas 替换旧 canvas 在 DOM 中的位置
+                const oldCanvas = scaledCanvas as HTMLCanvasElement;
+                if (oldCanvas?.parentNode) {
+                    newCanvas.style.width = '100%';
+                    newCanvas.style.height = '100%';
+                    oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    const err = e instanceof Error ? e : new Error(String(e));
+                    setError(err);
+                    setLoading('error');
+                }
             }
-
-            trackInstance(newL2d);
-
-            // 设置 loading 事件
-            const handleLoadStart = (total: number) => {
-                setLoading('unloaded');
-                setLoadInfo({ loaded: 0, total });
-            };
-            const handleLoadProgress = (loaded: number, total: number, file: string) => {
-                setLoading('loading');
-                setLoadInfo({ loaded, total, file });
-            };
-            const handleLoaded = () => {
-                setLoading('loaded');
-                setLoadInfo(null);
-            };
-            newL2d.on('loadstart', handleLoadStart);
-            newL2d.on('loadprogress', handleLoadProgress);
-            newL2d.on('loaded', handleLoaded);
-
-            // 加载新模型
-            await newL2d.load({ path: modelPath, scale: scale / 100 });
-
-            if (cancelled) {
-                untrackInstance(newL2d);
-                try { newL2d.destroy(); } catch (e) { }
-                return;
-            }
-
-            // 新模型已加载，替换 canvas 并更新状态
-            const oldL2d = l2dRef.current;
-            l2dRef.current = newL2d;
-            setL2d(newL2d);
-
-            // 将新 canvas 替换旧 canvas 在 DOM 中的位置
-            const oldCanvas = scaledCanvas as HTMLCanvasElement;
-            if (oldCanvas?.parentNode) {
-                newCanvas.style.width = '100%';
-                newCanvas.style.height = '100%';
-                oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
-            }
-
-            // 旧实例保持存活（其动画循环在 detached canvas 上运行，不影响视觉效果）。
-            // 不能调用 oldL2d.destroy()，因为那会触发 CubismFramework.dispose()，
-            // 导致新实例和其他活跃实例的模型消失。
-            // 旧实例在组件卸载时通过 destroyAllInstances() 统一清理。
-            void oldL2d;
         })();
 
         return () => {
@@ -205,6 +219,7 @@ export function useLive2D(
         l2d,
         loading,
         loadInfo,
+        error,
         resize: setCanvasSize,
         canvas: scaledCanvas,
         // 原始 DOM 元素（可能用于直接挂载或调试）
