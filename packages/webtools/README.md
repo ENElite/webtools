@@ -26,16 +26,16 @@ webtools/
 │   │   ├── layout.tsx          # 根布局
 │   │   ├── page.tsx            # 首页
 │   │   ├── providers.tsx       # HeroUI Provider
-│   │   └── globals.css         # 全局样式
+│   │   ├── globals.css         # 全局样式
+│   │   └── tools/              # 各个工具实现
+│   │       └── image-show/     # 图片查看器工具
+│   │           └── page.tsx
 │   ├── components/             # 共享组件
 │   │   ├── Header.tsx          # 顶部导航栏
 │   │   ├── ToolCard.tsx        # 工具卡片组件
 │   │   └── ToolLayout.tsx      # 工具页面布局
-│   ├── lib/                    # 工具库
-│   │   └── tools.ts            # 工具配置和类型定义
-│   └── tools/                  # 各个工具实现
-│       └── image-show/         # 图片查看器工具
-│           └── page.tsx
+│   └── lib/                    # 工具库
+│       └── tools.ts            # 工具配置和类型定义
 ├── public/                     # 静态资源
 ├── package.json                # 项目依赖配置
 ├── next.config.js              # Next.js 配置
@@ -73,7 +73,7 @@ pnpm build:webtools
 
 ## 添加新工具
 
-1. 在 `src/tools/` 目录下创建新的工具目录
+1. 在 `src/app/tools/` 目录下创建新的工具目录
 2. 在该目录中创建 `page.tsx` 文件
 3. 使用 `ToolLayout` 组件作为页面布局
 4. 在 `src/lib/tools.ts` 中添加工具配置
@@ -82,7 +82,7 @@ pnpm build:webtools
 ### 示例
 
 ```tsx
-// src/tools/my-tool/page.tsx
+// src/app/tools/my-tool/page.tsx
 'use client';
 
 import { ToolLayout } from '@/components/ToolLayout';
