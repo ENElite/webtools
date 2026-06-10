@@ -14,6 +14,7 @@ export default function ImageShowPage() {
     height: number;
   } | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const imgRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,6 +27,7 @@ export default function ImageShowPage() {
 
     const url = URL.createObjectURL(file);
     setImageUrl(url);
+    setZoom(1); // 重置缩放
 
     // 获取图片信息
     const img = new Image();
@@ -88,9 +90,22 @@ export default function ImageShowPage() {
     }
     setImageUrl(null);
     setImageInfo(null);
+    setZoom(1);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const zoomIn = () => {
+    setZoom((prev) => Math.min(prev + 0.25, 5));
+  };
+
+  const zoomOut = () => {
+    setZoom((prev) => Math.max(prev - 0.25, 0.25));
+  };
+
+  const resetZoom = () => {
+    setZoom(1);
   };
 
   return (
@@ -129,6 +144,52 @@ export default function ImageShowPage() {
           </div>
         ) : (
           <div>
+            {/* 缩放控制栏 */}
+            <div className="flex items-center justify-between mb-4 p-3 bg-gray-100 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={zoomOut}
+                  isDisabled={zoom <= 0.25}
+                >
+                  −
+                </Button>
+                <span className="text-sm font-medium min-w-[60px] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={zoomIn}
+                  isDisabled={zoom >= 5}
+                >
+                  +
+                </Button>
+                <Button size="sm" variant="light" onPress={resetZoom}>
+                  重置
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  color="primary"
+                  variant="flat"
+                  size="sm"
+                  onPress={() => {
+                    const link = document.createElement('a');
+                    link.href = imageUrl;
+                    link.download = imageInfo?.name || 'image';
+                    link.click();
+                  }}
+                >
+                  下载图片
+                </Button>
+                <Button color="danger" variant="light" size="sm" onPress={reset}>
+                  清除图片
+                </Button>
+              </div>
+            </div>
+
             <Card className="w-full">
               <CardBody className="flex flex-col items-center p-4">
                 <div className="relative w-full overflow-auto max-h-[60vh]">
@@ -136,12 +197,13 @@ export default function ImageShowPage() {
                     ref={imgRef}
                     src={imageUrl}
                     alt="预览图片"
-                    className="max-w-full h-auto mx-auto rounded-lg"
+                    className="max-w-full h-auto mx-auto rounded-lg transition-transform duration-200"
+                    style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
                   />
                 </div>
               </CardBody>
-              <CardFooter className="flex flex-col items-start p-4">
-                {imageInfo && (
+              {imageInfo && (
+                <CardFooter className="flex flex-col items-start p-4">
                   <div className="w-full">
                     <h4 className="text-lg font-bold mb-2">图片信息</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -164,27 +226,9 @@ export default function ImageShowPage() {
                         </span>
                       </div>
                     </div>
-                    <Spacer y={2} />
-                    <div className="flex gap-2">
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        onPress={() => {
-                          const link = document.createElement('a');
-                          link.href = imageUrl;
-                          link.download = imageInfo.name;
-                          link.click();
-                        }}
-                      >
-                        下载图片
-                      </Button>
-                      <Button color="danger" variant="light" onPress={reset}>
-                        清除图片
-                      </Button>
-                    </div>
                   </div>
-                )}
-              </CardFooter>
+                </CardFooter>
+              )}
             </Card>
           </div>
         )}
