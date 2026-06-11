@@ -14,6 +14,12 @@
 
 ---
 
+## 交互式演示
+
+<MoveablePositionDemo />
+
+---
+
 ## 坐标系与参考点
 
 ### 页面坐标系
@@ -189,21 +195,21 @@ inside = true：Overlay 在目标内部
 
 `translate` 是 CSS 百分比偏移，控制 Overlay 元素自身的对齐方式。由于 Overlay 的 `transformOrigin` 是 `0px 0px`（左上角），百分比偏移决定了元素如何相对于锚点对齐。
 
-**水平优先情况**：
+**水平优先情况**（translateX 由 inside 控制，translateY 由 top/bottom 决定）：
 
 | 边缘 | inside=false | inside=true |
 |------|-------------|-------------|
 | left | `translateX = '-100%'` | `translateX = '0%'` |
 | right | `translateX = '0%'` | `translateX = '-100%'` |
-| top | `translateY = '-100%'` | `translateY = '0%'` |
-| bottom | `translateY = '0%'` | `translateY = '-100%'` |
+| top | `translateY = '0%'` | `translateY = '0%'` |
+| bottom | `translateY = '-100%'` | `translateY = '-100%'` |
 
-**垂直优先情况**：
+**垂直优先情况**（translateY 由 inside 控制，translateX 由 left/right 决定）：
 
 | 边缘 | inside=false | inside=true |
 |------|-------------|-------------|
-| left | `translateX = '0%'` | `translateX = '-100%'` |
-| right | `translateX = '-100%'` | `translateX = '0%'` |
+| left | `translateX = '-100%'` | `translateX = '0%'` |
+| right | `translateX = '0%'` | `translateX = '-100%'` |
 | top | `translateY = '-100%'` | `translateY = '0%'` |
 | bottom | `translateY = '0%'` | `translateY = '-100%'` |
 
@@ -324,8 +330,8 @@ P_final = (300, 100) + rotate(0°) · (0, -10) + (-W, -H)
 参数解析：
 - 角点 = `pos3`
 - `offsetX = 0`，`offsetY = -padding = -10`（inside=true，方向反转）
-- `translateX = '-100%'` → `px = -W`
-- `translateY = '-100%'` → `py = -H`（inside=true，isBottom → '-100%'）
+- `translateX = '0%'` → `px = 0`（inside=true, isLeft → '0%'）
+- `translateY = '-100%'` → `py = -H`（inside=true, isBottom → '-100%'）
 
 假设 pos3 = `(200, 300)`，θ = 45°：
 
@@ -333,16 +339,16 @@ P_final = (300, 100) + rotate(0°) · (0, -10) + (-W, -H)
 θ_rad = 45° × π / 180 = π/4
 cos(θ) = sin(θ) = √2/2 ≈ 0.707
 
-offset_pos = (-W + 0, -H + (-10)) = (-W, -H - 10)
+offset_pos = (0 + 0, -H + (-10)) = (0, -H - 10)
 
-rotated_x = (-W) × 0.707 - (-H - 10) × 0.707
-           = 0.707 × (-W + H + 10)
+rotated_x = (0) × 0.707 - (-H - 10) × 0.707
+           = 0.707 × (H + 10)
 
-rotated_y = (-W) × 0.707 + (-H - 10) × 0.707
-           = 0.707 × (-W - H - 10)
+rotated_y = (0) × 0.707 + (-H - 10) × 0.707
+           = 0.707 × (-H - 10)
 
-final_x = 200 + 0.707 × (-W + H + 10)
-final_y = 300 + 0.707 × (-W - H - 10)
+final_x = 200 + 0.707 × (H + 10)
+final_y = 300 + 0.707 × (-H - 10)
 ```
 
 由于旋转了 45°，Overlay 被放置在目标内部、沿旋转后的左下方向偏移 10px。`rotate()` 确保 Overlay 的文字方向与目标边缘平行。
@@ -369,12 +375,19 @@ final_y = 300 + 0.707 × (-W - H - 10)
 
 4. **百分比对齐的对称性**：
 
+   水平优先模式下，translateX 由 inside 控制对齐方向，translateY 由 top/bottom 决定展开方向：
+
    | 条件 | translateX | translateY |
    |------|-----------|-----------|
-   | 水平优先, left, outside | `-100%` | 视垂直方向 |
-   | 水平优先, right, outside | `0%` | 视垂直方向 |
-   | 垂直优先, left, outside | `0%` | 视垂直方向 |
-   | 垂直优先, right, outside | `-100%` | 视垂直方向 |
+   | 水平优先, left, outside | `-100%` | `0%` / `-100%`（top/bottom） |
+   | 水平优先, right, outside | `0%` | `0%` / `-100%`（top/bottom） |
+
+   垂直优先模式下，translateY 由 inside 控制对齐方向，translateX 由 left/right 决定展开方向：
+
+   | 条件 | translateX | translateY |
+   |------|-----------|-----------|
+   | 垂直优先, top, outside | `0%` / `-100%`（left/right） | `-100%` |
+   | 垂直优先, bottom, outside | `0%` / `-100%`（left/right） | `0%` |
 
    这保证了无论使用哪种命名风格，Overlay 都会正确地向远离目标的方向展开。
 
