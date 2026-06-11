@@ -99,14 +99,14 @@ export function getPositionStyles<T>(
             offsetX = isLeft ? -padding : padding;
             offsetY = 0;
             translateX = isLeft ? '-100%' : '0%';
-            translateY = isTop ? '-100%' : '0%';
+            translateY = isTop ? '0%' : '-100%';
         }
     } else {
         // Vertical-first: 例如 top-left = 移动到上方，左对齐
         if (inside) {
             offsetX = 0;
             offsetY = isTop ? padding : -padding;
-            translateX = isLeft ? '-100%' : '0%';
+            translateX = isLeft ? '0%' : '-100%';
             translateY = isTop ? '0%' : '-100%';
         } else {
             offsetX = 0;
