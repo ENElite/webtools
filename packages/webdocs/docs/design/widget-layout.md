@@ -527,7 +527,7 @@ $$
 
 $$
 x' = x, \quad y' = y
-$$`
+$$
 
 代码实现：`effectiveLayout = undefined`（使用原始 layout 的 x/y），`fixedPixelSize` 覆盖 w/h。
 
