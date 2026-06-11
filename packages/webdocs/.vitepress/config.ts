@@ -50,6 +50,7 @@ export default defineConfig({
                         { text: 'ImageHero 显示模式', link: '/design/imagehero-modes' },
                         { text: 'Live2D 模型生成', link: '/design/live2d-models' },
                         { text: '运行时架构', link: '/design/runtime' },
+                        { text: 'Moveable Position 定位系统', link: '/design/moveable-position' },
                     ],
                 },
             ],
