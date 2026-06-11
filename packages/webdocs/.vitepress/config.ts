@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress';
 
 export default defineConfig({
     srcDir: 'docs',
@@ -41,6 +41,7 @@ export default defineConfig({
                     text: '设计文档',
                     items: [
                         { text: '小组件引擎', link: '/design/widget-engine' },
+                        { text: 'WidgetLayout 布局系统', link: '/design/widget-layout' },
                         { text: '信号系统', link: '/design/signal-system' },
                         { text: '命令模式', link: '/design/command-pattern' },
                         { text: '动画系统', link: '/design/animation' },
@@ -76,4 +77,7 @@ export default defineConfig({
             provider: 'local',
         },
     },
-})
+    markdown: {
+        math: true,
+    },
+});
