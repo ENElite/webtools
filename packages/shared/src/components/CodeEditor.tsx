@@ -89,7 +89,7 @@ function CodeEditorImpl(
     const decorations = useEditorDecorations();
 
     const commitCurrent = useCallback(() => {
-        void onSave?.(contentRef.current);
+        onSave?.(contentRef.current);
     }, [onSave]);
 
     // Track selection changes
@@ -310,14 +310,23 @@ function CodeEditorImpl(
             {/* Save button bar */}
             {showSaveButton && (
                 <div style={{
-                    display: 'flex', justifyContent: 'flex-end', padding: '4px 10px',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    padding: '4px 10px',
                     borderBottom: '1px solid rgba(148, 163, 184, 0.3)',
-                }}>
-                    <button type='button' onClick={commitCurrent} style={{
-                        padding: '2px 12px', fontSize: 12, color: '#64748b',
-                        background: 'none', border: '1px solid rgba(148,163,184,0.3)',
-                        borderRadius: 4, cursor: 'pointer',
-                    }}>
+                }}
+                >
+                    <button
+                        type='button' onClick={commitCurrent} style={{
+                            padding: '2px 12px',
+                            fontSize: 12,
+                            color: '#64748b',
+                            background: 'none',
+                            border: '1px solid rgba(148,163,184,0.3)',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                        }}
+                    >
                         {saveButtonText}
                     </button>
                 </div>

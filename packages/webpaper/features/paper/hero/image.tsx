@@ -11,25 +11,6 @@ type AllSyncPending = {
     foregroundUrl: string;
 };
 
-function resolvePreviewUrl(previewUrl: string | null | undefined, imageUrl: string): string {
-    if (!previewUrl) {
-        return imageUrl;
-    }
-
-    const candidate = previewUrl.trim();
-    if (!candidate) {
-        return imageUrl;
-    }
-
-    try {
-        const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost/';
-        void new URL(candidate, base);
-        return candidate;
-    } catch {
-        return imageUrl;
-    }
-}
-
 function normalizeUrl(url: string): string {
     try {
         const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost/';
@@ -97,7 +78,7 @@ export function ImageHero({
         loadTokenRef.current += 1;
         const token = loadTokenRef.current;
         allSyncPendingRef.current = null;
-        const backgroundUrl = resolvePreviewUrl(preview, url);
+        const backgroundUrl = preview ?? url;
 
         if (mode !== 'previewAsync') {
             setBackgroundSrc('');
@@ -116,7 +97,7 @@ export function ImageHero({
         };
 
         if (mode === 'imageOnly') {
-            void Promise.resolve().then(() => {
+            Promise.resolve().then(() => {
                 if (loadTokenRef.current !== token) {
                     return;
                 }
@@ -130,7 +111,7 @@ export function ImageHero({
         if (mode === 'imageAsync') {
             setForegroundSrc('');
 
-            void loadImage(url).then((loaded) => {
+            loadImage(url).then((loaded) => {
                 if (loadTokenRef.current !== token) {
                     return;
                 }
@@ -148,7 +129,7 @@ export function ImageHero({
         }
 
         if (mode === 'allAsync') {
-            void loadImage(backgroundUrl).then((loaded) => {
+            loadImage(backgroundUrl).then((loaded) => {
                 if (loadTokenRef.current !== token || !loaded) {
                     return;
                 }
@@ -156,7 +137,7 @@ export function ImageHero({
                 setBackgroundSrc(backgroundUrl);
             });
 
-            void loadImage(url).then((loaded) => {
+            loadImage(url).then((loaded) => {
                 if (loadTokenRef.current !== token) {
                     return;
                 }
@@ -173,7 +154,7 @@ export function ImageHero({
 
         if (mode === 'previewAsync') {
             console.log('[previewAsync] Loading preview image:', backgroundUrl);
-            void loadImage(backgroundUrl).then((loaded) => {
+            loadImage(backgroundUrl).then((loaded) => {
                 console.log('[previewAsync] Preview image loaded:', backgroundUrl, 'loaded:', loaded);
                 if (loadTokenRef.current !== token) {
                     return;
@@ -190,9 +171,9 @@ export function ImageHero({
             });
             return;
         }
-        void loadImage(url);
+        loadImage(url);
 
-        void Promise.resolve().then(() => {
+        Promise.resolve().then(() => {
             if (loadTokenRef.current !== token) {
                 return;
             }
@@ -205,7 +186,7 @@ export function ImageHero({
             };
         });
 
-        void loadImage(url);
+        loadImage(url);
     }, [url, mode, preview]);
 
     if (!url) {
@@ -266,7 +247,7 @@ export function ImageHero({
                 ? (
                     <img
                         src={foregroundSrc}
-                        className={`absolute inset-0 h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)]`}
+                        className='absolute inset-0 h-full w-full object-center drop-shadow-[0_6px_20px_rgba(0,0,0,0.38)]'
                         style={{
                             objectFit,
                             transform: `scale(${trackScale / 100}) translate(${offsetX}%, ${offsetY}%)`,

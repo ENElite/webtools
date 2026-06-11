@@ -73,11 +73,11 @@ export function Paper({ mode = 'previewAsync' }: PaperProps) {
 
     const handleAdvance = useCallback(() => {
         if (record) {
-            void next()
-            return
+            next();
+            return;
         }
-        void loadMore()
-    }, [record, loadMore, next])
+        loadMore();
+    }, [record, loadMore, next]);
 
     return (
         <div ref={setContainerElement} className='relative h-full w-full overflow-hidden'>
