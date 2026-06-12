@@ -6,6 +6,7 @@ export default defineConfig({
     description: 'WebTools — 桌面小组件引擎与图片浏览器文档',
     lang: 'zh-CN',
     lastUpdated: true,
+    base: '/webtools/',
     themeConfig: {
         logo: '/logo.svg',
         nav: [
@@ -67,7 +68,7 @@ export default defineConfig({
             ],
         },
         socialLinks: [
-            { icon: 'github', link: 'https://github.com/anthropics/claude-code' },
+            { icon: 'github', link: 'https://github.com/enelite/webtools' },
         ],
         footer: {
             message: 'Released under the MIT License.',

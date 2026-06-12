@@ -4,7 +4,7 @@
 
 本文档详细描述 Moveable Able 扩展中的 Overlay 元素定位系统。该系统负责在旋转的小组件边界框（Bounding Box）上精确定位 UI 覆盖层（如操作按钮栏、尺寸标签、排序标签），并确保这些覆盖层随目标小组件同步旋转。
 
-核心实现在 [`positionUtils.ts`](../../../packages/webwidget/src/runtime/ables/positionUtils.ts) 中，被三个 Able 使用：
+核心实现在 [`positionUtils.ts`](https://github.com/enelite/webtools/blob/main/packages/webwidget/src/runtime/ables/positionUtils.ts) 中，被三个 Able 使用：
 
 | Able | 默认位置 | 功能 |
 |------|----------|------|
@@ -421,7 +421,7 @@ final_y = 300 + 0.707 × (-H - 10)
 
 ## 参考
 
-- 源码：[`positionUtils.ts`](../../../packages/webwidget/src/runtime/ables/positionUtils.ts)
-- 使用方：[`widgetable.tsx`](../../../packages/webwidget/src/runtime/ables/widgetable.tsx)、[`dimensionable.tsx`](../../../packages/webwidget/src/runtime/ables/dimensionable.tsx)、[`orderable.tsx`](../../../packages/webwidget/src/runtime/ables/orderable.tsx)
-- 集成：[`Moveable.tsx`](../../../packages/webwidget/src/runtime/Moveable.tsx)
+- 源码：[`positionUtils.ts`](https://github.com/enelite/webtools/blob/main/packages/webwidget/src/runtime/ables/positionUtils.ts)
+- 使用方：[`widgetable.tsx`](https://github.com/enelite/webtools/blob/main/packages/webwidget/src/runtime/ables/widgetable.tsx)、[`dimensionable.tsx`](https://github.com/enelite/webtools/blob/main/packages/webwidget/src/runtime/ables/dimensionable.tsx)、[`orderable.tsx`](https://github.com/enelite/webtools/blob/main/packages/webwidget/src/runtime/ables/orderable.tsx)
+- 集成：[`Moveable.tsx`](https://github.com/enelite/webtools/blob/main/packages/webwidget/src/runtime/Moveable.tsx)
 - Widget Layout 系统：[widget-engine.md](./widget-engine.md)
