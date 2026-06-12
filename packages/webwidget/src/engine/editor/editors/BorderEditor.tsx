@@ -13,15 +13,6 @@ export type BorderPickerValue = {
     offset: number;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const DEFAULT_BORDER: BorderPickerValue = {
-    width: 0,
-    style: 'none',
-    color: '#000000',
-    radius: 0,
-    offset: 0,
-};
-
 function makeBorderStyleLabel(style: BorderPickerValue['style']) {
     const common = { display: 'block', width: 76 };
     switch (style) {
@@ -88,8 +79,8 @@ function BorderPicker({ mode = 'outline', value, onChange }: { mode?: BorderPick
                         style={{ width: 110, top: '50%' }}
                         classNames={{
                             popup: {
-                                listItem: "[&>:first-child]:self-center"
-                            }
+                                listItem: '*:first:self-center',
+                            },
                         }}
                         optionLabelProp='label'
                         popupMatchSelectWidth
@@ -116,7 +107,6 @@ function BorderPicker({ mode = 'outline', value, onChange }: { mode?: BorderPick
                         showText
                     />
                 </Form.Item>
-
 
                 <Form.Item label='偏移' style={{ marginBottom: 0, minWidth: 140 }}>
                     <Slider
