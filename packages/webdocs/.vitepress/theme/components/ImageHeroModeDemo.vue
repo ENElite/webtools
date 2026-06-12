@@ -19,26 +19,12 @@
       <div class="control-row">
         <div class="duration-group">
           <label class="control-label">背景加载</label>
-          <input
-            v-model.number="customBgDelay"
-            type="range"
-            min="100"
-            max="3000"
-            step="100"
-            class="duration-slider"
-          />
+          <input v-model.number="customBgDelay" type="range" min="100" max="3000" step="100" class="duration-slider" />
           <span class="duration-value">{{ customBgDelay }}ms</span>
         </div>
         <div class="duration-group">
           <label class="control-label">前景加载</label>
-          <input
-            v-model.number="customFgDelay"
-            type="range"
-            min="100"
-            max="3000"
-            step="100"
-            class="duration-slider"
-          />
+          <input v-model.number="customFgDelay" type="range" min="100" max="3000" step="100" class="duration-slider" />
           <span class="duration-value">{{ customFgDelay }}ms</span>
         </div>
       </div>
@@ -50,20 +36,13 @@
         <!-- 纯白底色（空状态） -->
         <div class="layer white-bg" />
         <!-- Background Layer（浅蓝 = previewUrl） -->
-        <div
-          class="layer background-layer"
-          :style="backgroundStyle"
-        >
+        <div class="layer background-layer" :style="backgroundStyle">
           <span v-if="bgVisible" class="layer-text bg-text">preview-{{ bgDisplayIndex }}</span>
         </div>
         <!-- Backdrop Blur -->
         <div class="layer backdrop-blur" />
         <!-- Foreground Layer（浅绿 = imageUrl） -->
-        <div
-          v-if="fgVisible"
-          class="layer foreground-layer"
-          :style="foregroundStyle"
-        >
+        <div v-if="fgVisible" class="layer foreground-layer" :style="foregroundStyle">
           <span class="layer-text fg-text">image-{{ fgDisplayIndex }}</span>
         </div>
       </div>
@@ -77,26 +56,20 @@
         <div class="timeline-row">
           <span class="timeline-label">Background</span>
           <div class="timeline-bar-track">
-            <div
-              class="timeline-bar bg-bar"
-              :style="{
-                marginLeft: bgTimelineLeft,
-                width: bgTimelineWidth,
-              }"
-            />
+            <div class="timeline-bar bg-bar" :style="{
+              marginLeft: bgTimelineLeft,
+              width: bgTimelineWidth,
+            }" />
           </div>
           <span class="timeline-time">{{ bgTimeLabel }}</span>
         </div>
         <div class="timeline-row">
           <span class="timeline-label">Foreground</span>
           <div class="timeline-bar-track">
-            <div
-              class="timeline-bar fg-bar"
-              :style="{
-                marginLeft: fgTimelineLeft,
-                width: fgTimelineWidth,
-              }"
-            />
+            <div class="timeline-bar fg-bar" :style="{
+              marginLeft: fgTimelineLeft,
+              width: fgTimelineWidth,
+            }" />
           </div>
           <span class="timeline-time">{{ fgTimeLabel }}</span>
         </div>
@@ -106,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 type Mode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync'
 
@@ -463,8 +436,10 @@ function nextImage() {
   executeMode()
 }
 
-// 初始执行
-executeMode()
+// 初始执行（仅浏览器端）
+onMounted(() => {
+  executeMode()
+})
 
 onUnmounted(() => {
   clearAll()
@@ -544,9 +519,21 @@ onUnmounted(() => {
   border-color: var(--vp-c-brand-1);
 }
 
-.btn-reset { background: var(--vp-c-default-soft); }
-.btn-next { background: var(--vp-c-brand-soft); border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
-.btn-switch { background: rgba(34,197,94,.1); border-color: #22c55e; color: #16a34a; }
+.btn-reset {
+  background: var(--vp-c-default-soft);
+}
+
+.btn-next {
+  background: var(--vp-c-brand-soft);
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+
+.btn-switch {
+  background: rgba(34, 197, 94, .1);
+  border-color: #22c55e;
+  color: #16a34a;
+}
 
 /* ── 加载时长滑块 ── */
 .duration-group {
@@ -568,21 +555,23 @@ onUnmounted(() => {
 
 .duration-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--vp-c-brand-1);
   cursor: pointer;
   border: 2px solid var(--vp-c-bg);
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
 }
 
 .duration-slider::-moz-range-thumb {
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--vp-c-brand-1);
   cursor: pointer;
   border: 2px solid var(--vp-c-bg);
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
 }
 
 .duration-value {
@@ -612,7 +601,9 @@ onUnmounted(() => {
   inset: 0;
 }
 
-.white-bg { background: #ffffff; }
+.white-bg {
+  background: #ffffff;
+}
 
 .background-layer {
   will-change: clip-path, opacity;
@@ -624,7 +615,7 @@ onUnmounted(() => {
 }
 
 .foreground-layer {
-  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
   will-change: clip-path, opacity;
 }
 
@@ -640,15 +631,20 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.bg-text { color: rgba(0, 80, 120, 0.7); }
-.fg-text { color: rgba(0, 100, 60, 0.7); }
+.bg-text {
+  color: rgba(0, 80, 120, 0.7);
+}
+
+.fg-text {
+  color: rgba(0, 100, 60, 0.7);
+}
 
 .mode-badge {
   position: absolute;
   top: 12px;
   right: 12px;
   padding: 4px 10px;
-  background: rgba(0,0,0,.5);
+  background: rgba(0, 0, 0, .5);
   color: #fff;
   border-radius: 4px;
   font-size: 12px;
@@ -705,8 +701,13 @@ onUnmounted(() => {
   transition: margin-left .3s ease, width .3s ease;
 }
 
-.bg-bar { background: #a8d8ea; }
-.fg-bar { background: #a8e6cf; }
+.bg-bar {
+  background: #a8d8ea;
+}
+
+.fg-bar {
+  background: #a8e6cf;
+}
 
 .timeline-time {
   width: 80px;
