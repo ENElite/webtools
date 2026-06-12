@@ -3,7 +3,8 @@ FROM node:20-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+# Copy workspace config files (including .npmrc for shamefully-hoist)
+COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/webpaper/package.json ./packages/webpaper/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/webwidget/package.json ./packages/webwidget/
@@ -15,13 +16,16 @@ FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
+# Copy all node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/webpaper/node_modules ./packages/webpaper/node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/packages/webwidget/node_modules ./packages/webwidget/node_modules
 
+# Copy full source code
 COPY . .
 
+# Build webpaper
 WORKDIR /app/packages/webpaper
 RUN pnpm build
 
