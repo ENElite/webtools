@@ -1,7 +1,7 @@
 # Develop
 .pnpm-store/
 node_modules/
-pnpm-lock.yaml
+# pnpm-lock.yaml should be committed for reproducible builds
 out/
 dist/
 /src/core.lib/common/
