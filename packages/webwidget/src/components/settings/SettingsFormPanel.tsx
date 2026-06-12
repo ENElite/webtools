@@ -58,6 +58,10 @@ export function SettingsFormPanel({
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [future, setFuture] = useState<HistoryEntry[]>([]);
     const initialValuesRef = useRef<WidgetModel>(cloneWidget(sourceWidget));
+    const prevSourceWidgetRef = useRef<string>(JSON.stringify(sourceWidget));
+
+    // Compute isDirty early so it can be used in effects below
+    const isDirty = useMemo(() => !widgetsEqual(draftWidget, savedWidget), [draftWidget, savedWidget]);
 
     const resetPanelState = (nextWidget: WidgetModel) => {
         const cloned = cloneWidget(nextWidget);
@@ -72,6 +76,18 @@ export function SettingsFormPanel({
     useEffect(() => {
         resetPanelState(sourceWidget);
     }, [panelKey]);
+
+    // Sync draftWidget when sourceWidget changes externally (e.g., zustand store hydration)
+    useEffect(() => {
+        const serialized = JSON.stringify(sourceWidget);
+        if (serialized !== prevSourceWidgetRef.current) {
+            prevSourceWidgetRef.current = serialized;
+            // Only sync if the draft hasn't been modified by the user
+            if (!isDirty) {
+                resetPanelState(sourceWidget);
+            }
+        }
+    }, [sourceWidget, isDirty]);
 
     const commitPatch = (patch: Patch) => {
         const nextWidget = cloneWidget(applyChange(draftWidget, patch));
@@ -145,7 +161,6 @@ export function SettingsFormPanel({
         onClose();
     };
 
-    const isDirty = useMemo(() => !widgetsEqual(draftWidget, savedWidget), [draftWidget, savedWidget]);
     const canUndo = history.length > 0;
     const canRedo = future.length > 0;
 
