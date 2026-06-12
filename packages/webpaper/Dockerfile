@@ -43,9 +43,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/.next/standalone ./
 # 2. 静态资源
 COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/.next/static ./packages/webpaper/.next/static
-# 3. public 目录
-COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/public ./packages/webpaper/public
-# 4. workspace 源码（standalone 可能需要引用）
+# 3. workspace 源码（standalone 可能需要引用）
 COPY --from=builder --chown=nextjs:nodejs /app/packages/shared ./packages/shared
 COPY --from=builder --chown=nextjs:nodejs /app/packages/webwidget ./packages/webwidget
 
