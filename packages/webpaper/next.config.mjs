@@ -16,7 +16,6 @@ const nextConfig = {
             },
         ],
     },
-    turbopack: {},
     webpack: (config, { dev }) => {
         config.resolve.alias = {
             ...(config.resolve.alias || {}),
