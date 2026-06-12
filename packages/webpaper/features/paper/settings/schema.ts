@@ -72,7 +72,7 @@ const PAPER_SHARED_SETTINGS_SCHEMA: InspectorSchema = [
         bind: 'props.interval' as BindPath,
         page: 'shared',
         order: 3,
-        meta: { min: 5, max: 180, step: 1, suffix: '秒' },
+        meta: { min: 5, step: 1, suffix: '秒' },
     },
     {
         key: 'trackScale',
