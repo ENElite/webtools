@@ -18,7 +18,6 @@
   "dependencies": {
     "@webtools/shared": "workspace:*",
     "@webtools/webwidget": "workspace:*",
-    "@heroui/react": "^2.1.7",
     "@langchain/core": "^1.1.40",
     "@langchain/openai": "^1.4.4",
     "@monaco-editor/react": "^4.7.0",

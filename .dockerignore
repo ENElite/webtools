@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+*.md
+.env*
+.vscode
+.idea
+coverage
+dist
+packages/webpaper/.next
+packages/webtools/.next
+packages/webdocs/.next
+packages/webtest/.next
