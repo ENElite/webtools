@@ -29,9 +29,8 @@ COPY . .
 WORKDIR /app/packages/webpaper
 RUN pnpm build
 
-# ---- Stage 3: Production ----
+# ---- Stage 3: Production (standalone) ----
 FROM node:20-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -39,10 +38,16 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy full workspace (source + deps + build output)
-COPY --from=builder /app ./
-
-RUN chown -R nextjs:nodejs /app
+# standalone 模式只复制必要文件，镜像更小
+# 1. standalone 服务（含精简的 node_modules）
+COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/.next/standalone ./
+# 2. 静态资源
+COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/.next/static ./packages/webpaper/.next/static
+# 3. public 目录
+COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/public ./packages/webpaper/public
+# 4. workspace 源码（standalone 可能需要引用）
+COPY --from=builder --chown=nextjs:nodejs /app/packages/shared ./packages/shared
+COPY --from=builder --chown=nextjs:nodejs /app/packages/webwidget ./packages/webwidget
 
 USER nextjs
 
@@ -51,4 +56,5 @@ EXPOSE 5173
 ENV PORT=5173
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "cd packages/webpaper && pnpm start"]
+# standalone 模式：直接运行 node server.js
+CMD ["node", "packages/webpaper/server.js"]
