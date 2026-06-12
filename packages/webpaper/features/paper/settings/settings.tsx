@@ -34,22 +34,20 @@ export function PaperSettingsPanel({ container, onClose }: PaperSettingsPanelPro
         [sharedSettings, konachanSettings, jsonSettings, birdSettings]
     );
 
-    const handleSave = useCallback((nextValues: Record<string, any>) => {
+    const handleSave = useCallback((patch: { set?: Record<string, any> }) => {
+        // Settings are stored in sourceWidget.props, so the patch has structure:
+        // { set: { props: { objectFit: 'cover', ... } } }
+        // The patch only contains changed fields, so merge with existing settings
+        const props = patch?.set?.['props'] ?? {};
         const shared: SharedSettings = {
-            objectFit: nextValues['objectFit'],
-            provider: nextValues['provider'],
-            trackScale: nextValues['trackScale'],
-            trackIntensity: nextValues['trackIntensity'],
-            lockDock: nextValues['lockDock'],
-            interval: nextValues['interval'],
-            enableWakeLock: nextValues['enableWakeLock'],
-            videoAutoSwitchOnEnded: nextValues['videoAutoSwitchOnEnded'],
+            ...sharedSettings,
+            ...props,
         };
         setSharedSettings(shared);
-        setKonachanSettings(nextValues as any);
-        setBirdSettings(nextValues as any);
-        setJsonSettings(nextValues as any);
-    }, [setBirdSettings, setJsonSettings, setKonachanSettings, setSharedSettings]);
+        setKonachanSettings({ ...konachanSettings, ...props } as any);
+        setBirdSettings({ ...birdSettings, ...props } as any);
+        setJsonSettings({ ...jsonSettings, ...props } as any);
+    }, [birdSettings, jsonSettings, konachanSettings, setBirdSettings, setJsonSettings, setKonachanSettings, setSharedSettings, sharedSettings]);
 
     const sourceWidget = useMemo(() => ({
         id: 'paper-settings' as any,

@@ -8,7 +8,7 @@ export const PROVIDER_JSON_SCHEMA: InspectorSchema = [
         key: 'content',
         label: 'JSON 内容',
         type: 'editor',
-        bind: 'content' as BindPath,
+        bind: 'props.content' as BindPath,
         page: 'json',
         order: 0,
         meta: {
