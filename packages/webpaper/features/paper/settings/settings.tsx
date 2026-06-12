@@ -51,11 +51,20 @@ export function PaperSettingsPanel({ container, onClose }: PaperSettingsPanelPro
         setJsonSettings(nextValues as any);
     }, [setBirdSettings, setJsonSettings, setKonachanSettings, setSharedSettings]);
 
+    const sourceWidget = useMemo(() => ({
+        id: 'paper-settings' as any,
+        kind: 'paper' as any,
+        label: 'Webpaper',
+        style: {} as any,
+        layout: {} as any,
+        props: value as any,
+    }), [value]);
+
     return (
         <SettingsFormPanel
             panelKey='paper-settings'
             title='Webpaper 设置'
-            value={value as any}
+            sourceWidget={sourceWidget}
             schema={PAPER_SETTINGS_SCHEMA}
             pages={PAPER_PAGE_REGISTRY}
             container={container}
