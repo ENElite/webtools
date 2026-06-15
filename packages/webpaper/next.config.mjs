@@ -5,7 +5,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'standalone',
+    // output: 'standalone',  // 仅在 standalone Docker 部署时启用
     reactStrictMode: true,
 
     // 生产优化

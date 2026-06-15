@@ -29,7 +29,7 @@ COPY . .
 WORKDIR /app/packages/webpaper
 RUN pnpm build
 
-# ---- Stage 3: Production (standalone) ----
+# ---- Stage 3: Production (next start) ----
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -38,12 +38,10 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# standalone 模式只复制必要文件，镜像更小
-# 1. standalone 服务（含精简的 node_modules）
-COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/.next/standalone ./
-# 2. 静态资源
-COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper/.next/static ./packages/webpaper/.next/static
-# 3. workspace 源码（standalone 可能需要引用）
+# Copy the entire webpaper package (includes .next, node_modules, source)
+COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper ./packages/webpaper
+
+# Copy workspace dependencies that runtime may reference
 COPY --from=builder --chown=nextjs:nodejs /app/packages/shared ./packages/shared
 COPY --from=builder --chown=nextjs:nodejs /app/packages/webwidget ./packages/webwidget
 
@@ -54,5 +52,6 @@ EXPOSE 5173
 ENV PORT=5173
 ENV HOSTNAME="0.0.0.0"
 
-# standalone 模式：直接运行 node server.js
-CMD ["node", "packages/webpaper/server.js"]
+# 使用 next start，与本地 pnpm start 行为一致
+WORKDIR /app/packages/webpaper
+CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "5173"]
