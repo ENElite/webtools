@@ -667,7 +667,86 @@ $$
 
 这与小组件的实际 CSS 尺寸 $(w_p, h_p)$ 不同。因此在 `rotation ≠ 0` 时，必须从 `offsetWidth`/`offsetHeight` 和 `style.transform` 中读取真实值。
 
-## 11. 数据流总结
+## 11. 层级控制：order 字段的设计原因
+
+### 11.1 问题：为什么不用数组排序控制层级？
+
+直觉上，控制多个小组件的上下层级顺序，最简单的方式是在数组中排列它们的顺序——数组越靠后，渲染越靠上。对于普通 DOM 元素，这种方式完全可行：调整 `appendChild` 顺序即可改变视觉层级。
+
+**但 iframe 是个例外。**
+
+当 iframe 元素在 DOM 中的顺序发生变化时（无论是通过 `insertBefore`、`appendChild` 还是直接修改数组重新渲染），浏览器会**重新加载 iframe 的内容**。这是因为 iframe 的加载生命周期与它在 DOM 树中的位置紧密绑定——DOM 位置变化意味着"离开文档树再重新插入"，触发了 iframe 的 `unload` → `reload` 流程。
+
+这对于小组件引擎来说是不可接受的：用户只是想调整 widget 的上下遮挡关系，却导致所有涉及位置变动的 iframe 小组件重新加载，造成闪烁、状态丢失和用户体验下降。
+
+### 11.2 解决方案：order 字段 + z-index
+
+因此，WidgetLayout 采用了 `order` 字段来控制层级：
+
+```typescript
+type WidgetLayout = {
+    // ... 其他字段
+    order: number;    // z-index 层级
+};
+```
+
+`order` 在渲染时直接映射为 CSS `z-index` 属性（`Widget.tsx:87`）：
+
+```typescript
+return {
+    position: 'absolute',
+    left: anchorLeft,
+    top: anchorTop,
+    width: `${widthPx}px`,
+    height: `${heightPx}px`,
+    transform: `translate(${translateX}px, ${translateY}px) rotate(${layout.rotation}deg)`,
+    zIndex: layout.order,  // ← order 直接映射为 z-index
+};
+```
+
+这样做的好处：
+
+1. **DOM 顺序不变**：所有 widget 始终保持在同一组 DOM 节点中，不改变它们的相对顺序
+2. **视觉层级可控**：通过修改 `z-index` 值即可控制谁遮挡谁
+3. **iframe 不重载**：因为 DOM 位置没有变化，iframe 不会触发重载
+
+移动操作（`move.ts`）通过交换两个 widget 的 `order` 值来实现"上移"和"下移"，而不是移动数组中的位置。
+
+### 11.3 Demo：iframe 重载问题演示
+
+#### 目的
+
+模拟真实场景中通过 DOM 元素顺序控制小组件层级（即"上移""下移"操作）。点击按钮后，左右两侧同时执行交换操作，观察 iframe 是否因 DOM 顺序变化而重载。
+
+#### 验证内容
+
+交换 DOM 顺序是否影响 iframe 的加载状态？每种方案对 iframe 的重载行为有何差异？
+
+#### 四种方案
+
+- **① z-index**：DOM 顺序不变，仅交换 CSS `z-index` 值 → **完全不重载**
+- **② 无 key**：`v-for` 不指定 key（用索引），Vue 按位置复用 DOM 节点 → **完全重载**（两个 iframe 均重新挂载）
+- **③ 纯 JS**：绕过 Vue，直接调用 `insertBefore` 操作 DOM 节点 → **完全重载**（浏览器将节点移出再插入，触发重载）
+- **④ 有 key**：`v-for` 指定稳定 key，Vue 通过 diff 算法对比新旧节点 → **部分重载**（相当于将末尾的 iframe 移除后插入到第一个之前，仅被移动的那个 iframe 重载，且位置发生变化）
+
+#### 结果
+
+只有 z-index 方案能完全避免 iframe 重载。无 key 和纯 JS 方案均导致两个 iframe 完全重载。有 key 方案虽利用了 diff 算法减少重建范围，但仍无法避免被移动节点的重载。
+
+<IframeOrderDemo />
+
+### 11.4 小结
+
+| 方案 | 实现 | iframe 行为 | 说明 |
+|------|------|------------|------|
+| ① z-index | 修改 CSS `z-index`，DOM 不变 | **不重载** ✅ | 唯一完全安全的方案 |
+| ② 无 key | `v-for` 索引做 key，按位置复用 | **完全重载** ❌ | 两个 iframe 均重载 |
+| ③ 纯 JS | `insertBefore` 直接操作 DOM | **完全重载** ❌ | 两个 iframe 均重载 |
+| ④ 有 key | `v-for` 稳定 id 做 key，diff 算法 | **部分重载** ⚠️ | 仅被移动的 iframe 重载 |
+
+WidgetLayout 选择 `order` 字段的原因：小组件引擎需要支持 iframe 类型的小组件，而 iframe 在 DOM 顺序变化时会重载，因此不能依赖数组排序来控制层级。`order` 字段渲染为 `z-index`，在不改变 DOM 结构的前提下实现层级控制。
+
+## 12. 数据流总结
 
 ```
 WidgetLayout (百分比存储)
@@ -693,7 +772,7 @@ Moveable 拖拽/缩放/旋转结束
          └─→ layoutFromPx() ──→ 更新 WidgetLayout
 ```
 
-## 12. 正确性论证总结
+## 13. 正确性论证总结
 
 | 模块 | 数学性质 | 验证方式 |
 |------|---------|---------|
