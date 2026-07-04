@@ -29,7 +29,12 @@ const commaDangle = (val: any) => {
     }
 
     if (val?.rules) {
-        val.rules['@stylistic/space-before-function-paren'] = ['error', 'never'];
+        val.rules['@stylistic/space-before-function-paren'] = ['error', {
+            named: 'never',
+            anonymous: 'never',
+            asyncArrow: 'always',
+            method: 'never',
+        }];
         val.rules['@stylistic/multiline-ternary'] = 'off';
     }
 
