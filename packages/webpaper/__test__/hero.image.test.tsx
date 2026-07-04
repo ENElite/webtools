@@ -76,8 +76,8 @@ function renderHero(
     root: Root;
     rerender: (next: { mode?: ImageHeroMode; imageUrl?: string; previewUrl?: string | null }) => void;
 } {
-    let imageUrl = options?.imageUrl || 'https://image.example/full.jpg';
-    let previewUrl = options?.previewUrl === undefined ? 'https://image.example/preview.jpg' : options.previewUrl;
+    let url = options?.imageUrl || 'https://image.example/full.jpg';
+    let preview = options?.previewUrl === undefined ? 'https://image.example/preview.jpg' : options.previewUrl;
     let currentMode = mode;
 
     const container = document.createElement('div');
@@ -88,8 +88,8 @@ function renderHero(
         root.render(
             <ImageHero
                 mode={currentMode}
-                imageUrl={imageUrl}
-                previewUrl={previewUrl}
+                url={url}
+                preview={preview}
                 objectFit='contain'
                 trackScale={100}
                 trackIntensity={0}
@@ -107,8 +107,8 @@ function renderHero(
         container,
         root,
         rerender: (next) => {
-            imageUrl = next.imageUrl ?? imageUrl;
-            previewUrl = next.previewUrl === undefined ? previewUrl : next.previewUrl;
+            url = next.imageUrl ?? url;
+            preview = next.previewUrl === undefined ? preview : next.previewUrl;
             currentMode = next.mode ?? currentMode;
             act(() => {
                 render();
@@ -376,8 +376,69 @@ describe('ImageHero mode strategies', () => {
         });
 
         foreground = getImageElement(container, 'img[alt="image"]');
-        expect(background.getAttribute('src')).toBe('https://image.example/full.jpg');
+        // 预览图 URL 无效，背景图不会被设置；前景图在完整图加载后设置
+        expect(background.getAttribute('src')).toBeNull();
         expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
+        expect(onImageError).not.toHaveBeenCalled();
+
+        act(() => {
+            root.unmount();
+        });
+    });
+
+    it('mode=previewSync: sets background immediately, then sets foreground when preview or full image loads', async () => {
+        const controller = createMockImageController();
+        globalThis.Image = controller.MockImage as unknown as typeof Image;
+
+        const onImageError = vi.fn();
+        const { container, root } = renderHero('previewSync', onImageError);
+
+        const background = getImageElement(container, 'img[alt="preview"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
+
+        // 背景应该立即设置为预览图
+        expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
+        expect(foreground).toBeNull();
+
+        // 当完整图加载完成时，设置前景
+        await act(async () => {
+            controller.trigger('https://image.example/full.jpg', 'load');
+            await Promise.resolve();
+        });
+
+        foreground = getImageElement(container, 'img[alt="image"]');
+        expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
+        expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
+        expect(onImageError).not.toHaveBeenCalled();
+
+        act(() => {
+            root.unmount();
+        });
+    });
+
+    it('mode=previewSync: sets foreground when preview loads first', async () => {
+        const controller = createMockImageController();
+        globalThis.Image = controller.MockImage as unknown as typeof Image;
+
+        const onImageError = vi.fn();
+        const { container, root } = renderHero('previewSync', onImageError);
+
+        const background = getImageElement(container, 'img[alt="preview"]');
+        let foreground = getOptionalImageElement(container, 'img[alt="image"]');
+
+        // 背景应该立即设置为预览图
+        expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
+        expect(foreground).toBeNull();
+
+        // 当预览图加载完成时，设置前景
+        await act(async () => {
+            controller.trigger('https://image.example/preview.jpg', 'load');
+            await Promise.resolve();
+        });
+
+        foreground = getImageElement(container, 'img[alt="image"]');
+        expect(foreground.getAttribute('src')).toBe('https://image.example/full.jpg');
+        expect(background.getAttribute('src')).toBe('https://image.example/preview.jpg');
         expect(onImageError).not.toHaveBeenCalled();
 
         act(() => {

@@ -3,7 +3,7 @@ import { Alert } from 'antd';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useMouse } from '@reactuses/core';
 
-export type ImageHeroMode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync';
+export type ImageHeroMode = 'imageOnly' | 'imageAsync' | 'allAsync' | 'previewAsync' | 'allSync' | 'previewSync';
 
 type AllSyncPending = {
     token: number;
@@ -169,6 +169,43 @@ export function ImageHero({
                 setForegroundSrc(url);
                 console.log('[previewAsync] Set preview and main image:', backgroundUrl, url);
             });
+            return;
+        }
+
+        if (mode === 'previewSync') {
+            // 立即设置背景为预览图
+            setBackgroundSrc(backgroundUrl);
+
+            // 异步加载完整图
+            loadImage(url).then((loaded) => {
+                if (loadTokenRef.current !== token) {
+                    return;
+                }
+
+                if (!loaded) {
+                    onImageErrorRef.current();
+                    return;
+                }
+
+                // 完整图加载完成后，设置前景为完整URL
+                setForegroundSrc(url);
+            });
+
+            // 同时监听预览图加载完成事件，如果预览图加载完成，也设置前景
+            loadImage(backgroundUrl).then((loaded) => {
+                if (loadTokenRef.current !== token) {
+                    return;
+                }
+
+                if (!loaded) {
+                    onImageErrorRef.current();
+                    return;
+                }
+
+                // 预览图加载完成后，设置前景为完整URL（如果还没设置的话）
+                setForegroundSrc(url);
+            });
+
             return;
         }
         loadImage(url);

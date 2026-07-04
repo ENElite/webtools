@@ -12,7 +12,7 @@ export interface PaperProps {
     mode?: ImageHeroMode;
 }
 
-export function Paper({ mode = 'previewAsync' }: PaperProps) {
+export function Paper({ mode = 'previewSync' }: PaperProps) {
     const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
     const [heroMode, setHeroMode] = useState<ImageHeroMode>(mode);
 
@@ -59,7 +59,7 @@ export function Paper({ mode = 'previewAsync' }: PaperProps) {
     }, [mode]);
 
     useEffect(() => {
-        setHeroMode('previewAsync');
+        setHeroMode('previewSync');
         switchQuery(queryConfig.provider, queryConfig.api, queryConfig.params);
     }, [queryConfig, switchQuery]);
 
