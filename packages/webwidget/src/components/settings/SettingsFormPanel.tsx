@@ -235,28 +235,29 @@ export function SettingsFormPanel({
                                 size='small'
                                 title={maximized ? '还原' : '最大化'}
                                 onClick={toggle}
+                                onTouchEnd={(e) => { e.preventDefault(); toggle(); }}
                             >
                                 <span
                                     aria-hidden='true'
                                     className={`inline-block h-4 w-4 ${maximized ? 'icon-[octicon--screen-normal-16]' : 'icon-[octicon--screen-full-16]'}`}
                                 />
                             </Button>
-                            <Button type='text' size='small' title='Reset 回滚到初始快照' onClick={resetToInitial}>
+                            <Button type='text' size='small' title='Reset 回滚到初始快照' onClick={resetToInitial} onTouchEnd={(e) => { e.preventDefault(); resetToInitial(); }}>
                                 <span aria-hidden='true' className='inline-block h-4 w-4 icon-[octicon--history-16]' />
                             </Button>
-                            <Button type='text' size='small' title='撤销 Ctrl+Z' disabled={!canUndo} onClick={undo}>
+                            <Button type='text' size='small' title='撤销 Ctrl+Z' disabled={!canUndo} onClick={undo} onTouchEnd={(e) => { e.preventDefault(); undo(); }}>
                                 <span aria-hidden='true' className='inline-block h-4 w-4 icon-[octicon--arrow-left-16]' />
                             </Button>
-                            <Button type='text' size='small' title='重做 Ctrl+Shift+Z / Ctrl+Y' disabled={!canRedo} onClick={redo}>
+                            <Button type='text' size='small' title='重做 Ctrl+Shift+Z / Ctrl+Y' disabled={!canRedo} onClick={redo} onTouchEnd={(e) => { e.preventDefault(); redo(); }}>
                                 <span aria-hidden='true' className='inline-block h-4 w-4 icon-[octicon--arrow-right-16]' />
                             </Button>
-                            <Button type='text' size='small' title='保存当前' onClick={save}>
+                            <Button type='text' size='small' title='保存当前' onClick={save} onTouchEnd={(e) => { e.preventDefault(); save(); }}>
                                 <span aria-hidden='true' className='inline-block h-4 w-4 icon-[octicon--bookmark-16]' />
                             </Button>
-                            <Button type='text' size='small' title='保存并退出' onClick={saveAndClose}>
+                            <Button type='text' size='small' title='保存并退出' onClick={saveAndClose} onTouchEnd={(e) => { e.preventDefault(); saveAndClose(); }}>
                                 <span aria-hidden='true' className='inline-block h-4 w-4 icon-[octicon--check-16]' />
                             </Button>
-                            <Button type='text' size='small' title='退出' onClick={requestClose}>
+                            <Button type='text' size='small' title='退出' onClick={requestClose} onTouchEnd={(e) => { e.preventDefault(); requestClose(); }}>
                                 <span aria-hidden='true' className='inline-block h-4 w-4 icon-[octicon--x-16]' />
                             </Button>
                         </div>

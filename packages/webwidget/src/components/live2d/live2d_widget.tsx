@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useElementSize, useDebounce } from '@reactuses/core';
 import { useLive2D, useLive2DSlots } from '../../hooks';
@@ -47,6 +47,50 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
             } catch (e) { }
         };
     }, [canvas, containerRef.current]);
+
+    // 右键菜单控制状态（移动端长按支持）
+    const [contextMenuOpen, setContextMenuOpen] = useState(false);
+    const [touchPosition, setTouchPosition] = useState<{ x: number; y: number } | null>(null);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // 长按触发右键菜单（移动端支持）
+    const handleTouchStart = useCallback((e: TouchEvent) => {
+        const touch = e.touches[0];
+        if (touch) {
+            // 记录触摸坐标
+            setTouchPosition({ x: touch.clientX, y: touch.clientY });
+
+            // 开始长按计时
+            longPressTimerRef.current = setTimeout(() => {
+                setContextMenuOpen(true);
+            }, 500);
+        }
+    }, []);
+
+    const handleTouchEnd = useCallback(() => {
+        // 清除长按计时器
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    }, []);
+
+    const handleTouchMove = useCallback(() => {
+        // 移动时取消长按检测
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    }, []);
+
+    // 清理定时器
+    useEffect(() => {
+        return () => {
+            if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+            }
+        };
+    }, []);
 
     // 构建右键菜单项：motions + expressions
     const contextMenuItems = useMemo<NonNullable<MenuProps['items']>>(() => {
@@ -110,6 +154,49 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
 
     const percent = Math.round(((loadInfo?.loaded ?? 0) / (loadInfo?.total ?? 1)) * 100);
 
+    // 菜单样式（用于定位到触摸位置）
+    const dropdownStyle: CSSProperties = touchPosition
+        ? {
+            position: 'fixed',
+            left: touchPosition.x,
+            top: touchPosition.y,
+        }
+        : {};
+
+    // 处理菜单打开/关闭
+    const handleOpenChange = (open: boolean) => {
+        setContextMenuOpen(open);
+        if (!open) {
+            setTouchPosition(null);
+        }
+    };
+
+    // 容器引用和事件绑定
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return;
+
+        // 阻止事件冒泡（防止触发父级 Webpaper 的右键菜单）
+        const onTouchStartWithStop = (e: TouchEvent) => {
+            e.stopPropagation();
+            handleTouchStart(e);
+        };
+
+        wrapper.addEventListener('touchstart', onTouchStartWithStop, { passive: false });
+        wrapper.addEventListener('touchend', handleTouchEnd, { passive: true });
+        wrapper.addEventListener('touchmove', handleTouchMove, { passive: true });
+        wrapper.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+        return () => {
+            wrapper.removeEventListener('touchstart', onTouchStartWithStop);
+            wrapper.removeEventListener('touchend', handleTouchEnd);
+            wrapper.removeEventListener('touchmove', handleTouchMove);
+            wrapper.removeEventListener('touchcancel', handleTouchEnd);
+        };
+    }, [handleTouchStart, handleTouchEnd, handleTouchMove]);
+
     const content = (
         <>
             {loading !== 'loaded' ? (
@@ -146,11 +233,14 @@ export function Live2dWidget(props: WidgetRendererProps<Live2dWidgetProps>) {
         <Dropdown
             menu={{ items: contextMenuItems ?? [] }}
             trigger={['contextMenu']}
+            open={contextMenuOpen}
+            onOpenChange={handleOpenChange}
+            overlayStyle={dropdownStyle}
             classNames={{
                 root: "max-h-100 overflow-auto",
             }}
         >
-            <div style={{ width: '100%', height: '100%' }}>
+            <div ref={wrapperRef} style={{ width: '100%', height: '100%' }}>
                 {content}
             </div>
         </Dropdown>
