@@ -51,14 +51,17 @@ export function ImageViewer({ src, alt = '图片', className = '' }: ImageViewer
         }
     }, [imgNaturalSize, containerWidth, containerHeight, getFitScale]);
 
-    // 滚轮缩放（以鼠标位置为中心）
-    const handleWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        setScale((prev) => {
-            const next = Math.min(Math.max(prev + delta, 0.1), 20);
-            return next;
-        });
+    // 滚轮缩放 — 必须用原生 addEventListener (passive: false) 才能 preventDefault 阻止页面滚动
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const onWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            setScale((prev) => Math.min(Math.max(prev + delta, 0.1), 20));
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
     }, []);
 
     // 拖拽平移
@@ -109,11 +112,10 @@ export function ImageViewer({ src, alt = '图片', className = '' }: ImageViewer
         : true;
 
     return (
-        <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 ${className}`}>
+        <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex flex-col ${className}`}>
             <div
                 ref={containerRef}
-                className='w-full h-full min-h-[400px]'
-                onWheel={handleWheel}
+                className='flex-1 w-full'
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
@@ -126,10 +128,12 @@ export function ImageViewer({ src, alt = '图片', className = '' }: ImageViewer
                         alt={alt}
                         onLoad={handleImgLoad}
                         draggable={false}
-                        className='select-none block'
+                        className='select-none block absolute'
                         style={{
-                            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-                            transformOrigin: '0 0',
+                            left: '50%',
+                            top: '50%',
+                            transform: `translate(calc(-50% + ${translate.x}px), calc(-50% + ${translate.y}px)) scale(${scale})`,
+                            transformOrigin: 'center center',
                             maxWidth: 'none',
                             maxHeight: 'none',
                         }}
