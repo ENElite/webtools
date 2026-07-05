@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_FONT_FAMILIES, type FontFamilyOption, useLocalFonts } from '@webwidget/src/hooks/useLocalFonts';
+import { DEFAULT_FONT_FAMILIES, type FontFamilyOption, useLocalFonts } from '@webwidget';
 
 type WindowWithLocalFonts = Window & {
     queryLocalFonts?: () => Promise<Array<{

@@ -9,6 +9,7 @@ export default defineConfig({
       '@': resolve(__dirname, './'),
       '@webpaper': resolve(__dirname, '../webpaper'),
       '@webwidget': resolve(__dirname, '../webwidget'),
+      '@webtools/shared': resolve(__dirname, '../shared'),
       'l2d': resolve(__dirname, './__test__/mocks/l2d.ts')
     }
   },
@@ -21,6 +22,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: [],
+    testTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Provider, ProviderRecord } from '@/types';
-import type { IProviderAdapter } from '@/features/provider/types';
-import { ProviderManager } from '@/features/provider/ProviderManager';
+import type { Provider, ProviderRecord } from '@webpaper/types';
+import type { IProviderAdapter } from '@webpaper/features/provider/types';
+import { ProviderManager } from '@webpaper/features/provider/ProviderManager';
 
 function makeProviderRecord(id: number, provider: Provider = 'Konachan'): ProviderRecord {
     return {
