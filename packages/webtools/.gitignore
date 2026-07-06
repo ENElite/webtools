@@ -9,6 +9,9 @@ out/
 build/
 dist/
 
+# Auto-generated files
+src/lib/tools.generated.ts
+
 # Environment files
 .env
 .env.local

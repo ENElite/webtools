@@ -4,82 +4,97 @@
 
 ## 技术栈
 
-- **框架**: Next.js 14 (App Router)
-- **样式**: Tailwind CSS 3.4
-- **UI 组件库**: HeroUI V3 (@heroui/react 2.8.10)
+- **框架**: Next.js (App Router, SSG 静态导出)
+- **样式**: Tailwind CSS
+- **UI 组件库**: HeroUI V3
 - **语言**: TypeScript
 
 ## 特性
 
-- 🚀 **快速加载**: 采用 SSG 静态生成，加载速度极快
-- 📦 **轻量依赖**: 最小化第三方依赖，减少包体积
+- 🚀 **快速加载**: SSG 静态生成，加载速度极快
+- 📦 **轻量依赖**: 最小化第三方依赖
 - 🔧 **独立工具**: 每个工具独立运行，互不影响
-- 🎨 **现代 UI**: 使用 HeroUI 组件库，界面美观
+- 🎨 **现代 UI**: HeroUI 组件库
 - 📱 **响应式设计**: 支持各种设备和屏幕尺寸
+- ✨ **零配置注册**: 新增工具只需创建文件，无需手动注册
 
 ## 项目结构
 
 ```
 webtools/
 ├── src/
-│   ├── app/                    # Next.js App Router 页面
-│   │   ├── layout.tsx          # 根布局
-│   │   ├── page.tsx            # 首页
-│   │   ├── providers.tsx       # HeroUI Provider
-│   │   ├── globals.css         # 全局样式
-│   │   └── tools/              # 各个工具实现
-│   │       └── image-show/     # 图片查看器工具
-│   │           └── page.tsx
-│   ├── components/             # 共享组件
-│   │   ├── Header.tsx          # 顶部导航栏
-│   │   ├── ToolCard.tsx        # 工具卡片组件
-│   │   └── ToolLayout.tsx      # 工具页面布局
-│   └── lib/                    # 工具库
-│       └── tools.ts            # 工具配置和类型定义
-├── public/                     # 静态资源
-├── package.json                # 项目依赖配置
-├── next.config.js              # Next.js 配置
-├── tailwind.config.js          # Tailwind CSS 配置
-├── tsconfig.json               # TypeScript 配置
-└── postcss.config.js           # PostCSS 配置
+│   ├── app/
+│   │   ├── layout.tsx              # 根布局
+│   │   ├── page.tsx                # 首页 (Server Component)
+│   │   ├── providers.tsx           # HeroUI Provider
+│   │   ├── globals.css             # 全局样式
+│   │   └── tools/                  # 工具目录 (约定式路由)
+│   │       ├── image-show/
+│   │       │   ├── page.tsx        # 工具页面
+│   │       │   └── tool.ts         # 工具定义 (元数据)
+│   │       ├── image-diff/
+│   │       ├── image-obfuscate/
+│   │       └── color-picker/
+│   ├── components/
+│   │   ├── Header.tsx              # 顶部导航
+│   │   ├── ToolCard.tsx            # 工具卡片
+│   │   ├── ToolLayout.tsx          # 工具页面布局
+│   │   └── HomeContent.tsx         # 首页内容 (Client Component)
+│   └── lib/
+│       ├── types.ts                # 类型定义
+│       ├── tools.ts                # 分类定义 + 类型导出
+│       ├── tools.server.ts         # 开发环境: 实时扫描工具
+│       └── tools.generated.ts      # 生产环境: 预生成的工具数据 (gitignored)
+├── scripts/
+│   └── generate-tools.mjs          # 生产构建时生成工具列表
+├── next.config.js
+├── tsconfig.json
+└── package.json
 ```
 
 ## 开发
 
-### 安装依赖
-
 ```bash
-# 在根目录
+# 安装依赖 (在根目录)
 pnpm install
-```
 
-### 启动开发服务器
-
-```bash
-# 在根目录
+# 启动开发服务器
 pnpm dev:webtools
 ```
 
-访问 [http://localhost:3000](http://localhost:3000) 查看应用。
+访问 [http://localhost:3000](http://localhost:3000)
 
 ### 构建生产版本
 
 ```bash
-# 在根目录
 pnpm build:webtools
 ```
 
-构建后的静态文件将输出到 `out` 目录。
+构建时自动执行 `prebuild` 脚本生成 `tools.generated.ts`，静态文件输出到 `out` 目录。
 
 ## 添加新工具
 
-1. 在 `src/app/tools/` 目录下创建新的工具目录
-2. 在该目录中创建 `page.tsx` 文件
-3. 使用 `ToolLayout` 组件作为页面布局
-4. 在 `src/lib/tools.ts` 中添加工具配置
-5. 工具将自动显示在首页
+**零配置注册** - 只需创建两个文件，工具自动出现在首页：
 
-### 示例
+### 1. 创建工具定义
+
+```ts
+// src/app/tools/my-tool/tool.ts
+import type { ToolDefinition } from '@/lib/types';
+
+const tool: ToolDefinition = {
+    id: 'my-tool',           // 必须与目录名一致
+    name: '我的工具',
+    description: '工具描述',
+    icon: '🔧',
+    category: 'utility',     // 'image' | 'text' | 'code' | 'utility'
+    tags: ['标签1', '标签2'],
+};
+
+export default tool;
+```
+
+### 2. 创建工具页面
 
 ```tsx
 // src/app/tools/my-tool/page.tsx
@@ -88,15 +103,53 @@ pnpm build:webtools
 import { ToolLayout } from '@/components/ToolLayout';
 
 export default function MyToolPage() {
-  return (
-    <ToolLayout
-      title="我的工具"
-      description="工具描述"
-    >
-      {/* 工具内容 */}
-    </ToolLayout>
-  );
+    return (
+        <ToolLayout title="我的工具" description="工具描述">
+            {/* 工具内容 */}
+        </ToolLayout>
+    );
 }
+```
+
+完成！工具会自动注册到首页。
+
+## 工具定义规范
+
+所有工具定义必须遵循 `ToolDefinition` 接口 (`src/lib/types.ts`)：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | `string` | ✅ | 工具唯一标识，必须与目录名一致 |
+| `name` | `string` | ✅ | 工具显示名称 |
+| `description` | `string` | ✅ | 工具描述 |
+| `icon` | `string` | ✅ | 工具图标 (emoji) |
+| `category` | `ToolCategory` | ✅ | 工具分类 |
+| `tags` | `string[]` | ✅ | 搜索标签 |
+
+### 工具分类
+
+| 分类 ID | 名称 | 图标 |
+|---------|------|------|
+| `image` | 图片工具 | 🖼️ |
+| `text` | 文本工具 | 📝 |
+| `code` | 代码工具 | 💻 |
+| `utility` | 实用工具 | 🛠️ |
+
+## 自动注册机制
+
+工具注册采用**环境感知**策略，开发和生产环境使用不同方案：
+
+### 开发环境
+
+`tools.server.ts` 通过 tsx 加载 `src/app/tools/*/tool.ts` 模块，直接获取导出的 `ToolDefinition` 对象。与正则解析源码不同，这种方式支持完整的 TypeScript 语法，且 `tool.ts` 的写法不受格式限制。新增工具后无需重启，刷新页面即可看到。
+
+### 生产环境
+
+`scripts/generate-tools.mjs` 在 `pnpm build` 前自动执行（通过 `prebuild` 钩子），扫描所有 `tool.ts` 并生成 `tools.generated.ts`。该文件包含完整的工具数据，被 `.gitignore` 忽略。
+
+```
+开发环境:  page.tsx → tools.server.ts (实时扫描) → HomeContent
+生产环境:  page.tsx → tools.generated.ts (预生成数据) → HomeContent
 ```
 
 ## 工具列表
@@ -110,9 +163,9 @@ export default function MyToolPage() {
 ## 性能优化
 
 - **SSG 静态生成**: 所有页面在构建时生成，无需服务器
-- **包导入优化**: 使用 Next.js 的 `optimizePackageImports` 优化 HeroUI 的导入
+- **包导入优化**: `optimizePackageImports` 优化 HeroUI 导入
 - **代码分割**: 每个工具独立打包，按需加载
-- **图片优化**: 静态导出时禁用图片优化，避免额外开销
+- **环境分离**: 开发实时扫描，生产预生成数据
 
 ## License
 

@@ -2,9 +2,14 @@
 
 import { Tabs } from '@heroui/react';
 import { ToolCard } from '@/components/ToolCard';
-import { tools, categories } from '@/lib/tools';
+import type { Tool } from '@/lib/types';
+import { categories } from '@/lib/tools';
 
-export function HomeContent() {
+interface HomeContentProps {
+    tools: Tool[];
+}
+
+export function HomeContent({ tools }: HomeContentProps) {
     return (
         <Tabs>
             <Tabs.ListContainer>

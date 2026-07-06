@@ -2,7 +2,7 @@
 
 import { Card } from '@heroui/react';
 import Link from 'next/link';
-import { Tool } from '@/lib/tools';
+import type { Tool } from '@/lib/types';
 
 interface ToolCardProps {
     tool: Tool;
