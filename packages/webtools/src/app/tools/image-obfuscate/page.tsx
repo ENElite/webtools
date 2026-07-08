@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@heroui/react';
 import { ToolLayout } from '@/components/ToolLayout';
-import { obfuscateImage } from '@/lib/image-obfuscate';
+import { getObfuscateBlockInfo } from '@/lib/image-obfuscate';
+import { useWorker } from '@/lib/useWorker';
 
 function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
@@ -28,11 +29,22 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 export default function ImageObfuscatePage() {
     const [displayUrl, setDisplayUrl] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [progress, setProgress] = useState(0);
     const [isDragActive, setIsDragActive] = useState(false);
     const [fileName, setFileName] = useState('image');
+    const [blockInfo, setBlockInfo] = useState<{ blockSize: number; cols: number; rows: number } | null>(null);
     const originalImageDataRef = useRef<ImageData | null>(null);
     const displayImageDataRef = useRef<ImageData | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Web Worker：混淆/反混淆计算
+    const workerFactory = useMemo(() => {
+        return () => new Worker(new URL('@/workers/obfuscate.worker.ts', import.meta.url));
+    }, []);
+    const { postMessage: workerPostMessage } = useWorker<
+        { width: number; height: number; data: Uint8ClampedArray },
+        { width: number; height: number; data: Uint8ClampedArray }
+    >(workerFactory);
 
     useEffect(() => {
         return () => {
@@ -73,33 +85,49 @@ export default function ImageObfuscatePage() {
         img.src = URL.createObjectURL(file);
     }, [displayUrl]);
 
-    const handleProcess = useCallback(() => {
+    const handleProcess = useCallback(async () => {
         const src = displayImageDataRef.current;
         if (!src) return;
         setIsProcessing(true);
+        setProgress(0);
 
-        setTimeout(() => {
-            try {
-                const result = obfuscateImage(src);
-                displayImageDataRef.current = result;
+        try {
+            // 通过 Web Worker 执行混淆计算，不阻塞主线程
+            const result = await workerPostMessage(
+                {
+                    width: src.width,
+                    height: src.height,
+                    data: new Uint8ClampedArray(src.data),
+                },
+                (p) => setProgress(p),
+            );
 
-                const canvas = document.createElement('canvas');
-                canvas.width = result.width;
-                canvas.height = result.height;
-                canvas.getContext('2d')!.putImageData(result, 0, 0);
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        if (displayUrl) URL.revokeObjectURL(displayUrl);
-                        setDisplayUrl(URL.createObjectURL(blob));
-                    }
-                    setIsProcessing(false);
-                }, 'image/png');
-            } catch (e) {
-                alert(`处理失败: ${e instanceof Error ? e.message : String(e)}`);
+            const imageData = new ImageData(
+                new Uint8ClampedArray(result.data),
+                result.width,
+                result.height,
+            );
+            displayImageDataRef.current = imageData;
+            setBlockInfo(getObfuscateBlockInfo(src.width, src.height));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = imageData.width;
+            canvas.height = imageData.height;
+            canvas.getContext('2d')!.putImageData(imageData, 0, 0);
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    if (displayUrl) URL.revokeObjectURL(displayUrl);
+                    setDisplayUrl(URL.createObjectURL(blob));
+                }
                 setIsProcessing(false);
-            }
-        }, 0);
-    }, [displayUrl]);
+                setProgress(0);
+            }, 'image/png');
+        } catch (e) {
+            alert(`处理失败: ${e instanceof Error ? e.message : String(e)}`);
+            setIsProcessing(false);
+            setProgress(0);
+        }
+    }, [displayUrl, workerPostMessage]);
 
     const handleSave = useCallback(() => {
         const imgData = displayImageDataRef.current;
@@ -117,6 +145,7 @@ export default function ImageObfuscatePage() {
     const handleReselect = useCallback(() => {
         if (displayUrl) URL.revokeObjectURL(displayUrl);
         setDisplayUrl(null);
+        setBlockInfo(null);
         originalImageDataRef.current = null;
         displayImageDataRef.current = null;
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -160,11 +189,10 @@ export default function ImageObfuscatePage() {
 
                 {!displayUrl ? (
                     <div
-                        className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                            isDragActive
+                        className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragActive
                                 ? 'border-blue-500 bg-blue-50'
                                 : 'border-gray-300 hover:border-blue-500'
-                        }`}
+                            }`}
                         onDragEnter={onDragEnter}
                         onDragLeave={onDragLeave}
                         onDragOver={onDragOver}
@@ -195,6 +223,19 @@ export default function ImageObfuscatePage() {
                                     <div className='text-center text-white'>
                                         <div className='text-4xl mb-2 animate-spin'>⏳</div>
                                         <p>处理中...</p>
+                                        {progress > 0 && (
+                                            <div className='mt-3 w-48 mx-auto'>
+                                                <div className='bg-white/20 rounded-full h-2 overflow-hidden'>
+                                                    <div
+                                                        className='bg-blue-400 h-full rounded-full transition-all duration-300'
+                                                        style={{ width: `${Math.round(progress * 100)}%` }}
+                                                    />
+                                                </div>
+                                                <p className='text-xs mt-1 opacity-80'>
+                                                    {Math.round(progress * 100)}%
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -218,6 +259,12 @@ export default function ImageObfuscatePage() {
                                 🔄 重选
                             </Button>
                         </div>
+
+                        {blockInfo && (
+                            <div className='text-center text-sm text-gray-500'>
+                                区块大小: {blockInfo.blockSize}px · {blockInfo.cols}×{blockInfo.rows} 块
+                            </div>
+                        )}
                     </>
                 )}
 

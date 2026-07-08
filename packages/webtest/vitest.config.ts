@@ -6,10 +6,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, './'),
+      '@': resolve(__dirname, '../webtools/src'),
       '@webpaper': resolve(__dirname, '../webpaper'),
       '@webwidget': resolve(__dirname, '../webwidget'),
       '@webtools/shared': resolve(__dirname, '../shared'),
+      '@webtools/webtools': resolve(__dirname, '../webtools'),
       'l2d': resolve(__dirname, './__test__/mocks/l2d.ts')
     }
   },
