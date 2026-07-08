@@ -8,3 +8,13 @@ services:
     environment:
       - NODE_ENV=production
     restart: unless-stopped
+
+  webtools:
+    build:
+      context: .
+      dockerfile: packages/webtools/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
