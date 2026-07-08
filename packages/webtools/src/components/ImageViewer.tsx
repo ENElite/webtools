@@ -9,6 +9,8 @@ export interface ImageViewerProps {
     alt?: string;
     /** 容器 className */
     className?: string;
+    /** 容器内联样式，可覆盖背景色等 */
+    containerStyle?: React.CSSProperties;
 }
 
 /**
@@ -18,7 +20,7 @@ export interface ImageViewerProps {
  * - 拖拽平移
  * - 悬浮控制按钮：重置位置、放大、缩小、切换 fit/1:1
  */
-export function ImageViewer({ src, alt = '图片', className = '' }: ImageViewerProps) {
+export function ImageViewer({ src, alt = '图片', className = '', containerStyle }: ImageViewerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, containerHeight] = useElementSize(containerRef);
 
@@ -112,7 +114,7 @@ export function ImageViewer({ src, alt = '图片', className = '' }: ImageViewer
         : true;
 
     return (
-        <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex flex-col ${className}`}>
+        <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex flex-col ${className}`} style={containerStyle}>
             <div
                 ref={containerRef}
                 className='flex-1 w-full'
