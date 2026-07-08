@@ -1,23 +1,8 @@
 import { Header } from '@/components/Header';
 import { HomeContent } from '@/components/HomeContent';
-import type { Tool } from '@/lib/types';
-
-/**
- * 根据环境获取工具列表:
- * - 开发环境: 实时扫描文件系统
- * - 生产环境: 使用预生成的静态数据
- */
-async function getTools(): Promise<Tool[]> {
-    if (process.env.NODE_ENV === 'production') {
-        const { tools } = await import('@/lib/tools.generated');
-        return tools;
-    }
-    const { getTools: scanTools } = await import('@/lib/tools.server');
-    return scanTools();
-}
+import { tools } from '@/lib/tools.generated';
 
 export default async function HomePage() {
-    const tools = await getTools();
 
     return (
         <div className='min-h-screen bg-linear-to-br from-gray-50 to-gray-100'>
