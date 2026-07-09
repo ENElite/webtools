@@ -3,6 +3,7 @@
  *
  * 封装 worker 的创建、消息通信和生命周期管理。
  * 将 worker 的 postMessage/promisify 化，并支持进度回调。
+ * 支持 Transferable 对象转移所有权，避免数据复制。
  */
 import { useRef, useEffect, useCallback } from 'react';
 
@@ -14,8 +15,17 @@ export interface WorkerMessage<T = unknown> {
 }
 
 export interface UseWorkerReturn<TInput, TOutput> {
-    /** 向 worker 发送消息并等待结果 */
-    postMessage: (data: TInput, onProgress?: (progress: number) => void) => Promise<TOutput>;
+    /**
+     * 向 worker 发送消息并等待结果
+     * @param data - 发送的数据
+     * @param onProgress - 进度回调 (0~1)
+     * @param transferables - 可选的 Transferable 对象数组（如 ArrayBuffer），转移所有权避免复制
+     */
+    postMessage: (
+        data: TInput,
+        onProgress?: (progress: number) => void,
+        transferables?: Transferable[],
+    ) => Promise<TOutput>;
     /** 终止 worker */
     terminate: () => void;
 }
@@ -45,7 +55,11 @@ export function useWorker<TInput, TOutput>(
     }, []);
 
     const postMessage = useCallback(
-        (data: TInput, onProgress?: (progress: number) => void): Promise<TOutput> => {
+        (
+            data: TInput,
+            onProgress?: (progress: number) => void,
+            transferables?: Transferable[],
+        ): Promise<TOutput> => {
             return new Promise<TOutput>((resolve, reject) => {
                 // 每次调用创建新 worker，确保干净状态
                 workerRef.current?.terminate();
@@ -77,7 +91,11 @@ export function useWorker<TInput, TOutput>(
                     reject(new Error(e.message ?? 'Worker error'));
                 };
 
-                worker.postMessage({ type: 'process', payload: data });
+                // 使用 Transferable 转移所有权，避免 structured clone 复制
+                worker.postMessage(
+                    { type: 'process', payload: data },
+                    transferables ?? [],
+                );
             });
         },
         [workerFactory],

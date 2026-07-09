@@ -42,8 +42,8 @@ export default function ImageObfuscatePage() {
         return () => new Worker(new URL('@/workers/obfuscate.worker.ts', import.meta.url));
     }, []);
     const { postMessage: workerPostMessage } = useWorker<
-        { width: number; height: number; data: Uint8ClampedArray },
-        { width: number; height: number; data: Uint8ClampedArray }
+        { width: number; height: number; buffer: ArrayBuffer },
+        { width: number; height: number; buffer: ArrayBuffer }
     >(workerFactory);
 
     useEffect(() => {
@@ -92,18 +92,22 @@ export default function ImageObfuscatePage() {
         setProgress(0);
 
         try {
-            // 通过 Web Worker 执行混淆计算，不阻塞主线程
+            // 复制数据并转移所有权给 Worker，避免 structured clone 开销
+            const inputBuffer = new Uint8ClampedArray(src.data).buffer;
+
             const result = await workerPostMessage(
                 {
                     width: src.width,
                     height: src.height,
-                    data: new Uint8ClampedArray(src.data),
+                    buffer: inputBuffer,
                 },
                 (p) => setProgress(p),
+                [inputBuffer], // 转移输入 buffer 所有权
             );
 
+            // 从 Worker 接收的 buffer 已转移所有权，直接使用
             const imageData = new ImageData(
-                new Uint8ClampedArray(result.data),
+                new Uint8ClampedArray(result.buffer),
                 result.width,
                 result.height,
             );

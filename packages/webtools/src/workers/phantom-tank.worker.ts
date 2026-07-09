@@ -2,9 +2,15 @@
  * 幻影坦克 Web Worker
  *
  * 在独立线程中执行灰度转换、色阶调整、幻影坦克生成，支持进度汇报。
+ *
+ * 算法内联而非 import 的原因：
+ * Next.js 为 Worker 创建独立 bundle，外部 import 可能导致
+ * 模块解析问题或 bundle 体积膨胀。内联确保自包含。
+ *
+ * 数据传输使用 Transferable 转移所有权，避免 structured clone 复制。
  */
 
-// ── 工具函数（从 lib/phantom-tank.ts 内联）──────────────
+// ── 内联算法（避免 Worker bundle 依赖问题）──────────────
 
 function toGrayscale(src: ImageData): ImageData {
     const { width, height, data } = src;
@@ -94,9 +100,10 @@ function resizeTo(src: ImageData, tw: number, th: number): ImageData {
 
 // ── 幻影坦克核心（支持进度汇报）─────────────────────────
 
+/** 输入 payload：通过 Transferable 转移 buffer 所有权 */
 interface PhantomTankPayload {
-    imageDataA: { width: number; height: number; data: Uint8ClampedArray };
-    imageDataB: { width: number; height: number; data: Uint8ClampedArray };
+    imageDataA: { width: number; height: number; bufferA: ArrayBuffer };
+    imageDataB: { width: number; height: number; bufferB: ArrayBuffer };
     useGrayscale: boolean;
 }
 
@@ -110,8 +117,8 @@ self.onmessage = (e: MessageEvent<{ type: string; payload: PhantomTankPayload }>
 
         postProgress(0);
 
-        const A = new ImageData(new Uint8ClampedArray(rawA.data), rawA.width, rawA.height);
-        let B = new ImageData(new Uint8ClampedArray(rawB.data), rawB.width, rawB.height);
+        const A = new ImageData(new Uint8ClampedArray(rawA.bufferA), rawA.width, rawA.height);
+        let B = new ImageData(new Uint8ClampedArray(rawB.bufferB), rawB.width, rawB.height);
 
         // 缩放 B 到 A 的尺寸
         if (B.width !== A.width || B.height !== A.height) {
@@ -161,12 +168,15 @@ self.onmessage = (e: MessageEvent<{ type: string; payload: PhantomTankPayload }>
 
         postProgress(1.0);
 
-        self.postMessage({
+        // 使用 Transferable 转移输出 buffer 的所有权，避免复制
+        (self as unknown as Worker).postMessage({
             type: 'done',
             payload: {
-                imageData: { width, height, data: out },
+                width,
+                height,
+                buffer: out.buffer,
             },
-        });
+        }, [out.buffer]);
     } catch (err) {
         self.postMessage({
             type: 'error',

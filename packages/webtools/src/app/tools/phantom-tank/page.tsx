@@ -137,12 +137,14 @@ export default function PhantomTankPage() {
     }, []);
     const { postMessage: workerPostMessage } = useWorker<
         {
-            imageDataA: { width: number; height: number; data: Uint8ClampedArray };
-            imageDataB: { width: number; height: number; data: Uint8ClampedArray };
+            imageDataA: { width: number; height: number; bufferA: ArrayBuffer };
+            imageDataB: { width: number; height: number; bufferB: ArrayBuffer };
             useGrayscale: boolean;
         },
         {
-            imageData: { width: number; height: number; data: Uint8ClampedArray };
+            width: number;
+            height: number;
+            buffer: ArrayBuffer;
         }
     >(workerFactory);
 
@@ -241,20 +243,25 @@ export default function PhantomTankPage() {
         setProgress(0);
 
         try {
-            // 通过 Web Worker 执行计算，不阻塞主线程
+            // 复制数据并转移所有权给 Worker，避免 structured clone 开销
+            const bufferA = new Uint8ClampedArray(aData.data).buffer;
+            const bufferB = new Uint8ClampedArray(bData.data).buffer;
+
             const result = await workerPostMessage(
                 {
-                    imageDataA: { width: aData.width, height: aData.height, data: new Uint8ClampedArray(aData.data) },
-                    imageDataB: { width: bData.width, height: bData.height, data: new Uint8ClampedArray(bData.data) },
+                    imageDataA: { width: aData.width, height: aData.height, bufferA },
+                    imageDataB: { width: bData.width, height: bData.height, bufferB },
                     useGrayscale,
                 },
                 (p) => setProgress(p),
+                [bufferA, bufferB], // 转移两个输入 buffer 的所有权
             );
 
+            // 从 Worker 接收的 buffer 已转移所有权，直接使用
             const imageData = new ImageData(
-                new Uint8ClampedArray(result.imageData.data),
-                result.imageData.width,
-                result.imageData.height,
+                new Uint8ClampedArray(result.buffer),
+                result.width,
+                result.height,
             );
             setResultImageData(imageData);
             const url = await imageDataToBlobUrl(imageData);

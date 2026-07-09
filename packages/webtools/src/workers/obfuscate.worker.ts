@@ -3,10 +3,15 @@
  *
  * 在独立线程中执行混淆/反混淆计算，支持进度汇报。
  * 主线程不会被阻塞。
+ *
+ * 算法内联而非 import 的原因：
+ * Next.js 为 Worker 创建独立 bundle，外部 import 可能导致
+ * 模块解析问题或 bundle 体积膨胀。内联确保自包含。
+ *
+ * 数据传输使用 Transferable 转移所有权，避免 structured clone 复制。
  */
 
-// ── 从 lib/image-obfuscate.ts 复制的纯算法 ──────────────
-// Worker 中不能 import DOM 相关模块，因此内联算法。
+// ── 内联算法（避免 Worker bundle 依赖问题）──────────────
 
 const MIN_BLOCK_SIZE = 16;
 const MAX_BLOCK_SIZE = 256;
@@ -192,13 +197,15 @@ function obfuscatePaddedWithProgress(
 interface ObfuscatePayload {
     width: number;
     height: number;
-    data: Uint8ClampedArray;
+    /** Uint8ClampedArray 的底层 ArrayBuffer 将通过 Transferable 转移所有权 */
+    buffer: ArrayBuffer;
 }
 
 self.onmessage = (e: MessageEvent<{ type: string; payload: ObfuscatePayload }>) => {
     if (e.data.type !== 'process') return;
 
-    const { width, height, data } = e.data.payload;
+    const { width, height, buffer } = e.data.payload;
+    const data = new Uint8ClampedArray(buffer);
 
     try {
         const postProgress = (progress: number) => {
@@ -230,14 +237,15 @@ self.onmessage = (e: MessageEvent<{ type: string; payload: ObfuscatePayload }>) 
 
         postProgress(1.0);
 
-        self.postMessage({
+        // 使用 Transferable 转移输出 buffer 的所有权，避免复制
+        (self as unknown as Worker).postMessage({
             type: 'done',
             payload: {
                 width,
                 height,
-                data: cropped,
+                buffer: cropped.buffer,
             },
-        });
+        }, [cropped.buffer]);
     } catch (err) {
         self.postMessage({
             type: 'error',
