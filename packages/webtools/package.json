@@ -12,6 +12,8 @@
     "clean": "rm -rf .next out node_modules"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@heroui/react": "^3.1.0",
     "@heroui/styles": "^3.1.0",
     "@reactuses/core": "^6.3.1",
