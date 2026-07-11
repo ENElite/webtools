@@ -21,3 +21,5 @@ cache/
 
 *.prompt.md
 coverage
+
+.claude/
