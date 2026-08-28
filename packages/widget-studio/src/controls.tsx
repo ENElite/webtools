@@ -5,6 +5,7 @@ import type { JsonValue } from '@webtools/widget-core';
 
 import { createInspectorControlCatalog } from './schema';
 import type { InspectorControlProps } from './schema';
+import { CodeEditor } from './code/CodeEditor';
 
 function StringControl({ value, onChange }: InspectorControlProps) {
     return <Input value={typeof value === 'string' ? value : ''} onChange={(event) => onChange(event.target.value)} />;
@@ -65,6 +66,20 @@ function TagsControl({ value, onChange }: InspectorControlProps) {
     return <Select mode='tags' className='wt-studio-full-control' value={tags} onChange={(next) => onChange(next)} />;
 }
 
+function CodeControl({ field, value, onChange }: InspectorControlProps) {
+    return (
+        <div className='wt-studio-code-control'>
+            <CodeEditor
+                value={typeof value === 'string' ? value : ''}
+                language={field.language ?? 'html'}
+                height={260}
+                showSaveButton={false}
+                onContentChange={onChange}
+            />
+        </div>
+    );
+}
+
 export function createDefaultInspectorControls() {
     return createInspectorControlCatalog([
         { kind: 'string', Control: StringControl },
@@ -74,5 +89,6 @@ export function createDefaultInspectorControls() {
         { kind: 'enum', Control: EnumControl },
         { kind: 'color', Control: ColorControl },
         { kind: 'tags', Control: TagsControl },
+        { kind: 'code', Control: CodeControl },
     ]);
 }

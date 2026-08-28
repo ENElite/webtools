@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./code": "./src/code/index.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {
@@ -12,9 +13,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@monaco-editor/react": "catalog:",
     "@webtools/widget-core": "workspace:*",
     "@webtools/widget-react": "workspace:*",
     "antd": "catalog:",
+    "monaco-editor": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

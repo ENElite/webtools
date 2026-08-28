@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@webtools/shared": "workspace:*",
+    "@webtools/widget-studio": "workspace:*",
     "@webtools/webwidget": "workspace:*",
     "@langchain/core": "^1.1.40",
     "@langchain/openai": "^1.4.4",

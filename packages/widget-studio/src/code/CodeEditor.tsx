@@ -1,3 +1,5 @@
+'use client';
+
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef } from 'react';
 import { Editor } from '@monaco-editor/react';
