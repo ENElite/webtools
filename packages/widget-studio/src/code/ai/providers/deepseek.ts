@@ -82,9 +82,12 @@ function parseEditBlocks(text: string): Array<{ oldText: string; newText: string
     let match;
 
     while ((match = regex.exec(text)) !== null) {
+        const oldText = match[1];
+        const newText = match[2];
+        if (oldText === undefined || newText === undefined) continue;
         edits.push({
-            oldText: match[1].trimEnd(),
-            newText: match[2].trimEnd(),
+            oldText: oldText.trimEnd(),
+            newText: newText.trimEnd(),
         });
     }
 
@@ -103,7 +106,7 @@ function extractCodeBlocks(text: string): Array<{ language: string; code: string
 
     while ((match = regex.exec(text)) !== null) {
         const language = match[1] || 'unknown';
-        const code = match[2].trim();
+        const code = match[2]?.trim() ?? '';
         if (code) {
             blocks.push({ language, code });
         }

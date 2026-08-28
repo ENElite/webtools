@@ -23,7 +23,9 @@ function toEditableRecord(widget: WidgetEntity): EditableWidgetRecord {
         locked: widget.locked,
         autoHide: widget.autoHide,
         props: widget.props,
-        style: { ...widget.style },
+        style: Object.fromEntries(
+            Object.entries(widget.style).filter((entry) => entry[1] !== undefined),
+        ) as JsonObject,
         layout: { ...widget.layout },
     };
 }

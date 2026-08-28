@@ -1,6 +1,6 @@
 'use client';
 
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 import type { editor as MonacoEditor } from 'monaco-editor';
@@ -411,7 +411,7 @@ function CodeEditorImpl(
                     status={status}
                     requesting={requesting}
                     selection={selection}
-                    settings={aiSettings}
+                    {...(aiSettings === undefined ? {} : { settings: aiSettings })}
                     onSend={handleAISend}
                     onModeChange={handleAIModeChange}
                     onAcceptChange={handleAcceptFromDialog}
@@ -419,7 +419,7 @@ function CodeEditorImpl(
                     onAcceptAll={handleAcceptAll}
                     onRejectAll={handleRejectAll}
                     onClear={clearMessages}
-                    onSettingsChange={onSettingsChange}
+                    {...(onSettingsChange === undefined ? {} : { onSettingsChange })}
                 />
             )}
         </div>

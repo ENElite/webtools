@@ -11,7 +11,7 @@ export type AIMessage = {
         text: string;
         startLine: number;
         endLine: number;
-    };
+    } | undefined;
 };
 
 export type AIEditChange = {
@@ -24,7 +24,7 @@ export type AIEditChange = {
     };
     oldText: string;
     newText: string;
-    summary?: string;
+    summary?: string | undefined;
     status: 'pending' | 'accepted' | 'rejected';
 };
 
@@ -35,7 +35,7 @@ export type AIProviderSendParams = {
         text: string;
         startLine: number;
         endLine: number;
-    };
+    } | undefined;
     documentContent: string;
     history: AIMessage[];
 };

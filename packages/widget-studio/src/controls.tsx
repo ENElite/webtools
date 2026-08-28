@@ -16,9 +16,9 @@ function NumberControl({ field, value, onChange }: InspectorControlProps) {
         <InputNumber
             className='wt-studio-full-control'
             value={typeof value === 'number' ? value : null}
-            min={field.min}
-            max={field.max}
-            step={field.step}
+            {...(field.min === undefined ? {} : { min: field.min })}
+            {...(field.max === undefined ? {} : { max: field.max })}
+            {...(field.step === undefined ? {} : { step: field.step })}
             onChange={(next) => onChange(next ?? undefined)}
         />
     );
@@ -28,10 +28,10 @@ function SliderControl({ field, value, onChange }: InspectorControlProps) {
     return (
         <Slider
             value={typeof value === 'number' ? value : 0}
-            min={field.min}
-            max={field.max}
-            step={field.step}
-            onChange={onChange}
+            {...(field.min === undefined ? {} : { min: field.min })}
+            {...(field.max === undefined ? {} : { max: field.max })}
+            {...(field.step === undefined ? {} : { step: field.step })}
+            onChange={(next: number) => onChange(next)}
         />
     );
 }
@@ -44,7 +44,7 @@ function EnumControl({ field, value, onChange }: InspectorControlProps) {
     return (
         <Select
             className='wt-studio-full-control'
-            value={value as string | number | undefined}
+            {...(typeof value === 'string' || typeof value === 'number' ? { value } : {})}
             options={field.options ? [...field.options] : []}
             onChange={(next: JsonValue) => onChange(next)}
         />
