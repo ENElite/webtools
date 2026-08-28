@@ -5,7 +5,6 @@ import {
     MediaSourceError,
     type ImageMediaItem,
     type MediaPage,
-    type MediaQuery,
     type MediaSource,
 } from '../../domain';
 import { buildSameOriginUrl, fetchJson, parsePayload, type FetchClient } from './http';

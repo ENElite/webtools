@@ -1,46 +1,34 @@
 {
   "name": "@webtools/webpaper",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "CHOKIDAR_USEPOLLING=true next dev -H 0.0.0.0 -p 5173 --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev -H 0.0.0.0 -p 5173",
+    "build": "next build",
     "start": "next start -H 0.0.0.0 -p 5173",
-    "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "generate-models": "node ../../scripts/generate-models-list.cjs",
-    "generate-models:dry-run": "node ../../scripts/generate-models-list.cjs --dry-run",
-    "generate-models:interactive": "node ../../scripts/generate-models-list.cjs -i"
+    "lint": "eslint app src --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@webtools/shared": "workspace:*",
+    "@webtools/widget-core": "workspace:*",
+    "@webtools/widget-react": "workspace:*",
     "@webtools/widget-studio": "workspace:*",
-    "@webtools/webwidget": "workspace:*",
-    "@langchain/core": "^1.1.40",
-    "@langchain/openai": "^1.4.4",
-    "@monaco-editor/react": "^4.7.0",
-    "@reactuses/core": "^6.3.1",
-    "antd": "^6.3.5",
-    "next": "^16.0.0",
-    "immer": "^11.1.8",
-    "l2d": "^2.1.1",
-    "monaco-editor": "^0.52.2",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "react-moveable": "^0.56.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react-swc": "^4.3.0",
-    "@vitest/coverage-v8": "4.1.4",
-    "babel-plugin-import": "^1.13.8",
-    "vite": "^6.4.2"
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "jsdom": "24.1.3",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

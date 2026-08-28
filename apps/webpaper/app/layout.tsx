@@ -1,18 +1,16 @@
-import '@webtools/webwidget/styles.css';
+import '@webtools/widget-react/styles.css';
+import '@webtools/widget-studio/styles.css';
 import './globals.css';
+
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-    title: 'Webpaper Next',
-    description: 'Next.js + BFF + Konachan SSR preload',
+    title: 'WebPaper',
+    description: '可扩展的图片与视频桌面播放器',
 };
 
-type RootLayoutProps = {
-    children: ReactNode;
-};
-
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({ children }: { readonly children: ReactNode }) {
     return (
         <html lang='zh-CN'>
             <body>{children}</body>

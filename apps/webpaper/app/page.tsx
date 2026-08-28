@@ -1,5 +1,5 @@
-import { Home } from './home';
+import { WebpaperApp } from './WebpaperApp';
 
 export default function Page() {
-    return <Home />;
+    return <WebpaperApp />;
 }
