@@ -1,0 +1,27 @@
+.wt-studio-full-control {
+    width: 100%;
+}
+
+.wt-studio-form {
+    padding: 0 12px 24px;
+}
+
+.wt-studio-empty {
+    display: grid;
+    min-height: 160px;
+    place-items: center;
+    color: rgb(100 116 139);
+}
+
+.wt-studio-devtools-trigger {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 1000;
+}
+
+.wt-studio-json {
+    max-height: 70vh;
+    overflow: auto;
+    white-space: pre-wrap;
+}

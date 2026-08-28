@@ -1,0 +1,28 @@
+{
+  "name": "@webtools/widget-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@webtools/widget-core": "workspace:*",
+    "@webtools/widget-react": "workspace:*",
+    "antd": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react-swc": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
