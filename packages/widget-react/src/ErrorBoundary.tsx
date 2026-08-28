@@ -15,7 +15,7 @@ interface State {
 }
 
 export class WidgetErrorBoundary extends Component<Props, State> {
-    state: State = { error: null };
+    override state: State = { error: null };
 
     static getDerivedStateFromError(error: Error): State {
         return { error };
