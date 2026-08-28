@@ -1,0 +1,33 @@
+.wt-widget-canvas {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    outline: none;
+}
+
+.wt-widget-frame {
+    box-sizing: border-box;
+    transition: visibility 0s linear 180ms, opacity 180ms ease;
+    will-change: transform, width, height;
+}
+
+.wt-widget-frame[data-selected] {
+    outline: 1px solid color-mix(in srgb, #1677ff 72%, transparent);
+}
+
+.wt-widget-frame[data-auto-hidden] {
+    visibility: hidden;
+    opacity: 0 !important;
+    pointer-events: none;
+}
+
+.wt-widget-error {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    overflow: auto;
+    background: rgb(127 29 29 / 82%);
+    color: white;
+    font: 12px/1.4 ui-monospace, monospace;
+}
