@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    esbuild: { jsx: 'automatic' },
     test: {
         name: 'widget-studio',
-        environment: 'jsdom',
+        environment: 'node',
         globals: true,
         restoreMocks: true,
     },
