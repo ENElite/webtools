@@ -1,2 +1,26 @@
 packages:
+  - 'apps/*'
   - 'packages/*'
+
+# New packages should reference these versions with `catalog:`. Existing
+# manifests can migrate incrementally without duplicating version policy.
+catalog:
+  antd: 6.3.5
+  '@types/node': 24.13.3
+  '@types/react': 19.2.14
+  '@types/react-dom': 19.2.3
+  '@vitejs/plugin-react-swc': 4.3.0
+  next: 16.2.9
+  react: 19.2.6
+  react-dom: 19.2.6
+  react-moveable: 0.56.0
+  typescript: 5.9.3
+  vite: 6.4.2
+  vitest: 4.1.4
+  zod: 4.3.6
+
+# pnpm 10+ reads overrides from the workspace manifest rather than package.json.
+overrides:
+  next: 16.2.9
+  react: 19.2.6
+  react-dom: 19.2.6
