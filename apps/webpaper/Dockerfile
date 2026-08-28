@@ -1,57 +1,44 @@
-# ---- Stage 1: Install dependencies ----
-FROM node:20-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:24-alpine AS deps
+
+RUN corepack enable && corepack prepare pnpm@11.24.0 --activate
 WORKDIR /app
 
-# Copy workspace config files (including .npmrc for shamefully-hoist)
 COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/webpaper/package.json ./packages/webpaper/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/webwidget/package.json ./packages/webwidget/
+COPY apps/webpaper/package.json ./apps/webpaper/
+COPY packages/widget-core/package.json ./packages/widget-core/
+COPY packages/widget-react/package.json ./packages/widget-react/
+COPY packages/widget-studio/package.json ./packages/widget-studio/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --filter @webtools/webpaper... --frozen-lockfile --trust-lockfile
 
-# ---- Stage 2: Build ----
-FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:24-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@11.24.0 --activate
 WORKDIR /app
 
-# Copy all node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/webpaper/node_modules ./packages/webpaper/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/webwidget/node_modules ./packages/webwidget/node_modules
-
-# Copy full source code
+COPY --from=deps /app/apps ./apps
+COPY --from=deps /app/packages ./packages
 COPY . .
 
-# Build webpaper
-WORKDIR /app/packages/webpaper
-RUN pnpm build
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# ---- Stage 3: Production (next start) ----
-FROM node:20-alpine AS runner
+RUN pnpm --filter @webtools/webpaper build
+
+FROM node:24-alpine AS runner
+
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=5173 \
+    HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+COPY --from=builder --chown=node:node /app/apps/webpaper/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/webpaper/.next/static ./apps/webpaper/.next/static
 
-# Copy the entire webpaper package (includes .next, node_modules, source)
-COPY --from=builder --chown=nextjs:nodejs /app/packages/webpaper ./packages/webpaper
-
-# Copy workspace dependencies that runtime may reference
-COPY --from=builder --chown=nextjs:nodejs /app/packages/shared ./packages/shared
-COPY --from=builder --chown=nextjs:nodejs /app/packages/webwidget ./packages/webwidget
-
-USER nextjs
+USER node
 
 EXPOSE 5173
 
-ENV PORT=5173
-ENV HOSTNAME="0.0.0.0"
-
-# 使用 next start，与本地 pnpm start 行为一致
-WORKDIR /app/packages/webpaper
-CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "5173"]
+CMD ["node", "apps/webpaper/server.js"]

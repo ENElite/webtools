@@ -1,51 +1,38 @@
-# ---- Stage 1: Install dependencies ----
-FROM node:20-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:24-alpine AS deps
+
+RUN corepack enable && corepack prepare pnpm@11.24.0 --activate
 WORKDIR /app
 
-# Copy workspace config files (including .npmrc for shamefully-hoist)
 COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/webtools/package.json ./packages/webtools/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/webwidget/package.json ./packages/webwidget/
+COPY apps/webtools/package.json ./apps/webtools/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --filter @webtools/webtools... --frozen-lockfile --trust-lockfile
 
-# ---- Stage 2: Build ----
-FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM node:24-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@11.24.0 --activate
 WORKDIR /app
 
-# Copy all node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/webtools/node_modules ./packages/webtools/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/webwidget/node_modules ./packages/webwidget/node_modules
-
-# Copy full source code
+COPY --from=deps /app/apps ./apps
 COPY . .
 
-# Build webtools (static export)
-WORKDIR /app/packages/webtools
-RUN pnpm build
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# ---- Stage 3: Production ----
-FROM node:20-alpine AS runner
+RUN pnpm --filter @webtools/webtools build
+
+FROM node:24-alpine AS runner
+
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 appuser
+COPY --from=builder --chown=node:node /app/apps/webtools/out ./out
 
-# Copy static build output
-COPY --from=builder --chown=appuser:nodejs /app/packages/webtools/out ./out
-
-USER appuser
+USER node
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["npx", "serve", "out", "-l", "3000"]
+CMD ["busybox", "httpd", "-f", "-p", "3000", "-h", "/app/out"]
