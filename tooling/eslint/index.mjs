@@ -82,8 +82,6 @@ export default tseslint.config(
         files: [
             'apps/webpaper/**/*.{js,jsx,ts,tsx}',
             'apps/webtools/**/*.{js,jsx,ts,tsx}',
-            'packages/webpaper/**/*.{js,jsx,ts,tsx}',
-            'packages/webtools/**/*.{js,jsx,ts,tsx}',
         ],
         plugins: {
             '@next/next': next,
