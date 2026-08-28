@@ -1,199 +1,59 @@
 # 架构设计
 
-## 整体架构
+## 工作区边界
 
-WebTools 采用分层架构，将核心引擎（webwidget）与应用层（webpaper）分离：
-
-```
-┌───────────────────────────────────────────────────────┐
-│                      应用层                            │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │                  webpaper                         │ │
-│  │  ┌──────────┐ ┌──────────┐ ┌────────────────┐    │ │
-│  │  │  Paper   │ │ History  │ │    Settings    │    │ │
-│  │  │ (图片)   │ │ (历史)   │ │    (设置)      │    │ │
-│  │  └────┬─────┘ └──────────┘ └────────────────┘    │ │
-│  │       │                                           │ │
-│  │  ┌────▼───────────────────────────────────────┐   │ │
-│  │  │        Provider 适配器层                    │   │ │
-│  │  │  Konachan │ BirdPaper │ JSON               │   │ │
-│  │  └────────────────────────────────────────────┘   │ │
-│  │  ┌────────────────────────────────────────────┐   │ │
-│  │  │        Store (Zustand)                     │   │ │
-│  │  │  paperStore  │  recordStore (slice 架构)   │   │ │
-│  │  │  widgetPersistence (localStorage)          │   │ │
-│  │  └────────────────────────────────────────────┘   │ │
-│  └───────────────────────────────────────────────────┘ │
-├───────────────────────────────────────────────────────┤
-│                       引擎层                           │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │                  webwidget                        │ │
-│  │  ┌────────┐ ┌────────┐ ┌────────────────────┐    │ │
-│  │  │ Model  │ │ Signal │ │     Commands       │    │ │
-│  │  │(类型)  │ │(事件)  │ │    (撤销/重做)     │    │ │
-│  │  └────────┘ └────────┘ └────────────────────┘    │ │
-│  │  ┌────────┐ ┌────────┐ ┌────────────────────┐    │ │
-│  │  │ Editor │ │  Slot  │ │     Runtime        │    │ │
-│  │  │(编辑)  │ │(信号槽)│ │    (运行时)        │    │ │
-│  │  └────────┘ └────────┘ └────────────────────┘    │ │
-│  │  ┌────────────────────────────────────────────┐   │ │
-│  │  │        Store (Zustand)                     │   │ │
-│  │  │  overlayStore  │  widgetStore              │   │ │
-│  │  └────────────────────────────────────────────┘   │ │
-│  │  ┌────────────────────────────────────────────┐   │ │
-│  │  │        Devtools (开发工具面板)             │   │ │
-│  │  └────────────────────────────────────────────┘   │ │
-│  └───────────────────────────────────────────────────┘ │
-├───────────────────────────────────────────────────────┤
-│                       基础设施                          │
-│  React 19 │ Zustand 5 │ Framer Motion 12              │
-│  react-moveable │ Tailwind CSS 4                      │
-└──────────────────────────────────────────────────────┘
+```text
+                              ┌──────────────────────┐
+                              │ apps/webpaper       │
+                              │ composition + BFF   │
+                              └──────┬────────┬──────┘
+                                     │        │
+                         media ports │        │ widgets
+                                     ▼        ▼
+                          domain/application  widget-studio
+                                     │        │
+                                     ▼        ▼
+                              infrastructure  widget-react
+                                                │
+                                                ▼
+                                           widget-core
 ```
 
-## 核心设计模式
+WebPaper 内部采用轻量的端口与适配器结构：
 
-### 1. 适配器模式（Provider Pattern）
+- `domain` 定义 `MediaItem`、`MediaSource` 和播放器会话，不导入 Next 或 React。
+- `application` 组合媒体目录、设置和 Widget 文档存储。
+- `infrastructure` 实现 BirdPaper、Konachan、JSON HTTP 适配器。
+- `features` 是 React 展示与交互层。
+- `app` 是 Next.js 组合根和受约束的 BFF。
 
-`webpaper` 使用适配器模式统一不同图片来源的 API 差异：
+不建立抽象的全局 Provider 注册表。组合根显式创建可用源，因此依赖、默认值和测试替身都可见。
 
-```typescript
-// providers/types.ts
-interface ApiAdapter<P = Record<string, unknown>> {
-    provider: Provider;
-    fetch: (api: string, params: P, page: number) => Promise<PageResult>;
-    normalize: (raw: any, params?: P) => ProviderRecord[];
-    hasMore: (raw: any, page: number) => boolean;
-}
-```
+## Widget 三层
 
-每个适配器（Konachan、BirdPaper、JSON）实现 `ApiAdapter` 接口，通过注册表统一管理。
+`widget-core` 是状态真相来源。每次添加、删除、更新或布局变化都形成事务；引擎以不可变文档计算新状态，并维护有限的撤销/重做栈。
 
-### 2. 命令模式（Command Pattern）
+`widget-react` 订阅引擎快照，将相对布局换算为 Canvas 坐标，并将拖拽/缩放结果提交回事务。组件实现由调用方提供的 catalog 决定，包加载不会产生全局注册副作用。
 
-所有小组件操作通过 `Command` 接口封装，支持完整的撤销/重做：
+`widget-studio` 只负责开发和编辑体验：Schema 表单、Inspector、Devtools、Monaco 与 AI 编辑。生产运行时可以只依赖前两层。
 
-```typescript
-// engine/commands/types.ts
-interface Command {
-    execute(snapshot: CommandSnapshot): WidgetModel[];
-    undo(snapshot: CommandSnapshot): WidgetModel[];
-    canExecute(snapshot: CommandSnapshot): boolean;
-    getDescription(): string;
-}
-```
+## 状态与持久化
 
-具体命令类包括：`AddWidgetCommand`、`RemoveWidgetCommand`、`UpdateWidgetCommand`、`MoveWidgetCommand`、`ChangeWidgetLayoutCommand`、`CopyWidgetCommand`、`BatchCommand`。
+媒体播放状态由一个可中止的 controller 管理；源切换、分页和自动播放不会并发写入多套 Store。请求具有会话令牌，过期响应会被忽略。
 
-### Store 持久化
+浏览器持久化只保存两类版本化数据：应用设置和 Widget 文档。读取时先通过 Zod 校验；旧结构不会在运行时做隐式兼容，而是回退并写入 v2 数据。
 
-webpaper 实现了双层持久化策略：
+## 为什么没有 shared
 
-1. **设置持久化**（paperStore）：使用 zustand `persist` 中间件，只持久化设置项到 localStorage
-2. **小组件持久化**（overlayStore）：通过 `widgetPersistence.ts` 手动实现，优先从 localStorage 恢复，无数据时创建默认小组件
+原 `shared` 同时放置计时器、字体、预加载、窗口控制和 AI Hook，变化原因完全不同，并让应用依赖方向变得模糊。重构后：
 
-### 3. 信号/事件总线（Signal Bus）
+- 应用专属逻辑留在应用；
+- Widget 编辑逻辑进入 `widget-studio`；
+- 纯 Widget 状态进入 `widget-core`；
+- 没有真实复用方的 Hook 被删除。
 
-类型安全的发布/订阅系统，解耦小组件状态变化与运行时响应：
+未来只有出现稳定职责和多个真实消费者时才新增专用包，例如 `media-contracts`，不会恢复通用 `shared`。
 
-```typescript
-// engine/signal/types.ts
-type Signal = WidgetSignal | SystemSignal | UserSignal | LifecycleSignal;
-```
+## 为什么没有 webtest
 
-四种信号源：
-- **Widget**：小组件属性变化
-- **System**：系统空闲/活跃状态
-- **User**：鼠标交互事件
-- **Lifecycle**：挂载/卸载/可见/隐藏
-
-### 4. 信号-槽连接系统（Signal-Slot）
-
-参考 Qt 的信号与槽机制，通过 `Connection` 四元组将信号路由到目标 Slot 执行：
-
-```typescript
-type Connection = {
-    signal: string;    // signal 标识符（前缀匹配）
-    target: string;    // 目标 widgetId
-    slot: string;      // slot 标识符
-    params?: Record<string, SlotParamValue>;  // slot 参数
-};
-```
-
-每个小组件拥有一个 `WidgetRuntime` 实例，管理自己的信号、槽和连接。
-
-### 5. Schema 驱动的设置 UI
-
-通过 `InspectorSchema` 声明式定义属性编辑器，动态渲染设置面板：
-
-```typescript
-// engine/editor/types.ts
-type InspectorSchemaItem = {
-    key: string;
-    type: string;        // 编辑器类型：enum, color, font, string, number...
-    bind: BindPath;      // 绑定到小组件的属性路径
-    page: string;        // 所属分页
-    group?: string;      // 分组
-    order: number;       // 排序
-    visibleWhen?: { field: WidgetPath; equals: any };  // 条件显示
-};
-```
-
-### 6. 百分比布局系统
-
-小组件位置和尺寸使用百分比存储，支持锚点和自适应模式：
-
-```typescript
-type WidgetLayout = {
-    anchorX: 'left' | 'center' | 'right';   // 水平锚点
-    anchorY: 'top' | 'center' | 'bottom';   // 垂直锚点
-    x: number;    // X 偏移（百分比）
-    y: number;    // Y 偏移（百分比）
-    w: number;    // 宽度（百分比）
-    h: number;    // 高度（百分比）
-    rotation: number;
-    adapt: 'stretch' | 'fixed' | 'stretch-ratio' | 'stick';  // 自适应模式
-    order: number;  // 层级顺序
-};
-```
-
-### 7. 运行时分层
-
-运行时系统由三个子运行时加两个独立模块组成：
-
-| 模块 | 职责 |
-|------|------|
-| `userRuntime` | 鼠标进入/离开/点击事件 |
-| `systemRuntime` | 系统空闲/活跃状态 |
-| `lifecycleRuntime` | 挂载/卸载/可见/隐藏 |
-| `StyleAnimator` | CSS 属性过渡动画（属性分离 + Framer Motion） |
-| `WidgetRuntime` | per-widget 信号/槽/连接管理（Qt 风格） |
-
-## 数据流
-
-```
-用户操作 → Store → Command.execute() → 新状态 + Signal 发射
-                                              ↓
-                                     SignalBus.emit()
-                                              ↓
-                              ┌───────────────┼───────────────┐
-                              ↓               ↓               ↓
-                     WidgetRuntime      lifecycleRuntime  SystemRuntime
-                    (连接路由到 slot)     (生命周期信号)    (空闲检测)
-                              │
-                              ▼
-                        Slot 执行器
-                              │
-                   ┌──────────┼──────────┐
-                   ↓          ↓          ↓
-              animation    updateWidget  emit (链式)
-              slot         (修改属性)    (触发下一轮信号)
-                   │          │
-                   ▼          ▼
-             Framer Motion   Command
-             (容器动画)    (持久化变更)
-                   │          │
-                   └────┬─────┘
-                        ↓
-                  React 重渲染
-```
+集中测试包需要源码路径别名、跨包 mock 和对内部实现的深层导入，重构时很容易与所有者代码失配。现在测试与源码同目录，使用各工作区自己的环境；根配置仅聚合结果。跨应用端到端测试若以后出现，应放入明确的 `apps/e2e` 或 `tests/e2e`，而不是重新建立单元测试筒仓。

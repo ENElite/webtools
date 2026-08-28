@@ -2,80 +2,31 @@
 
 ## 环境要求
 
-- Node.js >= 18
-- pnpm >= 10.8
-
-## 安装依赖
+- Node.js 24.x
+- 通过 Corepack 使用 pnpm 11.24.0
 
 ```bash
-# 在项目根目录执行
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 ```
+
+pnpm 12 仍可由根 `engines` 接受，但只有正式稳定版发布并通过 CI 后才会更新根 `packageManager`。
 
 ## 开发
 
 ```bash
-# 启动 webpaper 开发服务器（端口 5173）
 pnpm dev:webpaper
-
-# 或进入 webpaper 目录
-cd packages/webpaper
-pnpm dev
+pnpm dev:webtools
+pnpm dev:docs
 ```
 
-## 构建
+## 质量门禁
 
 ```bash
-# 构建 webpaper
-pnpm build:webpaper
-
-# 或进入 webpaper 目录
-cd packages/webpaper
+pnpm lint
+pnpm typecheck
+pnpm test
 pnpm build
 ```
 
-## 测试
-
-```bash
-# 运行所有测试
-cd packages/webtest
-pnpm test
-
-# 监听模式
-pnpm test:watch
-```
-
-## 代码规范
-
-```bash
-# Lint
-pnpm lint
-
-# 格式化
-pnpm format
-
-# 类型检查
-pnpm typecheck
-```
-
-## Live2D 模型生成
-
-```bash
-cd packages/webpaper
-
-# 生成模型列表（从 GitHub 仓库拉取）
-pnpm generate-models
-
-# 干跑模式（不实际写入文件）
-pnpm generate-models:dry-run
-
-# 交互模式
-pnpm generate-models:interactive
-```
-
-## 文档站点
-
-```bash
-cd packages/webdocs
-pnpm dev
-```
+测试文件应放在被测模块附近。新增跨包引用时使用公开包名，不使用相对路径进入其他工作区，也不引用 `@webtools/*/src/*`。

@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
     srcDir: 'docs',
     title: 'WebTools',
-    description: 'WebTools — 桌面小组件引擎与图片浏览器文档',
+    description: 'WebTools — WebPaper 与分层 Widget 平台文档',
     lang: 'zh-CN',
     lastUpdated: true,
     base: '/webtools/',
@@ -11,9 +11,8 @@ export default defineConfig({
         logo: '/logo.svg',
         nav: [
             { text: '指南', link: '/guide/', activeMatch: '/guide/' },
-            { text: '包文档', link: '/packages/webwidget', activeMatch: '/packages/' },
-            { text: '设计文档', link: '/design/widget-engine', activeMatch: '/design/' },
-            { text: 'API 参考', link: '/api/model-types', activeMatch: '/api/' },
+            { text: '包文档', link: '/packages/widgets', activeMatch: '/packages/' },
+            { text: '设计文档', link: '/design/widget-runtime', activeMatch: '/design/' },
         ],
         sidebar: {
             '/guide/': [
@@ -31,9 +30,8 @@ export default defineConfig({
                 {
                     text: '包文档',
                     items: [
-                        { text: 'webwidget — 小组件引擎', link: '/packages/webwidget' },
-                        { text: 'webpaper — 图片浏览器', link: '/packages/webpaper' },
-                        { text: 'webtest — 集中测试', link: '/packages/webtest' },
+                        { text: 'Widget 分层包', link: '/packages/widgets' },
+                        { text: 'WebPaper 应用', link: '/packages/webpaper' },
                     ],
                 },
             ],
@@ -41,28 +39,8 @@ export default defineConfig({
                 {
                     text: '设计文档',
                     items: [
-                        { text: '小组件引擎', link: '/design/widget-engine' },
-                        { text: 'WidgetLayout 布局系统', link: '/design/widget-layout' },
-                        { text: '信号系统', link: '/design/signal-system' },
-                        { text: '命令模式', link: '/design/command-pattern' },
-                        { text: '动画系统', link: '/design/animation' },
-                        { text: '信号槽连接系统', link: '/design/signal-slot-system' },
-                        { text: '数据提供者', link: '/design/providers' },
-                        { text: '数据提供者（详细）', link: '/design/providers-detail' },
-                        { text: 'ImageHero 显示模式', link: '/design/imagehero-modes' },
-                        { text: 'Live2D 模型生成', link: '/design/live2d-models' },
-                        { text: '运行时架构', link: '/design/runtime' },
-                        { text: 'Moveable Position 定位系统', link: '/design/moveable-position' },
-                    ],
-                },
-            ],
-            '/api/': [
-                {
-                    text: 'API 参考',
-                    items: [
-                        { text: '模型类型', link: '/api/model-types' },
-                        { text: '编辑器系统', link: '/api/editors' },
-                        { text: 'Hooks', link: '/api/hooks' },
+                        { text: 'Widget 运行时', link: '/design/widget-runtime' },
+                        { text: '媒体管线', link: '/design/media-pipeline' },
                     ],
                 },
             ],
