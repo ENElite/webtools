@@ -1,4 +1,4 @@
-import type { ToolCategory, Category } from './types';
+import type { Category } from './types';
 
 // ─── 分类定义 ─────────────────────────────────────────────────
 

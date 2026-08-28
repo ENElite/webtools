@@ -173,12 +173,20 @@ export default function PhantomTankPage() {
             // ImageData 存入 ref map，state 只保留轻量信息
             imageDataMapRef.current.set(url, imageData);
             const slotData: ImageSlot = { url, brightness: 0, width: c.width, height: c.height };
-            slot === 'A' ? setImageA(slotData) : setImageB(slotData);
+            if (slot === 'A') {
+                setImageA(slotData);
+            } else {
+                setImageB(slotData);
+            }
             // 延后计算亮度，不阻塞 UI
             requestIdleCallback(() => {
                 const b = getImageBrightness(imageData);
                 const updater = (prev: ImageSlot | null) => prev?.url === url ? { ...prev, brightness: b } : prev;
-                slot === 'A' ? setImageA(updater) : setImageB(updater);
+                if (slot === 'A') {
+                    setImageA(updater);
+                } else {
+                    setImageB(updater);
+                }
             });
         };
 
@@ -194,11 +202,19 @@ export default function PhantomTankPage() {
                     ctx.drawImage(img, 0, 0);
                     const imageData = ctx.getImageData(0, 0, img.width, img.height);
                     imageDataMapRef.current.set(url, imageData);
-                    slot === 'A' ? setImageA({ url, brightness: 0, width: img.width, height: img.height }) : setImageB({ url, brightness: 0, width: img.width, height: img.height });
+                    if (slot === 'A') {
+                        setImageA({ url, brightness: 0, width: img.width, height: img.height });
+                    } else {
+                        setImageB({ url, brightness: 0, width: img.width, height: img.height });
+                    }
                     requestIdleCallback(() => {
                         const b = getImageBrightness(imageData);
                         const updater = (prev: ImageSlot | null) => prev?.url === url ? { ...prev, brightness: b } : prev;
-                        slot === 'A' ? setImageA(updater) : setImageB(updater);
+                        if (slot === 'A') {
+                            setImageA(updater);
+                        } else {
+                            setImageB(updater);
+                        }
                     });
                 };
                 img.src = url;
@@ -212,11 +228,19 @@ export default function PhantomTankPage() {
                 ctx.drawImage(img, 0, 0);
                 const imageData = ctx.getImageData(0, 0, img.width, img.height);
                 imageDataMapRef.current.set(url, imageData);
-                slot === 'A' ? setImageA({ url, brightness: 0, width: img.width, height: img.height }) : setImageB({ url, brightness: 0, width: img.width, height: img.height });
+                if (slot === 'A') {
+                    setImageA({ url, brightness: 0, width: img.width, height: img.height });
+                } else {
+                    setImageB({ url, brightness: 0, width: img.width, height: img.height });
+                }
                 requestIdleCallback(() => {
                     const b = getImageBrightness(imageData);
                     const updater = (prev: ImageSlot | null) => prev?.url === url ? { ...prev, brightness: b } : prev;
-                    slot === 'A' ? setImageA(updater) : setImageB(updater);
+                    if (slot === 'A') {
+                        setImageA(updater);
+                    } else {
+                        setImageB(updater);
+                    }
                 });
             };
             img.src = url;

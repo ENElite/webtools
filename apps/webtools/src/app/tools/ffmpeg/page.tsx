@@ -554,7 +554,7 @@ export default function FFmpegPage() {
                             </div>
                             <div>
                                 <h4 className='font-semibold text-gray-800 mb-1'>撤销 / 重做</h4>
-                                <p>每次执行命令后，处理结果会保存到历史记录中。使用"撤销"回到上一步，"重做"前进到下一步，"重置"回到原始文件。</p>
+                                <p>每次执行命令后，处理结果会保存到历史记录中。使用“撤销”回到上一步，“重做”前进到下一步，“重置”回到原始文件。</p>
                             </div>
                             <div>
                                 <h4 className='font-semibold text-gray-800 mb-1'>注意事项</h4>

@@ -8,7 +8,8 @@
     "prebuild": "node scripts/generate-tools.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next out node_modules"
   },
   "dependencies": {
@@ -17,17 +18,17 @@
     "@heroui/react": "^3.1.0",
     "@heroui/styles": "^3.1.0",
     "@reactuses/core": "^6.3.1",
-    "next": "^16.2.9",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.0.0",
-    "@types/node": "^20.14.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "postcss": "^8.4.38",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.4.5"
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:"
   }
 }

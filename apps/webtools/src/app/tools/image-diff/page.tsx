@@ -517,7 +517,7 @@ export default function ImageDiffPage() {
             if (u2) URL.revokeObjectURL(u2);
             if (d) URL.revokeObjectURL(d);
         };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleFile1 = useCallback((f: File) => {
         if (url1) URL.revokeObjectURL(url1);

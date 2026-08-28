@@ -23,7 +23,7 @@ const MAX_BLOCK_SIZE = 256;
  */
 function computeBlockSize(width: number, height: number): number {
   const maxDim = Math.max(width, height);
-  let size = Math.max(1, Math.floor(maxDim / 10));
+  const size = Math.max(1, Math.floor(maxDim / 10));
 
   // 向下取到最近的 2 的幂
   let power = 1;

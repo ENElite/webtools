@@ -18,7 +18,7 @@ const MAX_BLOCK_SIZE = 256;
 
 function computeBlockSize(width: number, height: number): number {
     const maxDim = Math.max(width, height);
-    let size = Math.max(1, Math.floor(maxDim / 10));
+    const size = Math.max(1, Math.floor(maxDim / 10));
     let power = 1;
     while (power * 2 <= size) {
         power *= 2;
@@ -144,7 +144,6 @@ function obfuscatePaddedWithProgress(
     const rows = Math.ceil(height / blockSize);
     const newData = new Uint8ClampedArray(data.length);
     const totalBlocks = cols * rows;
-    const progressInterval = Math.max(1, Math.floor(totalBlocks / 20)); // ~5% 步进
 
     const seed = computeSeed(origWidth, origHeight);
 

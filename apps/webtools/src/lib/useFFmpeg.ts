@@ -171,9 +171,15 @@ export function useFFmpeg(): UseFFmpegReturn {
             const files = await ffmpeg.listDir('/');
             for (const file of files) {
                 if (file.name === '.' || file.name === '..') continue;
-                try { await ffmpeg.deleteFile(`/${file.name}`); } catch {}
+                try {
+                    await ffmpeg.deleteFile(`/${file.name}`);
+                } catch {
+                    // A stale virtual file should not prevent the remaining cleanup.
+                }
             }
-        } catch {}
+        } catch {
+            // FFmpeg may already be terminated or its virtual FS unavailable.
+        }
     }, []);
 
     const clearLogs = useCallback(() => { setLogs([]); }, []);

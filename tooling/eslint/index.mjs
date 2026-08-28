@@ -89,6 +89,20 @@ export default tseslint.config(
         rules: {
             ...next.configs.recommended.rules,
             ...next.configs['core-web-vitals'].rules,
+            '@next/next/no-html-link-for-pages': 'off',
+            '@next/next/no-img-element': 'off',
+        },
+    },
+    {
+        // webtools is a migrated legacy utility app. These React Compiler
+        // rules remain enabled for the new WebPaper/widget code and can be
+        // adopted here as each canvas-heavy tool is rewritten.
+        files: ['apps/webtools/**/*.{jsx,tsx}'],
+        rules: {
+            'react-hooks/immutability': 'off',
+            'react-hooks/preserve-manual-memoization': 'off',
+            'react-hooks/refs': 'off',
+            'react-hooks/set-state-in-effect': 'off',
         },
     },
     {
