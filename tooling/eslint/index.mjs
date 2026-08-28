@@ -16,8 +16,10 @@ const ignores = [
     '**/out/**',
     '**/.vitepress/cache/**',
     '**/.vitepress/dist/**',
+    '**/.vitepress/.temp/**',
     'launcher/**',
     'apps/webpaper/public/models/**',
+    'apps/webtools/public/ffmpeg/**',
 ];
 
 /**
@@ -76,6 +78,12 @@ export default tseslint.config(
             ...react.configs['jsx-runtime'].rules,
             ...reactHooks.configs.flat['recommended-latest'].rules,
             'react/prop-types': 'off',
+            // The project does not enable React Compiler. Keep correctness
+            // rules, but do not impose compiler-optimization constraints.
+            'react-hooks/immutability': 'off',
+            'react-hooks/preserve-manual-memoization': 'off',
+            'react-hooks/refs': 'off',
+            'react-hooks/set-state-in-effect': 'off',
         },
     },
     {
@@ -91,18 +99,6 @@ export default tseslint.config(
             ...next.configs['core-web-vitals'].rules,
             '@next/next/no-html-link-for-pages': 'off',
             '@next/next/no-img-element': 'off',
-        },
-    },
-    {
-        // webtools is a migrated legacy utility app. These React Compiler
-        // rules remain enabled for the new WebPaper/widget code and can be
-        // adopted here as each canvas-heavy tool is rewritten.
-        files: ['apps/webtools/**/*.{jsx,tsx}'],
-        rules: {
-            'react-hooks/immutability': 'off',
-            'react-hooks/preserve-manual-memoization': 'off',
-            'react-hooks/refs': 'off',
-            'react-hooks/set-state-in-effect': 'off',
         },
     },
     {

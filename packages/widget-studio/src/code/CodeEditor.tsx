@@ -27,7 +27,7 @@ export type CodeEditorProps = {
     initialValue?: string;
     value?: string;
     language?: string;
-    theme?: string;
+    theme?: MonacoEditor.BuiltinTheme;
     height?: string | number;
     className?: string;
     saveButtonText?: string;
@@ -368,7 +368,7 @@ function CodeEditorImpl(
 
                         // Add CSS for AI decorations
                         monaco.editor.defineTheme('ai-theme', {
-                            base: theme as any,
+                            base: theme,
                             inherit: true,
                             rules: [],
                             colors: {
