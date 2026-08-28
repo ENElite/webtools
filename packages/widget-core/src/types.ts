@@ -24,16 +24,16 @@ export interface WidgetLayout {
 }
 
 export interface WidgetStyle {
-    readonly outline?: string;
-    readonly borderRadius?: string;
-    readonly outlineOffset?: string;
-    readonly opacity?: number;
-    readonly backgroundColor?: string;
-    readonly backgroundEffect?: 'blur' | 'image' | 'none';
-    readonly backgroundImageUrl?: string;
-    readonly shadowRadius?: number;
-    readonly shadowColor?: string;
-    readonly overflow?: boolean;
+    readonly outline?: string | undefined;
+    readonly borderRadius?: string | undefined;
+    readonly outlineOffset?: string | undefined;
+    readonly opacity?: number | undefined;
+    readonly backgroundColor?: string | undefined;
+    readonly backgroundEffect?: 'blur' | 'image' | 'none' | undefined;
+    readonly backgroundImageUrl?: string | undefined;
+    readonly shadowRadius?: number | undefined;
+    readonly shadowColor?: string | undefined;
+    readonly overflow?: boolean | undefined;
 }
 
 export interface WidgetEntity<TProps extends JsonObject = JsonObject> {
