@@ -7,6 +7,7 @@ import { AIFloatingButton, AIChatDialog } from './ai';
 import { useAIEditor } from './ai/useAIEditor';
 import { useEditorDecorations } from './ai/useEditorDecorations';
 import type { AIProvider, AIMode, EditorSelection } from './ai/types';
+import type { AISettings } from './ai/AIChatDialog';
 
 type MonacoRuntime = typeof import('monaco-editor');
 
@@ -34,7 +35,11 @@ export type CodeEditorProps = {
     // AI props
     aiProvider?: AIProvider;
     aiMode?: AIMode;
+    aiSettings?: AISettings;
+    aiOpen?: boolean;
     onAIModeChange?: (mode: AIMode) => void;
+    onSettingsChange?: (settings: AISettings) => void;
+    onAIOpenChange?: (open: boolean) => void;
 };
 
 function CodeEditorImpl(
@@ -51,7 +56,11 @@ function CodeEditorImpl(
         onSave,
         aiProvider,
         aiMode: controlledAIMode,
+        aiSettings,
+        aiOpen: controlledAIOpen,
         onAIModeChange,
+        onSettingsChange,
+        onAIOpenChange,
     }: CodeEditorProps,
     ref: ForwardedRef<CodeEditorHandle>
 ) {
@@ -63,11 +72,18 @@ function CodeEditorImpl(
     contentRef.current = content;
 
     // AI state
-    const [aiOpen, setAIOpen] = useState(false);
+    const [internalAIOpen, setInternalAIOpen] = useState(false);
+    const aiOpen = controlledAIOpen ?? internalAIOpen;
+    const setAIOpen = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+        const next = typeof value === 'function' ? value(internalAIOpen) : value;
+        setInternalAIOpen(next);
+        onAIOpenChange?.(next);
+    }, [internalAIOpen, onAIOpenChange]);
     const {
         messages,
         pendingChanges,
         mode: internalAIMode,
+        status,
         requesting,
         selection,
         setMode: setInternalAIMode,
@@ -376,8 +392,8 @@ function CodeEditorImpl(
                 />
             </div>
 
-            {/* AI floating button */}
-            {hasAI && (
+            {/* AI floating button - only show when not controlled externally */}
+            {hasAI && typeof controlledAIOpen === 'undefined' && (
                 <AIFloatingButton
                     open={aiOpen}
                     onClick={() => setAIOpen((o) => !o)}
@@ -390,8 +406,10 @@ function CodeEditorImpl(
                     messages={messages}
                     pendingChanges={pendingChanges}
                     mode={aiMode}
+                    status={status}
                     requesting={requesting}
                     selection={selection}
+                    settings={aiSettings}
                     onSend={handleAISend}
                     onModeChange={handleAIModeChange}
                     onAcceptChange={handleAcceptFromDialog}
@@ -399,6 +417,7 @@ function CodeEditorImpl(
                     onAcceptAll={handleAcceptAll}
                     onRejectAll={handleRejectAll}
                     onClear={clearMessages}
+                    onSettingsChange={onSettingsChange}
                 />
             )}
         </div>

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { AIEditChange, AIMessage, AIMode, AIProvider, EditorSelection } from './types';
+import type { AIEditChange, AIMessage, AIMode, AIProvider, AIStatus, EditorSelection } from './types';
 
 let nextMessageId = 0;
 let nextChangeId = 0;
@@ -12,6 +12,7 @@ export type UseAIEditorReturn = {
     messages: AIMessage[];
     pendingChanges: AIEditChange[];
     mode: AIMode;
+    status: AIStatus;
     requesting: boolean;
     selection: EditorSelection;
 
@@ -29,12 +30,13 @@ export function useAIEditor(provider: AIProvider | undefined): UseAIEditorReturn
     const [messages, setMessages] = useState<AIMessage[]>([]);
     const [pendingChanges, setPendingChanges] = useState<AIEditChange[]>([]);
     const [mode, setMode] = useState<AIMode>('agent');
-    const [requesting, setRequesting] = useState(false);
+    const [status, setStatus] = useState<AIStatus>('idle');
     const [selection, setSelection] = useState<EditorSelection>(null);
     const messagesRef = useRef<AIMessage[]>([]);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const send = useCallback(async (content: string, documentContent: string) => {
-        if (!provider || requesting || !content.trim()) return;
+        if (!provider || status === 'requesting' || !content.trim()) return;
 
         const trimmed = content.trim();
 
@@ -56,9 +58,16 @@ export function useAIEditor(provider: AIProvider | undefined): UseAIEditorReturn
             messagesRef.current = next;
             return next;
         });
-        setRequesting(true);
+        setStatus('requesting');
 
         let assistantContent = '';
+        let hasReceivedFirstChunk = false;
+
+        // Set up timeout (30 seconds)
+        const timeoutId = setTimeout(() => {
+            setStatus('timeout');
+        }, 30000);
+        timeoutRef.current = timeoutId;
 
         try {
             const stream = provider.send({
@@ -70,8 +79,18 @@ export function useAIEditor(provider: AIProvider | undefined): UseAIEditorReturn
             });
 
             for await (const chunk of stream) {
+                // Clear timeout on first chunk
+                if (!hasReceivedFirstChunk) {
+                    hasReceivedFirstChunk = true;
+                    if (timeoutRef.current) {
+                        clearTimeout(timeoutRef.current);
+                        timeoutRef.current = null;
+                    }
+                }
+
                 if (chunk.type === 'text') {
                     assistantContent += chunk.content;
+                    setStatus('thinking');
                     // Update the last assistant message or create one
                     setMessages((prev) => {
                         const last = prev[prev.length - 1];
@@ -92,6 +111,7 @@ export function useAIEditor(provider: AIProvider | undefined): UseAIEditorReturn
                         ];
                     });
                 } else if (chunk.type === 'edit') {
+                    setStatus('editing');
                     const change: AIEditChange = {
                         id: `change-${++nextChangeId}`,
                         range: chunk.change.range,
@@ -129,9 +149,13 @@ export function useAIEditor(provider: AIProvider | undefined): UseAIEditorReturn
                 },
             ]);
         } finally {
-            setRequesting(false);
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+            setStatus('idle');
         }
-    }, [provider, requesting, mode, selection]);
+    }, [provider, status, mode, selection]);
 
     const acceptChange = useCallback((changeId: string) => {
         setPendingChanges((prev) =>
@@ -167,7 +191,8 @@ export function useAIEditor(provider: AIProvider | undefined): UseAIEditorReturn
         messages,
         pendingChanges,
         mode,
-        requesting,
+        status,
+        requesting: status === 'requesting',
         selection,
         setMode,
         setSelection,

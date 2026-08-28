@@ -1,12 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { AIEditChange, AIMessage, AIMode, EditorSelection } from './types';
+import type { AIEditChange, AIMessage, AIMode, AIStatus, EditorSelection } from './types';
+
+export type AISettings = {
+    apiKey: string;
+    baseUrl: string;
+};
 
 type AIChatDialogProps = {
     messages: AIMessage[];
     pendingChanges: AIEditChange[];
     mode: AIMode;
+    status: AIStatus;
     requesting: boolean;
     selection: EditorSelection;
+    settings?: AISettings;
     onSend: (content: string) => void;
     onModeChange: (mode: AIMode) => void;
     onAcceptChange: (changeId: string) => void;
@@ -14,6 +21,7 @@ type AIChatDialogProps = {
     onAcceptAll: () => void;
     onRejectAll: () => void;
     onClear: () => void;
+    onSettingsChange?: (settings: AISettings) => void;
 };
 
 const MODE_OPTIONS: Array<{ key: AIMode; label: string; desc: string }> = [
@@ -161,12 +169,48 @@ function formatTime(ts: number): string {
     return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 }
 
+const STATUS_CONFIG: Record<AIStatus, { label: string; color: string; icon: string }> = {
+    idle: { label: '', color: '', icon: '' },
+    requesting: { label: '发起请求', color: '#f59e0b', icon: '⏳' },
+    thinking: { label: '思考中', color: '#3b82f6', icon: '💭' },
+    editing: { label: '编辑中', color: '#22c55e', icon: '✏️' },
+    timeout: { label: '请求超时', color: '#ef4444', icon: '⚠️' },
+};
+
+function StatusIndicator({ status }: { status: AIStatus }) {
+    const config = STATUS_CONFIG[status];
+    if (!config) return null;
+
+    return (
+        <span
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '1px 6px',
+                fontSize: 10,
+                fontWeight: 500,
+                color: config.color,
+                background: `${config.color}15`,
+                border: `1px solid ${config.color}30`,
+                borderRadius: 4,
+                lineHeight: '16px',
+            }}
+        >
+            <span style={{ fontSize: 10 }}>{config.icon}</span>
+            {config.label}
+        </span>
+    );
+}
+
 export function AIChatDialog({
     messages,
     pendingChanges,
     mode,
+    status,
     requesting,
     selection,
+    settings,
     onSend,
     onModeChange,
     onAcceptChange,
@@ -174,8 +218,14 @@ export function AIChatDialog({
     onAcceptAll,
     onRejectAll,
     onClear,
+    onSettingsChange,
 }: AIChatDialogProps) {
     const [input, setInput] = useState('');
+    const [showSettings, setShowSettings] = useState(false);
+    const [settingsDraft, setSettingsDraft] = useState<AISettings>({
+        apiKey: settings?.apiKey ?? '',
+        baseUrl: settings?.baseUrl ?? '/api/deepseek/chat',
+    });
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -332,6 +382,73 @@ export function AIChatDialog({
 
             {/* Input area */}
             <div style={INPUT_AREA_STYLE}>
+                {/* Settings panel */}
+                {showSettings && (
+                    <div style={{
+                        padding: '8px 12px',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 11, color: '#888' }}>API Key</label>
+                            <input
+                                type='password'
+                                value={settingsDraft.apiKey}
+                                onChange={(e) => setSettingsDraft((s) => ({ ...s, apiKey: e.target.value }))}
+                                placeholder='留空使用服务端代理密钥'
+                                style={{
+                                    padding: '4px 8px',
+                                    fontSize: 12,
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: 4,
+                                    color: '#d4d4d4',
+                                    outline: 'none',
+                                }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <label style={{ fontSize: 11, color: '#888' }}>Base URL</label>
+                            <input
+                                type='text'
+                                value={settingsDraft.baseUrl}
+                                onChange={(e) => setSettingsDraft((s) => ({ ...s, baseUrl: e.target.value }))}
+                                placeholder='/api/deepseek/chat'
+                                style={{
+                                    padding: '4px 8px',
+                                    fontSize: 12,
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: 4,
+                                    color: '#d4d4d4',
+                                    outline: 'none',
+                                }}
+                            />
+                        </div>
+                        <button
+                            type='button'
+                            onClick={() => {
+                                onSettingsChange?.(settingsDraft);
+                                setShowSettings(false);
+                            }}
+                            style={{
+                                padding: '4px 12px',
+                                fontSize: 11,
+                                fontWeight: 500,
+                                color: '#fff',
+                                background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                alignSelf: 'flex-end',
+                            }}
+                        >
+                            保存设置
+                        </button>
+                    </div>
+                )}
                 <textarea
                     ref={textareaRef}
                     style={TEXTAREA_STYLE}
@@ -350,12 +467,33 @@ export function AIChatDialog({
                     background: 'rgba(255, 255, 255, 0.06)',
                 }} />
                 <div style={FOOTER_STYLE}>
-                    <span style={{ fontSize: 11, color: '#666' }}>
-                        {selection
-                            ? `L${selection.startLine}-${selection.endLine} · ${selection.text.length} chars`
-                            : mode === 'ask' ? '对话模式' : '选择代码以引用'
-                        }
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {/* Status indicator */}
+                        <StatusIndicator status={status} />
+                        <span style={{ fontSize: 11, color: '#666' }}>
+                            {selection
+                                ? `L${selection.startLine}-${selection.endLine} · ${selection.text.length} chars`
+                                : mode === 'ask' ? '对话模式' : '选择代码以引用'
+                            }
+                        </span>
+                        <button
+                            type='button'
+                            onClick={() => setShowSettings((v) => !v)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: showSettings ? '#a78bfa' : '#666',
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                padding: '0 4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}
+                            title='设置'
+                        >
+                            ⚙
+                        </button>
+                    </div>
                     <button
                         type='button'
                         style={{

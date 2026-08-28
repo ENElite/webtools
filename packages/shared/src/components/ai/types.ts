@@ -1,5 +1,7 @@
 export type AIMode = 'ask' | 'agent' | 'plan' | 'auto';
 
+export type AIStatus = 'idle' | 'requesting' | 'thinking' | 'editing' | 'timeout';
+
 export type AIMessage = {
     id: string;
     role: 'user' | 'assistant';

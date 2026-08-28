@@ -9,9 +9,11 @@ export {
     type AIProvider,
     type AIProviderSendParams,
     type AIProviderChunk,
+    type AIStatus,
     type EditorSelection,
 } from './ai/types';
 export { useAIEditor, type UseAIEditorReturn } from './ai/useAIEditor';
 export { useEditorDecorations, type UseEditorDecorationsReturn } from './ai/useEditorDecorations';
 export { AIFloatingButton } from './ai/AIFloatingButton';
-export { AIChatDialog } from './ai/AIChatDialog';
+export { AIChatDialog, type AISettings } from './ai/AIChatDialog';
+export { createDeepSeekProvider, type DeepSeekProviderConfig } from './ai/providers/deepseek';
