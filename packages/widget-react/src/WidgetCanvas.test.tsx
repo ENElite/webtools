@@ -2,7 +2,8 @@ import { StrictMode } from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createWidgetCatalog, createWidgetEngine } from '@webtools/widget-core';
-import { afterEach, describe, expect, it } from 'vitest';
+import Moveable from 'react-moveable';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { createWidgetViewCatalog, defineWidgetView } from './catalog';
@@ -33,6 +34,7 @@ afterEach(() => {
 
 describe('WidgetCanvas', () => {
     it('keeps one Moveable control box after a selected widget layout changes', () => {
+        const updateRect = vi.spyOn(Moveable.prototype, 'updateRect');
         const engine = createWidgetEngine({ catalog: definitions });
         engine.dispatch({ type: 'widget.add', widget: { kind: 'clock' } });
         const widget = engine.getSnapshot().document.widgets[0];
@@ -55,6 +57,7 @@ describe('WidgetCanvas', () => {
 
         act(() => runtimeRef.current?.selectWidget(widget.id));
         expect(host.querySelectorAll('.moveable-control-box')).toHaveLength(1);
+        updateRect.mockClear();
 
         act(() => engine.dispatch({
             type: 'widget.layout',
@@ -62,6 +65,7 @@ describe('WidgetCanvas', () => {
             changes: { x: 25, y: 30 },
         }));
         expect(host.querySelectorAll('.moveable-control-box')).toHaveLength(1);
+        expect(updateRect).toHaveBeenCalled();
     });
 });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import Moveable from 'react-moveable';
 import type { WidgetEntity } from '@webtools/widget-core';
@@ -62,6 +62,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
     const runtime = useWidgetRuntime();
     const snapshot = useWidgetSnapshot();
     const containerRef = useRef<HTMLDivElement>(null);
+    const moveableRef = useRef<Moveable>(null);
     const elementRefs = useRef(new Map<string, HTMLDivElement>());
     const interactionRef = useRef<InteractionSnapshot | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,6 +74,12 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
     );
     const selected = widgets.find((widget) => widget.id === runtime.selectedWidgetId) ?? null;
     const selectedElement = selected ? elementRefs.current.get(selected.id) ?? null : null;
+    const selectedLayout = selected?.layout ?? null;
+
+    useLayoutEffect(() => {
+        if (!runtime.editable || !selectedElement || !selectedLayout) return;
+        moveableRef.current?.updateRect();
+    }, [runtime.editable, selectedElement, selectedLayout]);
 
     const resetIdle = useCallback(() => {
         setIdle(false);
@@ -213,6 +220,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
 
             {runtime.editable && selected && selectedElement ? (
                 <Moveable
+                    ref={moveableRef}
                     target={selectedElement}
                     draggable={!selected.locked}
                     resizable={!selected.locked}
