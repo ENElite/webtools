@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@webtools/ui": "workspace:*",
     "@webtools/widget-core": "workspace:*",
     "@webtools/widget-react": "workspace:*",
     "@webtools/widget-studio": "workspace:*",

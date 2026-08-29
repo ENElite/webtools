@@ -1,3 +1,4 @@
+import '@webtools/ui/styles.css';
 import '@webtools/widget-react/styles.css';
 import '@webtools/widget-studio/styles.css';
 import './globals.css';
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
     return (
-        <html lang='zh-CN'>
+        <html lang='zh-CN' data-theme='dark'>
             <body>{children}</body>
         </html>
     );

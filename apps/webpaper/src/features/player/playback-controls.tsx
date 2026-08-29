@@ -1,3 +1,5 @@
+import { Button } from '@webtools/ui';
+
 export interface PlaybackControlsProps {
     readonly current: number;
     readonly total: number;
@@ -28,27 +30,48 @@ export function PlaybackControls({
     return (
         <nav
             aria-label='播放控制'
-            className='flex items-center gap-2 rounded-full bg-slate-950/65 px-3 py-2 text-white backdrop-blur'
+            className='wp-playback-controls'
         >
-            <button type='button' aria-label='上一项' onClick={onPrevious} disabled={loading || total === 0}>
-                上一项
-            </button>
-            <span aria-live='polite'>{total === 0 ? '0 / 0' : `${current + 1} / ${total}`}</span>
-            <button type='button' aria-label='下一项' onClick={onNext} disabled={loading || total === 0}>
-                下一项
-            </button>
-            <button
+            <Button
                 type='button'
+                variant='ghost'
+                size='sm'
+                aria-label='上一项'
+                onClick={onPrevious}
+                disabled={loading || total === 0}
+            >
+                <span aria-hidden='true'>←</span><span className='wp-control-label'>上一项</span>
+            </Button>
+            <span className='wp-playback-counter' aria-live='polite'>
+                {loading ? '加载中…' : (total === 0 ? '0 / 0' : `${current + 1} / ${total}`)}
+            </span>
+            <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                aria-label='下一项'
+                onClick={onNext}
+                disabled={loading || total === 0}
+            >
+                <span className='wp-control-label'>下一项</span><span aria-hidden='true'>→</span>
+            </Button>
+            <Button
+                type='button'
+                variant={autoplayRunning ? 'secondary' : 'primary'}
+                size='sm'
                 aria-label={autoplayRunning ? '暂停自动播放' : '开始自动播放'}
                 onClick={autoplayRunning ? onStopAutoplay : onStartAutoplay}
                 disabled={total === 0}
             >
-                {autoplayRunning ? '暂停' : '播放'}
-            </button>
+                <span aria-hidden='true'>{autoplayRunning ? 'Ⅱ' : '▶'}</span>
+                <span className='wp-control-label'>{autoplayRunning ? '暂停' : '播放'}</span>
+            </Button>
             {historyMode ? (
-                <button type='button' onClick={onLeaveHistory}>返回当前</button>
+                <Button type='button' variant='secondary' size='sm' onClick={onLeaveHistory}>返回当前</Button>
             ) : (
-                <button type='button' onClick={onOpenHistory}>历史</button>
+                <Button type='button' variant='ghost' size='sm' onClick={onOpenHistory}>
+                    <span aria-hidden='true'>◷</span><span className='wp-control-label'>历史</span>
+                </Button>
             )}
         </nav>
     );

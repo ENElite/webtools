@@ -10,6 +10,7 @@ const nextConfig = {
     reactStrictMode: true,
     poweredByHeader: false,
     transpilePackages: [
+        '@webtools/ui',
         '@webtools/widget-core',
         '@webtools/widget-react',
         '@webtools/widget-studio',

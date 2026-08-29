@@ -25,11 +25,14 @@ export function MediaStage({
     if (!item) {
         return (
             <section
-                className='absolute inset-0 grid place-items-center bg-slate-950 text-slate-200'
+                className='wp-stage-status'
                 aria-live='polite'
                 data-status={status}
             >
-                {status === 'error' ? (error?.message ?? '媒体加载失败') : '正在加载媒体…'}
+                <span className='wp-stage-status-icon' aria-hidden='true'>
+                    {status === 'error' ? '×' : '✦'}
+                </span>
+                <span>{status === 'error' ? (error?.message ?? '媒体加载失败') : '正在加载媒体…'}</span>
             </section>
         );
     }
@@ -39,24 +42,24 @@ export function MediaStage({
         : (item.posterUrl ?? '');
 
     return (
-        <section className='absolute inset-0 overflow-hidden bg-slate-950' data-media-kind={item.kind}>
+        <section className='wp-media-stage' data-media-kind={item.kind}>
             {backgroundUrl ? (
                 <img
                     aria-hidden='true'
                     alt=''
                     src={backgroundUrl}
-                    className='absolute inset-0 h-full w-full scale-105 object-cover opacity-75 blur-2xl'
+                    className='wp-media-backdrop'
                     referrerPolicy='no-referrer'
                 />
             ) : null}
-            <div className='absolute inset-0 bg-slate-950/25' />
+            <div className='wp-media-scrim' />
 
             {item.kind === 'image' ? (
                 <img
                     key={item.id}
                     src={item.url}
                     alt={`media-${item.id}`}
-                    className='absolute inset-0 h-full w-full object-center'
+                    className='wp-media-content'
                     style={{ objectFit: settings.objectFit }}
                     referrerPolicy='no-referrer'
                     onError={onMediaError}
@@ -67,7 +70,7 @@ export function MediaStage({
                     src={item.url}
                     poster={item.posterUrl}
                     aria-label={`media-${item.id}`}
-                    className='absolute inset-0 h-full w-full object-center'
+                    className='wp-media-content'
                     style={{ objectFit: settings.objectFit }}
                     autoPlay
                     muted={settings.videoMuted}

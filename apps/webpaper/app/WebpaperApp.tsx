@@ -4,6 +4,17 @@ import { createWidgetEngine } from '@webtools/widget-core';
 import type { WidgetEngine, WidgetKind } from '@webtools/widget-core';
 import { WidgetCanvas, WidgetRuntimeProvider } from '@webtools/widget-react';
 import {
+    Alert,
+    Button,
+    Drawer,
+    Field,
+    NumberInput,
+    Select,
+    Switch,
+    Textarea,
+    TextInput,
+} from '@webtools/ui';
+import {
     createDefaultInspectorControls,
     WidgetDevtools,
     WidgetStudioPanel,
@@ -119,20 +130,27 @@ function WebpaperSession() {
                         onOpenHistory={() => setHistoryOpen(true)}
                         onLeaveHistory={() => player.controller.leaveHistory()}
                     />
-                    <button type='button' onClick={() => setSettingsOpen((open) => !open)}>设置</button>
+                    <Button
+                        type='button'
+                        variant={settingsOpen ? 'secondary' : 'ghost'}
+                        size='sm'
+                        aria-expanded={settingsOpen}
+                        onClick={() => setSettingsOpen((open) => !open)}
+                    >
+                        <span aria-hidden='true'>⚙</span><span className='wp-control-label'>设置</span>
+                    </Button>
                 </header>
 
-                {settingsOpen ? (
-                    <SettingsPanel
-                        settings={settings}
-                        kinds={widgetCatalogs.definitions.kinds}
-                        persistenceWarning={persistenceWarning}
-                        onChange={patchSettings}
-                        onApplySource={() => setActiveSelection(toSelection(settings))}
-                        onAddWidget={addWidget}
-                        onClose={() => setSettingsOpen(false)}
-                    />
-                ) : null}
+                <SettingsPanel
+                    open={settingsOpen}
+                    settings={settings}
+                    kinds={widgetCatalogs.definitions.kinds}
+                    persistenceWarning={persistenceWarning}
+                    onChange={patchSettings}
+                    onApplySource={() => setActiveSelection(toSelection(settings))}
+                    onAddWidget={addWidget}
+                    onClose={() => setSettingsOpen(false)}
+                />
 
                 <HistoryDrawer
                     open={historyOpen}
@@ -154,6 +172,7 @@ function WebpaperSession() {
 }
 
 function SettingsPanel({
+    open,
     settings,
     kinds,
     persistenceWarning,
@@ -162,6 +181,7 @@ function SettingsPanel({
     onAddWidget,
     onClose,
 }: {
+    readonly open: boolean;
     readonly settings: AppSettings;
     readonly kinds: readonly WidgetKind[];
     readonly persistenceWarning: string | null;
@@ -171,40 +191,49 @@ function SettingsPanel({
     readonly onClose: () => void;
 }) {
     return (
-        <aside className='wp-settings' aria-label='WebPaper 设置'>
-            <header><h2>设置</h2><button type='button' onClick={onClose}>关闭</button></header>
-            {persistenceWarning ? <p role='alert' className='wp-warning'>{persistenceWarning}</p> : null}
+        <Drawer
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) onClose();
+            }}
+            title='壁纸设置'
+            description='媒体来源、播放方式和桌面组件都在这里。'
+            size='sm'
+            className='wp-settings-drawer'
+        >
+            <div className='wp-settings-content'>
+            {persistenceWarning ? <Alert tone='warning'>{persistenceWarning}</Alert> : null}
 
-            <section>
+            <section className='wp-settings-section'>
                 <h3>媒体源</h3>
-                <label>来源
-                    <select
+                <Field label='来源'>
+                    <Select
+                        options={[
+                            { value: 'bird-paper', label: '小鸟壁纸' },
+                            { value: 'konachan', label: 'Konachan' },
+                            { value: 'json', label: 'JSON' },
+                        ]}
                         value={settings.source}
-                        onChange={(event) => onChange({
-                            source: event.currentTarget.value as AppSettings['source'],
-                        })}
-                    >
-                        <option value='bird-paper'>小鸟壁纸</option>
-                        <option value='konachan'>Konachan</option>
-                        <option value='json'>JSON</option>
-                    </select>
-                </label>
-                <label>每页数量
-                    <input
-                        type='number'
+                        onValueChange={(source) => {
+                            if (source) onChange({ source: source as AppSettings['source'] });
+                        }}
+                    />
+                </Field>
+                <Field label='每页数量' description='保持适中的数量可以让切换更流畅'>
+                    <NumberInput
                         min={1}
                         max={50}
                         value={settings.pageSize}
-                        onChange={(event) => onChange({
-                            pageSize: clampPageSize(event.currentTarget.valueAsNumber),
+                        onValueChange={(value) => onChange({
+                            pageSize: clampPageSize(value ?? DEFAULT_APP_SETTINGS.pageSize),
                         })}
                     />
-                </label>
+                </Field>
                 <SourceFields settings={settings} onChange={onChange} />
-                <button type='button' className='wp-primary' onClick={onApplySource}>应用媒体源</button>
+                <Button type='button' fullWidth onClick={onApplySource}>应用媒体源</Button>
             </section>
 
-            <section>
+            <section className='wp-settings-section'>
                 <h3>播放</h3>
                 <MediaPlayerSettingsForm
                     value={settings.player}
@@ -212,22 +241,26 @@ function SettingsPanel({
                 />
             </section>
 
-            <section>
+            <section className='wp-settings-section'>
                 <h3>小组件</h3>
-                <label className='wp-inline'>编辑模式
-                    <input
-                        type='checkbox'
+                <div className='wp-inline'>
+                    <span>编辑模式</span>
+                    <Switch
+                        aria-label='小组件编辑模式'
                         checked={settings.widgetsEditable}
-                        onChange={(event) => onChange({ widgetsEditable: event.currentTarget.checked })}
+                        onCheckedChange={(checked) => onChange({ widgetsEditable: checked })}
                     />
-                </label>
+                </div>
                 <div className='wp-widget-buttons'>
                     {kinds.map((kind) => (
-                        <button key={kind} type='button' onClick={() => onAddWidget(kind)}>+ {kind}</button>
+                        <Button key={kind} type='button' variant='soft' size='sm' onClick={() => onAddWidget(kind)}>
+                            <span aria-hidden='true'>＋</span>{kind}
+                        </Button>
                     ))}
                 </div>
             </section>
-        </aside>
+            </div>
+        </Drawer>
     );
 }
 
@@ -241,46 +274,52 @@ function SourceFields({
     if (settings.source === 'bird-paper') {
         return (
             <>
-                <label>模式
-                    <select
+                <Field label='模式'>
+                    <Select
+                        options={[
+                            { value: 'latest', label: '最新' },
+                            { value: 'search', label: '搜索' },
+                            { value: 'category', label: '分类' },
+                        ]}
                         value={settings.bird.mode}
-                        onChange={(event) => onChange({
-                            bird: { ...settings.bird, mode: event.currentTarget.value as AppSettings['bird']['mode'] },
-                        })}
-                    >
-                        <option value='latest'>最新</option>
-                        <option value='search'>搜索</option>
-                        <option value='category'>分类</option>
-                    </select>
-                </label>
+                        onValueChange={(mode) => {
+                            if (!mode) return;
+                            onChange({ bird: { ...settings.bird, mode: mode as AppSettings['bird']['mode'] } });
+                        }}
+                    />
+                </Field>
                 {settings.bird.mode === 'search' ? (
-                    <label>关键词<input value={settings.bird.query} onChange={(event) => onChange({
-                        bird: { ...settings.bird, query: event.currentTarget.value },
-                    })} /></label>
+                    <Field label='关键词'>
+                        <TextInput value={settings.bird.query} onChange={(event) => onChange({
+                            bird: { ...settings.bird, query: event.currentTarget.value },
+                        })} />
+                    </Field>
                 ) : null}
                 {settings.bird.mode === 'category' ? (
-                    <label>分类 ID<input value={settings.bird.categoryId} onChange={(event) => onChange({
-                        bird: { ...settings.bird, categoryId: event.currentTarget.value },
-                    })} /></label>
+                    <Field label='分类 ID'>
+                        <TextInput value={settings.bird.categoryId} onChange={(event) => onChange({
+                            bird: { ...settings.bird, categoryId: event.currentTarget.value },
+                        })} />
+                    </Field>
                 ) : null}
             </>
         );
     }
     if (settings.source === 'konachan') {
         return (
-            <label>标签
-                <input value={settings.konachan.tags} onChange={(event) => onChange({
+            <Field label='标签' description='多个标签使用空格分隔'>
+                <TextInput value={settings.konachan.tags} onChange={(event) => onChange({
                     konachan: { ...settings.konachan, tags: event.currentTarget.value },
                 })} />
-            </label>
+            </Field>
         );
     }
     return (
-        <label>JSON 媒体列表
-            <textarea rows={10} value={settings.jsonContent} onChange={(event) => onChange({
+        <Field label='JSON 媒体列表'>
+            <Textarea rows={10} value={settings.jsonContent} onChange={(event) => onChange({
                 jsonContent: event.currentTarget.value,
             })} />
-        </label>
+        </Field>
     );
 }
 

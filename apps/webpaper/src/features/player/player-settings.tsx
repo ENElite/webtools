@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChangeEvent } from 'react';
+import { Field, NumberInput, Select, Switch } from '@webtools/ui';
 
 export interface MediaPlayerSettings {
     readonly objectFit: 'contain' | 'cover';
@@ -36,79 +36,77 @@ export function MediaPlayerSettingsForm({
         nextValue: MediaPlayerSettings[TKey],
     ): void => onChange({ ...value, [key]: nextValue });
 
-    const handleIntervalChange = (event: ChangeEvent<HTMLInputElement>): void => {
-        const seconds = Number(event.currentTarget.value);
-        if (!Number.isFinite(seconds)) return;
-        update('autoplayIntervalMs', Math.max(1_000, Math.round(seconds * 1_000)));
-    };
-
     return (
-        <fieldset disabled={disabled} aria-label='播放设置' className='grid gap-3'>
-            <label className='flex items-center justify-between gap-4'>
-                <span>媒体适应</span>
-                <select
+        <fieldset disabled={disabled} aria-label='播放设置' className='wp-settings-content'>
+            <Field label='媒体适应' disabled={disabled}>
+                <Select
+                    options={[
+                        { value: 'contain', label: '完整显示' },
+                        { value: 'cover', label: '覆盖窗口' },
+                    ]}
                     value={value.objectFit}
-                    onChange={(event) => update(
-                        'objectFit',
-                        event.currentTarget.value === 'cover' ? 'cover' : 'contain',
-                    )}
-                >
-                    <option value='contain'>完整显示</option>
-                    <option value='cover'>覆盖窗口</option>
-                </select>
-            </label>
-
-            <label className='flex items-center justify-between gap-4'>
-                <span>自动切换</span>
-                <input
-                    type='checkbox'
-                    checked={value.autoplayIntervalMs !== null}
-                    onChange={(event) => update(
-                        'autoplayIntervalMs',
-                        event.currentTarget.checked ? (value.autoplayIntervalMs ?? 30_000) : null,
-                    )}
+                    onValueChange={(next) => update('objectFit', next === 'cover' ? 'cover' : 'contain')}
+                    disabled={disabled}
                 />
-            </label>
+            </Field>
+
+            <div className='wp-inline'>
+                <span>自动切换</span>
+                <Switch
+                    aria-label='自动切换'
+                    checked={value.autoplayIntervalMs !== null}
+                    onCheckedChange={(checked) => update(
+                        'autoplayIntervalMs',
+                        checked ? (value.autoplayIntervalMs ?? 30_000) : null,
+                    )}
+                    disabled={disabled}
+                />
+            </div>
 
             {value.autoplayIntervalMs !== null ? (
-                <label className='flex items-center justify-between gap-4'>
-                    <span>切换间隔（秒）</span>
-                    <input
-                        type='number'
+                <Field label='切换间隔（秒）' disabled={disabled}>
+                    <NumberInput
                         min={1}
                         step={1}
                         value={value.autoplayIntervalMs / 1_000}
-                        onChange={handleIntervalChange}
+                        onValueChange={(seconds) => {
+                            if (seconds === null) return;
+                            update('autoplayIntervalMs', Math.max(1_000, Math.round(seconds * 1_000)));
+                        }}
+                        disabled={disabled}
                     />
-                </label>
+                </Field>
             ) : null}
 
-            <label className='flex items-center justify-between gap-4'>
+            <div className='wp-inline'>
                 <span>视频静音</span>
-                <input
-                    type='checkbox'
+                <Switch
+                    aria-label='视频静音'
                     checked={value.videoMuted}
-                    onChange={(event) => update('videoMuted', event.currentTarget.checked)}
+                    onCheckedChange={(checked) => update('videoMuted', checked)}
+                    disabled={disabled}
                 />
-            </label>
+            </div>
 
-            <label className='flex items-center justify-between gap-4'>
+            <div className='wp-inline'>
                 <span>显示视频控制栏</span>
-                <input
-                    type='checkbox'
+                <Switch
+                    aria-label='显示视频控制栏'
                     checked={value.videoControls}
-                    onChange={(event) => update('videoControls', event.currentTarget.checked)}
+                    onCheckedChange={(checked) => update('videoControls', checked)}
+                    disabled={disabled}
                 />
-            </label>
+            </div>
 
-            <label className='flex items-center justify-between gap-4'>
+            <div className='wp-inline'>
                 <span>视频结束后切换</span>
-                <input
-                    type='checkbox'
+                <Switch
+                    aria-label='视频结束后切换'
                     checked={value.videoAdvanceOnEnded}
-                    onChange={(event) => update('videoAdvanceOnEnded', event.currentTarget.checked)}
+                    onCheckedChange={(checked) => update('videoAdvanceOnEnded', checked)}
+                    disabled={disabled}
                 />
-            </label>
+            </div>
         </fieldset>
     );
 }
