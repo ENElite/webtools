@@ -11,10 +11,6 @@
     will-change: transform, width, height;
 }
 
-.wt-widget-frame[data-selected] {
-    outline: 1px solid color-mix(in srgb, #1677ff 72%, transparent);
-}
-
 .wt-widget-frame[data-auto-hidden] {
     visibility: hidden;
     opacity: 0 !important;
