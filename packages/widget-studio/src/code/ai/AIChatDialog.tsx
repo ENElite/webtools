@@ -1,4 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import {
+    Button,
+    Card,
+    EmptyState,
+    Field,
+    IconButton,
+    SegmentedControl,
+    TextInput,
+    Textarea,
+    Toolbar,
+} from '@webtools/ui';
+
 import type { AIEditChange, AIMessage, AIMode, AIStatus, EditorSelection } from './types';
 
 export type AISettings = {
@@ -21,183 +36,40 @@ type AIChatDialogProps = {
     onAcceptAll: () => void;
     onRejectAll: () => void;
     onClear: () => void;
+    onClose: () => void;
     onSettingsChange?: (settings: AISettings) => void;
 };
 
-const MODE_OPTIONS: Array<{ key: AIMode; label: string; desc: string }> = [
-    { key: 'ask', label: 'Ask', desc: '仅对话，不编辑代码' },
-    { key: 'agent', label: 'Agent', desc: '编辑代码，手动接受/拒绝' },
-    { key: 'plan', label: 'Plan', desc: '思考和计划，不编辑' },
-    { key: 'auto', label: 'Auto', desc: '自动接受所有编辑' },
+const MODE_OPTIONS: Array<{ value: AIMode; label: string }> = [
+    { value: 'ask', label: 'Ask' },
+    { value: 'agent', label: 'Agent' },
+    { value: 'plan', label: 'Plan' },
+    { value: 'auto', label: 'Auto' },
 ];
 
-const DIALOG_STYLE: React.CSSProperties = {
-    position: 'absolute',
-    bottom: 44,
-    right: 8,
-    width: 400,
-    maxHeight: 'calc(100% - 56px)',
-    display: 'flex',
-    flexDirection: 'column',
-    background: 'rgba(24, 24, 32, 0.96)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-    zIndex: 30,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 13,
-    color: '#d4d4d4',
-    overflow: 'hidden',
-    backdropFilter: 'blur(12px)',
+const STATUS_CONFIG: Record<AIStatus, { label: string; icon: string }> = {
+    idle: { label: '', icon: '' },
+    requesting: { label: '发起请求', icon: '⏳' },
+    thinking: { label: '思考中', icon: '💭' },
+    editing: { label: '编辑中', icon: '✏️' },
+    timeout: { label: '请求超时', icon: '⚠️' },
 };
 
-const HEADER_STYLE: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 12px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    background: 'rgba(30, 30, 40, 0.6)',
-};
-
-const MODE_BUTTON_STYLE = (active: boolean): React.CSSProperties => ({
-    padding: '2px 8px',
-    fontSize: 11,
-    fontWeight: active ? 600 : 400,
-    color: active ? '#c4b5fd' : '#888',
-    background: active ? 'rgba(139, 92, 246, 0.15)' : 'transparent',
-    border: `1px solid ${active ? 'rgba(139, 92, 246, 0.3)' : 'transparent'}`,
-    borderRadius: 4,
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-    whiteSpace: 'nowrap',
-});
-
-const MESSAGES_STYLE: React.CSSProperties = {
-    flex: 1,
-    overflow: 'auto',
-    padding: '8px 12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    minHeight: 0,
-};
-
-const INPUT_AREA_STYLE: React.CSSProperties = {
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-};
-
-const USER_MSG_STYLE: React.CSSProperties = {
-    alignSelf: 'flex-end',
-    maxWidth: '85%',
-    padding: '6px 10px',
-    borderRadius: '6px 6px 2px 6px',
-    background: 'rgba(139, 92, 246, 0.2)',
-    border: '1px solid rgba(139, 92, 246, 0.2)',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    lineHeight: 1.5,
-};
-
-const ASSISTANT_MSG_STYLE: React.CSSProperties = {
-    alignSelf: 'flex-start',
-    maxWidth: '85%',
-    padding: '6px 10px',
-    borderRadius: '6px 6px 6px 2px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    lineHeight: 1.5,
-};
-
-const QUOTE_STYLE: React.CSSProperties = {
-    fontSize: 11,
-    color: '#6b7280',
-    borderLeft: '2px solid rgba(139, 92, 246, 0.3)',
-    paddingLeft: 8,
-    marginBottom: 4,
-    fontStyle: 'italic',
-};
-
-const CHANGE_STYLE: React.CSSProperties = {
-    padding: '6px 10px',
-    borderRadius: 4,
-    background: 'rgba(34, 197, 94, 0.08)',
-    border: '1px solid rgba(34, 197, 94, 0.2)',
-    fontSize: 12,
-};
-
-const TEXTAREA_STYLE: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 12px',
-    background: 'transparent',
-    border: 'none',
-    color: '#d4d4d4',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    resize: 'none',
-    outline: 'none',
-    lineHeight: 1.5,
-    minHeight: 36,
-    maxHeight: 120,
-    boxSizing: 'border-box',
-};
-
-const FOOTER_STYLE: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '6px 12px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-};
-
-const SEND_BUTTON_STYLE: React.CSSProperties = {
-    padding: '4px 14px',
-    fontSize: 12,
-    fontWeight: 500,
-    color: '#fff',
-    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-    border: 'none',
-    borderRadius: 4,
-    cursor: 'pointer',
-    transition: 'opacity 0.15s',
-};
-
-function formatTime(ts: number): string {
-    const d = new Date(ts);
-    return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+function formatTime(timestamp: number): string {
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
-
-const STATUS_CONFIG: Record<AIStatus, { label: string; color: string; icon: string }> = {
-    idle: { label: '', color: '', icon: '' },
-    requesting: { label: '发起请求', color: '#f59e0b', icon: '⏳' },
-    thinking: { label: '思考中', color: '#3b82f6', icon: '💭' },
-    editing: { label: '编辑中', color: '#22c55e', icon: '✏️' },
-    timeout: { label: '请求超时', color: '#ef4444', icon: '⚠️' },
-};
 
 function StatusIndicator({ status }: { status: AIStatus }) {
     const config = STATUS_CONFIG[status];
-    if (!config) return null;
+    if (!config.label) return null;
 
     return (
-        <span
-            style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '1px 6px',
-                fontSize: 10,
-                fontWeight: 500,
-                color: config.color,
-                background: `${config.color}15`,
-                border: `1px solid ${config.color}30`,
-                borderRadius: 4,
-                lineHeight: '16px',
-            }}
-        >
-            <span style={{ fontSize: 10 }}>{config.icon}</span>
+        <span className={`wt-studio-ai-status wt-studio-ai-status--${status}`} role='status' aria-live='polite'>
+            <span aria-hidden='true'>{config.icon}</span>
             {config.label}
         </span>
     );
@@ -218,6 +90,7 @@ export function AIChatDialog({
     onAcceptAll,
     onRejectAll,
     onClear,
+    onClose,
     onSettingsChange,
 }: AIChatDialogProps) {
     const [input, setInput] = useState('');
@@ -227,287 +100,227 @@ export function AIChatDialog({
         baseUrl: settings?.baseUrl ?? '/api/deepseek/chat',
     });
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const composerRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const previousFocus = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        const focusFrame = window.requestAnimationFrame(() => composerRef.current?.focus());
+        return () => {
+            window.cancelAnimationFrame(focusFrame);
+            if (previousFocus?.isConnected) previousFocus.focus();
+        };
+    }, []);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, pendingChanges]);
 
+    useEffect(() => {
+        setSettingsDraft({
+            apiKey: settings?.apiKey ?? '',
+            baseUrl: settings?.baseUrl ?? '/api/deepseek/chat',
+        });
+    }, [settings]);
+
+    useEffect(() => {
+        const handleEscape = (event: globalThis.KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [onClose]);
+
     const handleSend = useCallback(() => {
-        if (!input.trim() || requesting) return;
-        onSend(input.trim());
+        const content = input.trim();
+        if (!content || requesting) return;
+        onSend(content);
         setInput('');
     }, [input, requesting, onSend]);
 
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
+    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
             handleSend();
         }
     }, [handleSend]);
 
-    const activeChanges = pendingChanges.filter((c) => c.status === 'pending');
+    const activeChanges = pendingChanges.filter((change) => change.status === 'pending');
+    const composerPlaceholder = mode === 'ask'
+        ? '向 AI 提问...'
+        : mode === 'plan'
+            ? '描述需求，AI 将给出计划...'
+            : '描述你想要的修改...';
 
     return (
-        <div style={DIALOG_STYLE} onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div style={HEADER_STYLE}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#a78bfa', letterSpacing: '0.03em' }}>
-                    AI
-                </span>
-                <div style={{ flex: 1, display: 'flex', gap: 2, justifyContent: 'center' }}>
-                    {MODE_OPTIONS.map((opt) => (
-                        <button
-                            key={opt.key}
-                            type='button'
-                            style={MODE_BUTTON_STYLE(mode === opt.key)}
-                            onClick={() => onModeChange(opt.key)}
-                            title={opt.desc}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-                <button
-                    type='button'
-                    onClick={onClear}
-                    style={{
-                        background: 'none', border: 'none', color: '#666', cursor: 'pointer',
-                        fontSize: 11, padding: '0 4px',
-                    }}
-                    title='清空对话'
-                >
-                    🗑
-                </button>
-            </div>
+        <Card
+            ref={dialogRef}
+            className='wt-studio-ai-dialog'
+            role='dialog'
+            aria-label='AI 代码助手'
+            aria-modal='false'
+            onClick={(event) => event.stopPropagation()}
+        >
+            <header className='wt-studio-ai-header'>
+                <span className='wt-studio-ai-title'>AI</span>
+                <SegmentedControl<AIMode>
+                    className='wt-studio-ai-modes'
+                    value={mode}
+                    options={MODE_OPTIONS}
+                    onValueChange={onModeChange}
+                    aria-label='AI 工作模式'
+                />
+                <IconButton size='sm' variant='ghost' aria-label='清空对话' title='清空对话' onClick={onClear}>
+                    <span aria-hidden='true'>🗑</span>
+                </IconButton>
+                <IconButton size='sm' variant='ghost' aria-label='关闭 AI 助手' title='关闭 AI 助手' onClick={onClose}>
+                    <span aria-hidden='true'>×</span>
+                </IconButton>
+            </header>
 
-            {/* Messages */}
-            <div style={MESSAGES_STYLE}>
-                {messages.length === 0 && (
-                    <div style={{ textAlign: 'center', color: '#555', padding: '20px 0', fontSize: 12 }}>
-                        选择代码并输入需求，AI 将帮你编辑
-                    </div>
-                )}
+            <div className='wt-studio-ai-messages' aria-live='polite' aria-busy={requesting}>
+                {messages.length === 0 && activeChanges.length === 0 ? (
+                    <EmptyState
+                        title='从一段代码开始'
+                        description='选择代码并输入需求，AI 将帮你编辑。'
+                        className='wt-studio-ai-empty'
+                    />
+                ) : null}
 
-                {messages.map((msg) => (
-                    <div key={msg.id}>
-                        {msg.quote && (
-                            <div style={QUOTE_STYLE}>
-                                引用 L{msg.quote.startLine}-{msg.quote.endLine}:
-                                {' '}{msg.quote.text.slice(0, 100)}{msg.quote.text.length > 100 ? '...' : ''}
-                            </div>
-                        )}
-                        <div style={msg.role === 'user' ? USER_MSG_STYLE : ASSISTANT_MSG_STYLE}>
-                            {msg.content}
-                        </div>
-                        <div style={{
-                            fontSize: 10, color: '#555', marginTop: 2,
-                            textAlign: msg.role === 'user' ? 'right' : 'left',
-                        }}>
-                            {formatTime(msg.timestamp)}
-                        </div>
-                    </div>
+                {messages.map((message) => (
+                    <article className={`wt-studio-ai-message wt-studio-ai-message--${message.role}`} key={message.id}>
+                        {message.quote ? (
+                            <blockquote className='wt-studio-ai-quote'>
+                                引用 L{message.quote.startLine}-{message.quote.endLine}: {' '}
+                                {message.quote.text.slice(0, 100)}{message.quote.text.length > 100 ? '…' : ''}
+                            </blockquote>
+                        ) : null}
+                        <div className='wt-studio-ai-bubble'>{message.content}</div>
+                        <time className='wt-studio-ai-time' dateTime={new Date(message.timestamp).toISOString()}>
+                            {formatTime(message.timestamp)}
+                        </time>
+                    </article>
                 ))}
 
                 {activeChanges.map((change) => (
-                    <div key={change.id} style={CHANGE_STYLE}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ color: '#4ade80', fontWeight: 500, fontSize: 11 }}>
-                                {change.summary ?? `L${change.range.startLine}-${change.range.endLine}`}
-                            </span>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                                <button
-                                    type='button'
+                    <Card className='wt-studio-ai-change' key={change.id}>
+                        <div className='wt-studio-ai-change-header'>
+                            <strong>{change.summary ?? `L${change.range.startLine}-${change.range.endLine}`}</strong>
+                            <Toolbar aria-label={`处理变更 ${change.summary ?? change.id}`}>
+                                <IconButton
+                                    size='sm'
+                                    variant='secondary'
+                                    className='wt-studio-ai-accept'
+                                    aria-label='接受变更'
                                     onClick={() => onAcceptChange(change.id)}
-                                    style={{
-                                        padding: '1px 8px', fontSize: 11, fontWeight: 500,
-                                        color: '#fff', background: '#22c55e', border: 'none',
-                                        borderRadius: 3, cursor: 'pointer',
-                                    }}
                                 >
-                                    ✓
-                                </button>
-                                <button
-                                    type='button'
+                                    <span aria-hidden='true'>✓</span>
+                                </IconButton>
+                                <IconButton
+                                    size='sm'
+                                    variant='danger'
+                                    className='wt-studio-ai-reject'
+                                    aria-label='拒绝变更'
                                     onClick={() => onRejectChange(change.id)}
-                                    style={{
-                                        padding: '1px 8px', fontSize: 11, fontWeight: 500,
-                                        color: '#fff', background: '#ef4444', border: 'none',
-                                        borderRadius: 3, cursor: 'pointer',
-                                    }}
                                 >
-                                    ✗
-                                </button>
-                            </div>
+                                    <span aria-hidden='true'>✕</span>
+                                </IconButton>
+                            </Toolbar>
                         </div>
-                        <pre style={{
-                            margin: 0, fontSize: 11, lineHeight: 1.4,
-                            color: '#94a3b8', overflow: 'auto', maxHeight: 80,
-                            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-                        }}>
-                            {change.newText.slice(0, 300)}{change.newText.length > 300 ? '...' : ''}
+                        <pre className='wt-studio-ai-change-code'>
+                            {change.newText.slice(0, 300)}{change.newText.length > 300 ? '…' : ''}
                         </pre>
-                    </div>
+                    </Card>
                 ))}
 
-                {activeChanges.length > 1 && (
-                    <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button
-                            type='button'
-                            onClick={onAcceptAll}
-                            style={{
-                                padding: '3px 12px', fontSize: 11, fontWeight: 500,
-                                color: '#fff', background: '#22c55e', border: 'none',
-                                borderRadius: 3, cursor: 'pointer',
-                            }}
-                        >
+                {activeChanges.length > 1 ? (
+                    <Toolbar className='wt-studio-ai-bulk-actions' aria-label='批量处理变更'>
+                        <Button size='sm' variant='secondary' className='wt-studio-ai-accept' onClick={onAcceptAll}>
                             全部接受 ({activeChanges.length})
-                        </button>
-                        <button
-                            type='button'
-                            onClick={onRejectAll}
-                            style={{
-                                padding: '3px 12px', fontSize: 11, fontWeight: 500,
-                                color: '#fff', background: '#ef4444', border: 'none',
-                                borderRadius: 3, cursor: 'pointer',
-                            }}
-                        >
+                        </Button>
+                        <Button size='sm' variant='danger' className='wt-studio-ai-reject' onClick={onRejectAll}>
                             全部拒绝
-                        </button>
-                    </div>
-                )}
+                        </Button>
+                    </Toolbar>
+                ) : null}
 
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input area */}
-            <div style={INPUT_AREA_STYLE}>
-                {/* Settings panel */}
-                {showSettings && (
-                    <div style={{
-                        padding: '8px 12px',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                    }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <label style={{ fontSize: 11, color: '#888' }}>API Key</label>
-                            <input
+            <div className='wt-studio-ai-composer'>
+                {showSettings ? (
+                    <section className='wt-studio-ai-settings' aria-label='AI 服务设置'>
+                        <Field label='API Key' description='留空时使用服务端代理密钥'>
+                            <TextInput
                                 type='password'
+                                autoComplete='off'
                                 value={settingsDraft.apiKey}
-                                onChange={(e) => setSettingsDraft((s) => ({ ...s, apiKey: e.target.value }))}
-                                placeholder='留空使用服务端代理密钥'
-                                style={{
-                                    padding: '4px 8px',
-                                    fontSize: 12,
-                                    background: 'rgba(255, 255, 255, 0.06)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: 4,
-                                    color: '#d4d4d4',
-                                    outline: 'none',
-                                }}
+                                onChange={(event) => setSettingsDraft((current) => ({
+                                    ...current,
+                                    apiKey: event.target.value,
+                                }))}
                             />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <label style={{ fontSize: 11, color: '#888' }}>Base URL</label>
-                            <input
-                                type='text'
+                        </Field>
+                        <Field label='Base URL'>
+                            <TextInput
                                 value={settingsDraft.baseUrl}
-                                onChange={(e) => setSettingsDraft((s) => ({ ...s, baseUrl: e.target.value }))}
                                 placeholder='/api/deepseek/chat'
-                                style={{
-                                    padding: '4px 8px',
-                                    fontSize: 12,
-                                    background: 'rgba(255, 255, 255, 0.06)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: 4,
-                                    color: '#d4d4d4',
-                                    outline: 'none',
-                                }}
+                                onChange={(event) => setSettingsDraft((current) => ({
+                                    ...current,
+                                    baseUrl: event.target.value,
+                                }))}
                             />
-                        </div>
-                        <button
-                            type='button'
+                        </Field>
+                        <Button
+                            size='sm'
+                            className='wt-studio-ai-settings-save'
                             onClick={() => {
                                 onSettingsChange?.(settingsDraft);
                                 setShowSettings(false);
                             }}
-                            style={{
-                                padding: '4px 12px',
-                                fontSize: 11,
-                                fontWeight: 500,
-                                color: '#fff',
-                                background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                                border: 'none',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                                alignSelf: 'flex-end',
-                            }}
                         >
                             保存设置
-                        </button>
-                    </div>
-                )}
-                <textarea
-                    ref={textareaRef}
-                    style={TEXTAREA_STYLE}
+                        </Button>
+                    </section>
+                ) : null}
+
+                <label className='wt-studio-ai-composer-label' htmlFor='wt-studio-ai-prompt'>给 AI 的消息</label>
+                <Textarea
+                    ref={composerRef}
+                    id='wt-studio-ai-prompt'
+                    className='wt-studio-ai-prompt'
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(event) => setInput(event.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={
-                        mode === 'ask' ? '向 AI 提问...' :
-                        mode === 'plan' ? '描述需求，AI 将给出计划...' :
-                        '描述你想要的修改...'
-                    }
+                    placeholder={composerPlaceholder}
                     rows={2}
                 />
-                <div style={{
-                    height: 1,
-                    background: 'rgba(255, 255, 255, 0.06)',
-                }} />
-                <div style={FOOTER_STYLE}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {/* Status indicator */}
+
+                <footer className='wt-studio-ai-footer'>
+                    <div className='wt-studio-ai-context'>
                         <StatusIndicator status={status} />
-                        <span style={{ fontSize: 11, color: '#666' }}>
+                        <span>
                             {selection
                                 ? `L${selection.startLine}-${selection.endLine} · ${selection.text.length} chars`
-                                : mode === 'ask' ? '对话模式' : '选择代码以引用'
-                            }
+                                : mode === 'ask' ? '对话模式' : '选择代码以引用'}
                         </span>
-                        <button
-                            type='button'
-                            onClick={() => setShowSettings((v) => !v)}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                color: showSettings ? '#a78bfa' : '#666',
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                padding: '0 4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
-                            title='设置'
+                        <IconButton
+                            size='sm'
+                            variant='ghost'
+                            aria-label={showSettings ? '关闭设置' : '打开设置'}
+                            aria-expanded={showSettings}
+                            onClick={() => setShowSettings((current) => !current)}
                         >
-                            ⚙
-                        </button>
+                            <span aria-hidden='true'>⚙</span>
+                        </IconButton>
                     </div>
-                    <button
-                        type='button'
-                        style={{
-                            ...SEND_BUTTON_STYLE,
-                            opacity: (!input.trim() || requesting) ? 0.5 : 1,
-                            cursor: (!input.trim() || requesting) ? 'not-allowed' : 'pointer',
-                        }}
-                        disabled={!input.trim() || requesting}
-                        onClick={handleSend}
-                    >
-                        {requesting ? '...' : '发送'}
-                    </button>
-                </div>
+                    <Button size='sm' disabled={!input.trim() || requesting} onClick={handleSend}>
+                        {requesting ? '发送中…' : '发送'}
+                    </Button>
+                </footer>
             </div>
-        </div>
+        </Card>
     );
 }

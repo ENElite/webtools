@@ -3,6 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ForwardedRef } from 'react';
 import { Editor } from '@monaco-editor/react';
+import { Button, Toolbar } from '@webtools/ui';
 import type { editor as MonacoEditor } from 'monaco-editor';
 
 import { AIFloatingButton, AIChatDialog } from './ai';
@@ -324,34 +325,19 @@ function CodeEditorImpl(
     const hasAI = !!aiProvider;
 
     return (
-        <div className={className} style={{ width: '100%', height, minHeight: 0, position: 'relative' }}>
-            {/* Save button bar */}
+        <div
+            className={['wt-studio-code-editor', className].filter(Boolean).join(' ')}
+            style={{ height }}
+        >
             {showSaveButton && (
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    padding: '4px 10px',
-                    borderBottom: '1px solid rgba(148, 163, 184, 0.3)',
-                }}
-                >
-                    <button
-                        type='button' onClick={commitCurrent} style={{
-                            padding: '2px 12px',
-                            fontSize: 12,
-                            color: '#64748b',
-                            background: 'none',
-                            border: '1px solid rgba(148,163,184,0.3)',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                        }}
-                    >
+                <Toolbar className='wt-studio-code-editor-toolbar' aria-label='代码编辑器操作'>
+                    <Button size='sm' variant='ghost' onClick={commitCurrent}>
                         {saveButtonText}
-                    </button>
-                </div>
+                    </Button>
+                </Toolbar>
             )}
 
-            {/* Monaco Editor */}
-            <div style={{ width: '100%', height: showSaveButton ? 'calc(100% - 33px)' : '100%', minHeight: 0 }}>
+            <div className='wt-studio-code-editor-main'>
                 <Editor
                     defaultLanguage={language}
                     theme={theme}
@@ -419,6 +405,7 @@ function CodeEditorImpl(
                     onAcceptAll={handleAcceptAll}
                     onRejectAll={handleRejectAll}
                     onClear={clearMessages}
+                    onClose={() => setAIOpen(false)}
                     {...(onSettingsChange === undefined ? {} : { onSettingsChange })}
                 />
             )}

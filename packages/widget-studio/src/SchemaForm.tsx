@@ -1,7 +1,7 @@
 'use client';
 
-import { Alert, Collapse, Form, Tabs, Typography } from 'antd';
 import { useMemo } from 'react';
+import { Accordion, Alert, Field, Tabs } from '@webtools/ui';
 import type { JsonObject, JsonValue } from '@webtools/widget-core';
 
 import { readPath } from './path';
@@ -50,42 +50,43 @@ export function SchemaForm<TValue extends JsonObject>({ value, schema, controls,
 
     const renderField = (field: InspectorField) => {
         if (!controls.has(field.control)) {
-            return <Alert key={field.key} type='warning' message={`Unknown control: ${field.control}`} />;
+            return <Alert key={field.key} tone='warning'>Unknown control: {field.control}</Alert>;
         }
         const Control = controls.get(field.control).Control;
         return (
-            <Form.Item key={field.key} label={field.label} tooltip={field.description}>
+            <Field key={field.key} label={field.label} description={field.description}>
                 <Control field={field} value={readPath(value, field.path)} onChange={(next) => onChange(field.path, next)} />
-            </Form.Item>
+            </Field>
         );
     };
 
-    if (pages.length === 0) return <Alert type='info' message='没有可编辑属性' />;
+    if (pages.length === 0) return <Alert tone='info'>没有可编辑属性</Alert>;
 
     return (
         <Tabs
-            tabPosition='left'
+            orientation='vertical'
+            className='wt-studio-schema-tabs'
             items={pages.map(({ page, fields }) => {
                 const ungrouped = fields.filter((field) => !field.group);
                 const groups = groupFields(fields);
                 return {
-                    key: page.key,
+                    value: page.key,
                     label: page.label,
-                    children: (
-                        <Form layout='vertical' className='wt-studio-form'>
+                    content: (
+                        <div className='wt-studio-form'>
                             {ungrouped.map(renderField)}
-                            {[...groups.entries()].map(([group, grouped]) => (
-                                <Collapse
-                                    key={group}
-                                    ghost
-                                    items={[{
-                                        key: group,
-                                        label: <Typography.Text strong>{group}</Typography.Text>,
-                                        children: grouped.map(renderField),
-                                    }]}
+                            {groups.size > 0 ? (
+                                <Accordion
+                                    multiple
+                                    className='wt-studio-field-groups'
+                                    items={[...groups.entries()].map(([group, grouped]) => ({
+                                        value: group,
+                                        title: group,
+                                        content: <div className='wt-studio-field-group'>{grouped.map(renderField)}</div>,
+                                    }))}
                                 />
-                            ))}
-                        </Form>
+                            ) : null}
+                        </div>
                     ),
                 };
             })}

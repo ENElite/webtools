@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@monaco-editor/react": "catalog:",
+    "@webtools/ui": "workspace:*",
     "@webtools/widget-core": "workspace:*",
     "@webtools/widget-react": "workspace:*",
-    "antd": "catalog:",
     "monaco-editor": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

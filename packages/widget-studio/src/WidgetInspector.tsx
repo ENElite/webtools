@@ -1,5 +1,6 @@
 'use client';
 
+import { EmptyState } from '@webtools/ui';
 import { widgetLayoutSchema, widgetStyleSchema } from '@webtools/widget-core';
 import type { JsonObject, WidgetEntity } from '@webtools/widget-core';
 import { useWidgetRuntime, useWidgetSnapshot } from '@webtools/widget-react';
@@ -42,7 +43,15 @@ export function WidgetInspector({ schemas, controls, widgetId }: WidgetInspector
     const activeId = widgetId ?? runtime.settingsWidgetId ?? runtime.selectedWidgetId;
     const widget = snapshot.document.widgets.find((item) => item.id === activeId);
     if (!widget) return null;
-    if (!schemas.has(widget.kind)) return <div className='wt-studio-empty'>该组件没有 Inspector Schema</div>;
+    if (!schemas.has(widget.kind)) {
+        return (
+            <EmptyState
+                className='wt-studio-empty'
+                title='暂无可编辑属性'
+                description='这个组件还没有定义 Inspector Schema。'
+            />
+        );
+    }
 
     const value = toEditableRecord(widget);
     return (

@@ -56,6 +56,13 @@ export interface InspectorControlProps {
     readonly field: InspectorField;
     readonly value: JsonValue | undefined;
     readonly onChange: (value: JsonValue | undefined) => void;
+    readonly id?: string;
+    readonly 'aria-describedby'?: string;
+    readonly 'aria-errormessage'?: string;
+    readonly 'aria-invalid'?: boolean;
+    readonly required?: boolean;
+    readonly disabled?: boolean;
+    readonly readOnly?: boolean;
 }
 
 export interface InspectorControlDefinition {
