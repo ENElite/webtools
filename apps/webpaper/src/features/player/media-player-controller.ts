@@ -189,6 +189,11 @@ export function createMediaPlayerController(
             return () => listeners.delete(listener);
         },
         async switchSource(selection) {
+            if (state.selection === selection) {
+                if (activeRequest) return activeRequest.promise;
+                if (state.status === 'ready') return true;
+            }
+
             requestRevision += 1;
             activeRequest?.controller.abort();
             activeRequest = null;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 
 import { selectCurrentMedia, type MediaItem } from '../../domain';
 import {
@@ -31,8 +31,21 @@ export function useMediaPlayer(
         controller.getSnapshot,
         controller.getSnapshot,
     );
+    const lifecycle = useRef<ControllerLifecycle | null>(null);
 
-    useEffect(() => () => controller.dispose(), [controller]);
+    useEffect(() => {
+        const generation = (lifecycle.current?.generation ?? 0) + 1;
+        lifecycle.current = { controller, generation };
+
+        return () => {
+            queueMicrotask(() => {
+                const current = lifecycle.current;
+                const controllerWasReplaced = current?.controller !== controller;
+                const componentRemainedUnmounted = current?.generation === generation;
+                if (controllerWasReplaced || componentRemainedUnmounted) controller.dispose();
+            });
+        };
+    }, [controller]);
 
     useEffect(() => {
         if (state.session.autoplay.kind !== 'running') return undefined;
@@ -47,4 +60,9 @@ export function useMediaPlayer(
         currentMedia: selectCurrentMedia(state.session),
         controller,
     };
+}
+
+interface ControllerLifecycle {
+    readonly controller: MediaPlayerController;
+    readonly generation: number;
 }
