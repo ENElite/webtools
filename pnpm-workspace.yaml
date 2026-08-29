@@ -2,6 +2,11 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  sharp: true
+
 # New packages should reference these versions with `catalog:`. Existing
 # manifests can migrate incrementally without duplicating version policy.
 catalog:
