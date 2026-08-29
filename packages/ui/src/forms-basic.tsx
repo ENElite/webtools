@@ -279,6 +279,8 @@ export const Select = forwardRef(function Select<T extends SelectValue = SelectV
             invalid={invalid}
             required={required}
             positioning={{ sameWidth: true }}
+            lazyMount
+            unmountOnExit
             {...props}
         >
             <ArkSelect.HiddenSelect />
@@ -306,7 +308,7 @@ export const Select = forwardRef(function Select<T extends SelectValue = SelectV
                 </ArkSelect.Trigger>
             </ArkSelect.Control>
             <Portal>
-                <ArkSelect.Positioner className='wt-positioner'>
+                <ArkSelect.Positioner className='wt-positioner wt-select__positioner'>
                     <ArkSelect.Content className='wt-select__content'>
                         {items.map((item) => (
                             <ArkSelect.Item key={item.value} item={item} className='wt-select__item'>

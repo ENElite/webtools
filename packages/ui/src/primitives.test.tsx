@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { Alert, Badge, Button, Card, Field, NumberInput, Select, Switch, TextInput } from './index';
+import { Alert, Badge, Button, Card, ContextMenu, Field, NumberInput, Select, Switch, TextInput } from './index';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -93,5 +93,51 @@ describe('Mochi primitives', () => {
     it('puts an explicit switch label on the real input', () => {
         const host = render(<Switch aria-label='自动切换' />);
         expect(host.querySelector('input')?.getAttribute('aria-label')).toBe('自动切换');
+    });
+
+    it('mounts select options in the shared overlay layer when opened', async () => {
+        const host = render(
+            <Select
+                aria-label='媒体来源'
+                options={[
+                    { value: 'bird-paper', label: '小鸟壁纸' },
+                    { value: 'konachan', label: 'Konachan' },
+                ]}
+            />,
+        );
+        const trigger = host.querySelector<HTMLButtonElement>('.wt-select__trigger');
+        expect(document.body.querySelector('.wt-select__content')).toBeNull();
+
+        await act(async () => {
+            trigger?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        expect(document.body.querySelector('.wt-select__content[data-state="open"]')).not.toBeNull();
+        expect([...document.body.querySelectorAll('.wt-select__item')].map((item) => item.textContent)).toEqual([
+            '小鸟壁纸✓',
+            'Konachan✓',
+        ]);
+    });
+
+    it('opens a context menu at the app surface', async () => {
+        const host = render(
+            <ContextMenu items={[{ value: 'settings', label: '壁纸设置' }]}>
+                <main data-testid='surface'>画布</main>
+            </ContextMenu>,
+        );
+        const surface = host.querySelector('[data-testid="surface"]');
+        await act(async () => {
+            surface?.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 20,
+                clientY: 30,
+            }));
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        const item = document.body.querySelector<HTMLElement>('.wt-menu__item');
+        expect(item?.textContent).toContain('壁纸设置');
     });
 });

@@ -4,6 +4,7 @@ import {
     Accordion as ArkAccordion,
     Collapsible as ArkCollapsible,
     Drawer as ArkDrawer,
+    Menu as ArkMenu,
     Portal,
     SegmentGroup as ArkSegmentGroup,
     Tabs as ArkTabs,
@@ -13,6 +14,54 @@ import { forwardRef, useId } from 'react';
 import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from 'react';
 
 import { cx } from './utils';
+
+export interface ContextMenuItem {
+    value: string;
+    label: ReactNode;
+    icon?: ReactNode;
+    shortcut?: ReactNode;
+    disabled?: boolean;
+    tone?: 'default' | 'danger';
+    separatorBefore?: boolean;
+    onSelect?: () => void;
+}
+
+export interface ContextMenuProps {
+    children: ReactElement;
+    items: ReadonlyArray<ContextMenuItem>;
+    'aria-label'?: string;
+}
+
+/** A pointer-positioned menu for app surfaces. Items own their action so callers stay type-safe. */
+export function ContextMenu({ children, items, 'aria-label': ariaLabel = '快捷菜单' }: ContextMenuProps) {
+    return (
+        <ArkMenu.Root lazyMount unmountOnExit positioning={{ gutter: 6 }}>
+            <ArkMenu.ContextTrigger asChild>{children}</ArkMenu.ContextTrigger>
+            <Portal>
+                <ArkMenu.Positioner className='wt-positioner wt-menu__positioner'>
+                    <ArkMenu.Content className='wt-menu' aria-label={ariaLabel}>
+                        {items.map((item) => (
+                            <div key={item.value} role='presentation'>
+                                {item.separatorBefore ? <ArkMenu.Separator className='wt-menu__separator' /> : null}
+                                <ArkMenu.Item
+                                    value={item.value}
+                                    disabled={item.disabled}
+                                    className='wt-menu__item'
+                                    data-tone={item.tone ?? 'default'}
+                                    onSelect={item.onSelect}
+                                >
+                                    {item.icon ? <span className='wt-menu__icon' aria-hidden='true'>{item.icon}</span> : null}
+                                    <ArkMenu.ItemText className='wt-menu__label'>{item.label}</ArkMenu.ItemText>
+                                    {item.shortcut ? <span className='wt-menu__shortcut'>{item.shortcut}</span> : null}
+                                </ArkMenu.Item>
+                            </div>
+                        ))}
+                    </ArkMenu.Content>
+                </ArkMenu.Positioner>
+            </Portal>
+        </ArkMenu.Root>
+    );
+}
 
 export interface TabItem {
     value: string;
