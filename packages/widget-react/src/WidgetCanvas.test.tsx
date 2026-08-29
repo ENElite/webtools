@@ -67,6 +67,66 @@ describe('WidgetCanvas', () => {
         expect(host.querySelectorAll('.moveable-control-box')).toHaveLength(1);
         expect(updateRect).toHaveBeenCalled();
     });
+
+    it('resyncs the Moveable control box when the viewport changes', () => {
+        const updateRect = vi.spyOn(Moveable.prototype, 'updateRect');
+        const engine = createWidgetEngine({ catalog: definitions });
+        engine.dispatch({ type: 'widget.add', widget: { kind: 'clock' } });
+        const widget = engine.getSnapshot().document.widgets[0];
+        expect(widget).toBeDefined();
+        if (!widget) return;
+
+        const runtimeRef: { current: WidgetRuntimeContextValue | null } = { current: null };
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+        act(() => {
+            mountedRoot?.render(
+                <WidgetRuntimeProvider engine={engine} views={views}>
+                    <WidgetCanvas />
+                    <RuntimeProbe capture={(runtime) => { runtimeRef.current = runtime; }} />
+                </WidgetRuntimeProvider>,
+            );
+        });
+        act(() => runtimeRef.current?.selectWidget(widget.id));
+        updateRect.mockClear();
+
+        act(() => window.dispatchEvent(new Event('resize')));
+
+        expect(updateRect).toHaveBeenCalled();
+    });
+
+    it('restores custom able actions and opens settings from right click', () => {
+        const engine = createWidgetEngine({ catalog: definitions });
+        engine.dispatch({ type: 'widget.add', widget: { kind: 'clock', label: 'First' } });
+        engine.dispatch({ type: 'widget.add', widget: { kind: 'clock', label: 'Second' } });
+        const [first, second] = engine.getSnapshot().document.widgets;
+        expect(first).toBeDefined();
+        expect(second).toBeDefined();
+        if (!first || !second) return;
+
+        const runtimeRef: { current: WidgetRuntimeContextValue | null } = { current: null };
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+        act(() => {
+            mountedRoot?.render(
+                <WidgetRuntimeProvider engine={engine} views={views}>
+                    <WidgetCanvas />
+                    <RuntimeProbe capture={(runtime) => { runtimeRef.current = runtime; }} />
+                </WidgetRuntimeProvider>,
+            );
+        });
+        act(() => runtimeRef.current?.selectWidget(first.id));
+
+        expect(host.querySelector('.wt-widget-able--dimension')).not.toBeNull();
+        expect(host.querySelector('.wt-widget-able--order')?.textContent).toContain('第 1 层');
+        const moveUp = host.querySelector<HTMLButtonElement>('[data-action="move-up"]');
+        act(() => moveUp?.click());
+        expect(engine.getSnapshot().document.widgets.find((widget) => widget.id === first.id)?.layout.order).toBe(2);
+
+        const secondFrame = host.querySelector<HTMLElement>(`[data-widget-id="${second.id}"]`);
+        act(() => secondFrame?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })));
+        expect(runtimeRef.current?.settingsWidgetId).toBe(second.id);
+    });
 });
 
 function RuntimeProbe({ capture }: {

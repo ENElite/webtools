@@ -27,3 +27,107 @@
     color: white;
     font: 12px/1.4 ui-monospace, monospace;
 }
+
+.moveable-control-box {
+    --moveable-color: #ff8fbd;
+}
+
+.moveable-control-box .moveable-line {
+    background: #ff8fbd !important;
+    box-shadow: 0 0 0 1px rgb(62 27 49 / 40%);
+}
+
+.moveable-control-box .moveable-control {
+    width: 11px !important;
+    height: 11px !important;
+    margin-top: -5.5px !important;
+    margin-left: -5.5px !important;
+    border: 2px solid #fff8fc !important;
+    background: #ff8fbd !important;
+    box-shadow: 0 2px 7px rgb(35 16 29 / 44%);
+}
+
+.moveable-control-box .moveable-rotation-control {
+    border-radius: 50% 45% 52% 44%;
+    background: #9ce7ff !important;
+}
+
+.wt-widget-able {
+    z-index: 2;
+    box-sizing: border-box;
+    color: #4d3549;
+    background: rgb(255 250 253 / 96%);
+    border: 2px solid #ffc2dc;
+    box-shadow: 0 4px 0 rgb(126 54 91 / 20%), 0 10px 24px rgb(25 12 22 / 28%);
+    font-family: ui-rounded, 'SF Pro Rounded', 'PingFang SC', system-ui, sans-serif;
+    backdrop-filter: blur(16px);
+}
+
+.wt-widget-able--actions {
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 14px 14px 10px 14px;
+}
+
+.wt-widget-able__button {
+    appearance: none;
+    display: grid;
+    width: 29px;
+    height: 27px;
+    place-items: center;
+    padding: 0;
+    color: #6f4b68;
+    background: transparent;
+    border: 0;
+    border-radius: 9px 9px 7px 9px;
+    outline: none;
+    cursor: pointer;
+    font: 800 14px/1 inherit;
+    transition: color 120ms ease, background 120ms ease, transform 120ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.wt-widget-able__button:hover,
+.wt-widget-able__button:focus-visible {
+    color: #c7437e;
+    background: #ffe0ed;
+    transform: translateY(-2px) rotate(-3deg);
+}
+
+.wt-widget-able__button[data-action='remove']:hover,
+.wt-widget-able__button[data-action='remove']:focus-visible {
+    color: #c52d51;
+    background: #ffe1e7;
+}
+
+.wt-widget-able__button[data-action='settings'] {
+    color: #fff;
+    background: linear-gradient(145deg, #ff9fc8, #ee6ca7);
+}
+
+.wt-widget-able--dimension,
+.wt-widget-able--order {
+    display: block;
+    min-height: 25px;
+    padding: 4px 8px;
+    border-radius: 10px 10px 7px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.wt-widget-able--order {
+    color: #395d69;
+    background: rgb(230 249 255 / 96%);
+    border-color: #a8e9fb;
+}
+
+@media (max-width: 640px) {
+    .wt-widget-able--actions { max-width: min(310px, calc(100vw - 16px)); overflow-x: auto; }
+    .wt-widget-able__button { flex: 0 0 29px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wt-widget-able__button { transition: none; }
+}

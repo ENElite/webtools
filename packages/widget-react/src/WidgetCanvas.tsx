@@ -15,6 +15,10 @@ import {
 } from './layout';
 import type { PixelWidgetLayout } from './layout';
 import type { WidgetViewCatalog } from './catalog';
+import { Dimensionable } from './ables/Dimensionable';
+import { Orderable } from './ables/Orderable';
+import { Widgetable } from './ables/Widgetable';
+import type { WidgetableAction } from './ables/Widgetable';
 
 const SNAP_THRESHOLD = 8;
 
@@ -65,6 +69,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
     const moveableRef = useRef<Moveable>(null);
     const elementRefs = useRef(new Map<string, HTMLDivElement>());
     const interactionRef = useRef<InteractionSnapshot | null>(null);
+    const pendingBorderRadiusRef = useRef<string | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [idle, setIdle] = useState(false);
 
@@ -80,6 +85,34 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
         if (!runtime.editable || !selectedElement || !selectedLayout) return;
         moveableRef.current?.updateRect();
     }, [runtime.editable, selectedElement, selectedLayout]);
+
+    useEffect(() => {
+        if (!runtime.editable || !selectedElement) return;
+        const container = containerRef.current;
+        let animationFrame: number | null = null;
+        const updateControlRect = () => {
+            moveableRef.current?.updateRect();
+            if (animationFrame !== null && typeof cancelAnimationFrame === 'function') {
+                cancelAnimationFrame(animationFrame);
+            }
+            if (typeof requestAnimationFrame !== 'function') return;
+            animationFrame = requestAnimationFrame(() => {
+                animationFrame = null;
+                moveableRef.current?.updateRect();
+            });
+        };
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateControlRect);
+        if (container) observer?.observe(container);
+        observer?.observe(selectedElement);
+        window.addEventListener('resize', updateControlRect);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', updateControlRect);
+            if (animationFrame !== null && typeof cancelAnimationFrame === 'function') {
+                cancelAnimationFrame(animationFrame);
+            }
+        };
+    }, [runtime.editable, selectedElement]);
 
     const resetIdle = useCallback(() => {
         setIdle(false);
@@ -170,6 +203,59 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
         }
     }, [resetIdle, runtime, selected]);
 
+    const runWidgetableAction = useCallback((action: WidgetableAction) => {
+        if (!selected) return;
+        const index = widgets.findIndex((widget) => widget.id === selected.id);
+        if (index < 0) return;
+
+        if (action === 'move-up' || action === 'move-down' || action === 'move-top' || action === 'move-bottom') {
+            const toIndex = action === 'move-up'
+                ? Math.min(index + 1, widgets.length - 1)
+                : action === 'move-down'
+                    ? Math.max(index - 1, 0)
+                    : action === 'move-top'
+                        ? widgets.length - 1
+                        : 0;
+            if (toIndex !== index) {
+                runtime.engine.dispatch({ type: 'widget.reorder', widgetId: selected.id, toIndex });
+            }
+            return;
+        }
+        if (action === 'reset-rotation') {
+            runtime.engine.dispatch({ type: 'widget.layout', widgetId: selected.id, changes: { rotation: 0 } });
+            return;
+        }
+        if (action === 'toggle-lock') {
+            runtime.engine.dispatch({ type: 'widget.update', widgetId: selected.id, changes: { locked: !selected.locked } });
+            return;
+        }
+        if (action === 'copy') {
+            const { order: _order, ...layout } = selected.layout;
+            const result = runtime.engine.dispatch({
+                type: 'widget.add',
+                at: index + 1,
+                widget: {
+                    kind: selected.kind,
+                    label: `${selected.label} 副本`,
+                    props: selected.props,
+                    style: selected.style,
+                    layout: { ...layout, x: layout.x + 2, y: layout.y + 2 },
+                    locked: selected.locked,
+                    autoHide: selected.autoHide,
+                },
+            });
+            const added = result.events.find((event) => event.type === 'widget.added');
+            if (added) runtime.selectWidget(added.widgetId);
+            return;
+        }
+        if (action === 'remove') {
+            runtime.selectWidget(null);
+            runtime.engine.dispatch({ type: 'widget.remove', widgetId: selected.id });
+            return;
+        }
+        runtime.requestSettings(selected.id);
+    }, [runtime, selected, widgets]);
+
     return (
         <div
             ref={containerRef}
@@ -206,9 +292,12 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                         }}
                         onDoubleClick={() => runtime.editable && runtime.requestSettings(widget.id)}
                         onContextMenu={(event) => {
-                            if (!onWidgetContextMenu) return;
-                            event.preventDefault();
-                            onWidgetContextMenu(widget, event);
+                            if (runtime.editable) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                runtime.requestSettings(widget.id);
+                            }
+                            onWidgetContextMenu?.(widget, event);
                         }}
                     >
                         <WidgetErrorBoundary resetKey={widget}>
@@ -235,6 +324,28 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                     bounds={{ position: 'css', left: 0, top: 0, right: 0, bottom: 0 }}
                     origin={false}
                     keepRatio={selected.layout.adapt === 'stretch-ratio'}
+                    useResizeObserver
+                    useMutationObserver
+                    roundable={!selected.locked}
+                    roundClickable='control'
+                    isDisplayShadowRoundControls='horizontal'
+                    maxRoundControls={[1, 0]}
+                    roundPadding={14}
+                    ables={[Widgetable, Dimensionable, Orderable]}
+                    props={{
+                        widgetable: true,
+                        dimensionable: true,
+                        orderable: true,
+                        widgetLocked: selected.locked,
+                        widgetOrder: selected.layout.order,
+                        widgetablePosition: 'bottom-left',
+                        dimensionablePosition: 'top-right',
+                        orderablePosition: 'top-left',
+                        widgetablePadding: 8,
+                        dimensionablePadding: 8,
+                        orderablePadding: 8,
+                        onWidgetableAction: runWidgetableAction,
+                    }}
                     onDragStart={(event) => {
                         if (beginInteraction(event.target)) event.set([0, 0]);
                     }}
@@ -289,6 +400,25 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                         }, translateX, translateY);
                     }}
                     onRotateEnd={finishInteraction}
+                    onRoundStart={() => {
+                        pendingBorderRadiusRef.current = selected.style.borderRadius ?? '0px';
+                        resetIdle();
+                    }}
+                    onRound={(event) => {
+                        pendingBorderRadiusRef.current = event.borderRadius;
+                        event.target.style.borderRadius = event.borderRadius;
+                    }}
+                    onRoundEnd={() => {
+                        const borderRadius = pendingBorderRadiusRef.current;
+                        pendingBorderRadiusRef.current = null;
+                        if (borderRadius !== null) {
+                            runtime.engine.dispatch({
+                                type: 'widget.update',
+                                widgetId: selected.id,
+                                changes: { style: { borderRadius } },
+                            });
+                        }
+                    }}
                 />
             ) : null}
         </div>
