@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Button } from '@heroui/react';
+import { Alert, Button, FileUpload, Progress, Spinner, TextInput, Toolbar } from '@webtools/ui';
 import { ToolLayout } from '@/components/ToolLayout';
+import { CollapsibleSection, ProcessProgress } from '@/components/ToolPatterns';
 import { useFFmpeg } from '@/lib/useFFmpeg';
 
 // ── 类型 ────────────────────────────────────────────────
@@ -68,9 +69,7 @@ export default function FFmpegPage() {
     const [commandHistoryIndex, setCommandHistoryIndex] = useState(-1);
 
     // UI 状态
-    const [isDragActive, setIsDragActive] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [showHelp, setShowHelp] = useState(false);
 
     // Refs
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,21 +118,6 @@ export default function FFmpegPage() {
         };
         reader.readAsArrayBuffer(file);
     }, []);
-
-    // 拖拽处理
-    const onDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault(); e.stopPropagation(); setIsDragActive(true);
-    }, []);
-    const onDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault(); e.stopPropagation(); setIsDragActive(false);
-    }, []);
-    const onDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault(); e.stopPropagation();
-    }, []);
-    const onDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault(); e.stopPropagation(); setIsDragActive(false);
-        if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]);
-    }, [handleFile]);
 
     // ── 执行命令 ──────────────────────────────────────
 
@@ -268,64 +252,43 @@ export default function FFmpegPage() {
             <div className='max-w-4xl mx-auto space-y-4 w-full'>
                 {/* FFmpeg 加载状态 */}
                 {!ffmpeg.isLoaded && (
-                    <div className='bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700 flex items-center gap-2'>
-                        <span className='animate-spin'>⏳</span>
-                        <span>
+                    <Alert tone='info' title='正在准备本地处理引擎'>
+                        <div className='flex items-center gap-3'>
+                            <Spinner size='sm' />
+                            <span>
                             {ffmpeg.progressMessage || '正在加载 FFmpeg WASM（约 25MB）...'}
-                            {ffmpeg.progress > 0 && ffmpeg.progress < 1 && (
-                                <span className='ml-2'>({Math.round(ffmpeg.progress * 100)}%)</span>
-                            )}
-                        </span>
-                    </div>
+                            </span>
+                        </div>
+                        {ffmpeg.progress > 0 && ffmpeg.progress < 1 && (
+                            <Progress value={ffmpeg.progress * 100} showValue />
+                        )}
+                    </Alert>
                 )}
 
                 {/* 错误提示 */}
                 {error && (
-                    <div className='bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between'>
-                        <span>❌ {error}</span>
-                        <button
-                            className='text-red-500 hover:text-red-700 ml-2 text-lg'
-                            onClick={() => setError(null)}
-                        >
-                            ×
-                        </button>
-                    </div>
+                    <Alert tone='danger' title='FFmpeg 处理失败'>
+                        <div className='flex flex-wrap items-center justify-between gap-3'>
+                            <span>{error}</span>
+                            <Button size='sm' variant='ghost' onClick={() => setError(null)}>关闭</Button>
+                        </div>
+                    </Alert>
                 )}
 
                 {/* 视频预览区 */}
                 {!hasFile ? (
-                    <div
-                        className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                            isDragActive
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-300 hover:border-blue-500'
-                        }`}
-                        onDragEnter={onDragEnter}
-                        onDragLeave={onDragLeave}
-                        onDragOver={onDragOver}
-                        onDrop={onDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <input
-                            ref={fileInputRef}
-                            type='file'
-                            accept='video/*,audio/*'
-                            className='hidden'
-                            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                        />
-                        <div className='text-5xl mb-3'>🎬</div>
-                        <h3 className='text-lg font-bold mb-1'>
-                            {isDragActive ? '释放鼠标上传文件' : '点击或拖拽视频/音频文件到此处'}
-                        </h3>
-                        <p className='text-gray-500 text-sm'>
-                            支持 MP4, WebM, MKV, AVI, MOV, GIF, MP3, WAV 等格式
-                        </p>
-                    </div>
+                    <FileUpload
+                        accept='video/*,audio/*'
+                        maxFiles={1}
+                        label='上传视频或音频'
+                        description='支持 MP4、WebM、MKV、AVI、MOV、GIF、MP3 和 WAV 等格式'
+                        onFilesChange={(files: File[]) => files[0] && handleFile(files[0])}
+                    />
                 ) : (
                     <>
                         {/* 视频播放器 */}
                         <div
-                            className='relative rounded-lg overflow-hidden border border-gray-200 bg-black'
+                            className='relative overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)] bg-black'
                         >
                             <video
                                 ref={videoRef}
@@ -338,30 +301,14 @@ export default function FFmpegPage() {
                             </div>
                             {/* 处理中遮罩 */}
                             {isBusy && (
-                                <div className='absolute inset-0 bg-black/40 flex items-center justify-center'>
-                                    <div className='text-center text-white'>
-                                        <div className='text-4xl mb-2 animate-spin'>⏳</div>
-                                        <p>处理中...</p>
-                                        {ffmpeg.progress > 0 && (
-                                            <div className='mt-3 w-48 mx-auto'>
-                                                <div className='bg-white/20 rounded-full h-2 overflow-hidden'>
-                                                    <div
-                                                        className='bg-blue-400 h-full rounded-full transition-all duration-300'
-                                                        style={{ width: `${Math.round(ffmpeg.progress * 100)}%` }}
-                                                    />
-                                                </div>
-                                                <p className='text-xs mt-1 opacity-80'>
-                                                    {Math.round(ffmpeg.progress * 100)}%
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div className='absolute inset-0 grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]'>
+                                    <ProcessProgress progress={ffmpeg.progress} label='正在执行 FFmpeg 命令' />
                                 </div>
                             )}
                         </div>
 
                         {/* 命令行输入 */}
-                        <div className='bg-gray-900 rounded-lg overflow-hidden'>
+                        <div className='overflow-hidden rounded-[var(--wt-radius-lg)] bg-gray-900 shadow-[var(--wt-shadow-md)]'>
                             <div className='flex items-center gap-2 px-3 py-2 bg-gray-800'>
                                 <div className='flex gap-1.5'>
                                     <div className='w-3 h-3 rounded-full bg-red-500' />
@@ -373,59 +320,63 @@ export default function FFmpegPage() {
                             <div className='flex items-center px-4 py-3'>
                                 <span className='text-green-400 font-mono text-sm mr-2 select-none'>$</span>
                                 <span className='text-gray-400 font-mono text-sm mr-2 select-none'>ffmpeg</span>
-                                <input
+                                <TextInput
                                     ref={commandInputRef}
                                     type='text'
                                     value={command}
-                                    onChange={(e) => { setCommand(e.target.value); setCommandHistoryIndex(-1); }}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        setCommand(e.target.value);
+                                        setCommandHistoryIndex(-1);
+                                    }}
                                     onKeyDown={handleCommandKeyDown}
                                     placeholder='-i input.mp4 -vf scale=640:480 output.mp4'
-                                    className='flex-1 bg-transparent text-white font-mono text-sm outline-none placeholder:text-gray-600'
+                                    className='min-w-0 flex-1 border-0! bg-transparent! font-mono text-sm text-white shadow-none! outline-none placeholder:text-gray-600'
                                     disabled={isBusy || !ffmpeg.isLoaded}
                                 />
                             </div>
                         </div>
 
                         {/* 操作按钮 */}
-                        <div className='flex items-center justify-center gap-2 flex-wrap'>
+                        <Toolbar className='flex flex-wrap items-center justify-center gap-2'>
                             <Button
-                                onPress={handleExecute}
-                                isDisabled={isBusy || !command.trim() || !ffmpeg.isLoaded}
+                                onClick={handleExecute}
+                                disabled={isBusy || !command.trim() || !ffmpeg.isLoaded}
+                                loading={isBusy}
                             >
                                 ▶ 执行
                             </Button>
                             <Button
                                 variant='ghost'
-                                onPress={handleUndo}
-                                isDisabled={isBusy || !canUndo}
+                                onClick={handleUndo}
+                                disabled={isBusy || !canUndo}
                             >
                                 ↩ 撤销
                             </Button>
                             <Button
                                 variant='ghost'
-                                onPress={handleRedo}
-                                isDisabled={isBusy || !canRedo}
+                                onClick={handleRedo}
+                                disabled={isBusy || !canRedo}
                             >
                                 ↪ 重做
                             </Button>
                             <Button
                                 variant='ghost'
-                                onPress={handleReset}
-                                isDisabled={isBusy || !originalFile}
+                                onClick={handleReset}
+                                disabled={isBusy || !originalFile}
                             >
                                 🔄 重置
                             </Button>
                             <Button
                                 variant='ghost'
-                                onPress={handleSave}
-                                isDisabled={isBusy || !hasFile}
+                                onClick={handleSave}
+                                disabled={isBusy || !hasFile}
                             >
                                 💾 保存
                             </Button>
                             <Button
                                 variant='ghost'
-                                onPress={() => fileInputRef.current?.click()}
-                                isDisabled={isBusy}
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isBusy}
                             >
                                 📁 更换文件
                             </Button>
@@ -436,21 +387,11 @@ export default function FFmpegPage() {
                                 className='hidden'
                                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                             />
-                        </div>
+                        </Toolbar>
 
                         {/* 进度条（非遮罩模式下的独立显示） */}
                         {isBusy && ffmpeg.progress > 0 && (
-                            <div className='space-y-1'>
-                                <div className='bg-gray-200 rounded-full h-2 overflow-hidden'>
-                                    <div
-                                        className='bg-blue-500 h-full rounded-full transition-all duration-300'
-                                        style={{ width: `${Math.round(ffmpeg.progress * 100)}%` }}
-                                    />
-                                </div>
-                                <p className='text-xs text-gray-400 text-center'>
-                                    {ffmpeg.progressMessage} {Math.round(ffmpeg.progress * 100)}%
-                                </p>
-                            </div>
+                            <Progress value={ffmpeg.progress * 100} label={ffmpeg.progressMessage} showValue />
                         )}
 
                         {/* 历史状态指示 */}
@@ -460,114 +401,90 @@ export default function FFmpegPage() {
                                     key={i}
                                     className={`w-2 h-2 rounded-full transition-colors ${
                                         i === historyIndex
-                                            ? 'bg-blue-500'
+                                            ? 'bg-[var(--wt-color-accent)]'
                                             : i < historyIndex
-                                                ? 'bg-blue-300'
-                                                : 'bg-gray-300'
+                                                ? 'bg-[var(--wt-color-accent-soft)]'
+                                                : 'bg-[var(--wt-color-border-strong)]'
                                     }`}
                                     title={entry.command}
                                 />
                             ))}
                         </div>
-                        <p className='text-xs text-gray-400 text-center'>
+                        <p className='text-center text-xs text-[var(--wt-color-text-muted)]'>
                             状态 {historyIndex + 1}/{history.length}
                             {historyIndex > 0 && ` · ${history[historyIndex].command}`}
                         </p>
 
                         {/* 命令历史 */}
                         {commandHistory.length > 0 && (
-                            <div className='bg-gray-50 rounded-lg border border-gray-200 overflow-hidden'>
-                                <button
-                                    className='w-full flex items-center justify-between px-4 py-2 text-left hover:bg-gray-100 transition-colors'
-                                    onClick={() => {
-                                        const el = document.getElementById('cmd-history');
-                                        if (el) el.hidden = !el.hidden;
-                                    }}
-                                >
-                                    <span className='font-medium text-sm text-gray-700'>
-                                        📋 命令历史 ({commandHistory.length})
-                                    </span>
-                                    <span className='text-gray-400 text-xs'>▼</span>
-                                </button>
-                                <div id='cmd-history' className='hidden px-4 pb-3 space-y-1'>
+                            <CollapsibleSection title={`📋 命令历史 (${commandHistory.length})`}>
+                                <div className='space-y-1'>
                                     {commandHistory.map((cmd, i) => (
-                                        <div
+                                        <button
+                                            type='button'
                                             key={i}
-                                            className='flex items-center gap-2 text-xs font-mono text-gray-600 hover:text-gray-900 cursor-pointer'
+                                            className='flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left font-mono text-xs transition hover:bg-[var(--wt-color-accent-soft)] hover:text-[var(--wt-color-text)]'
                                             onClick={() => setCommand(cmd)}
                                         >
-                                            <span className='text-gray-400 w-5 text-right shrink-0'>{i + 1}.</span>
+                                            <span className='w-5 shrink-0 text-right text-[var(--wt-color-text-muted)]'>{i + 1}.</span>
                                             <span className='truncate'>ffmpeg {cmd}</span>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
-                            </div>
+                            </CollapsibleSection>
                         )}
                     </>
                 )}
 
                 {/* 使用帮助 */}
-                <div className='bg-gray-50 rounded-lg border border-gray-200 overflow-hidden'>
-                    <button
-                        className='w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-100 transition-colors'
-                        onClick={() => setShowHelp(!showHelp)}
-                    >
-                        <span className='font-medium text-sm text-gray-700'>
-                            💡 使用帮助
-                        </span>
-                        <span className='text-gray-400 text-xs'>{showHelp ? '▲ 收起' : '▼ 展开'}</span>
-                    </button>
-                    {showHelp && (
-                        <div className='px-4 pb-4 text-sm text-gray-600 leading-relaxed space-y-3 border-t border-gray-200'>
+                <CollapsibleSection title='💡 使用帮助'>
                             <div>
-                                <h4 className='font-semibold text-gray-800 mb-1'>基本用法</h4>
+                                <h4 className='mb-1 font-semibold text-[var(--wt-color-text)]'>基本用法</h4>
                                 <p>上传视频后，在命令行中输入 FFmpeg 命令参数（无需输入 &quot;ffmpeg&quot; 前缀）。</p>
-                                <p className='text-gray-400 text-xs mt-1'>
+                                <p className='mt-1 text-xs text-[var(--wt-color-text-muted)]'>
                                     系统会自动添加 -i 参数指向当前文件，并将输出保存为新状态。
                                 </p>
                             </div>
                             <div>
-                                <h4 className='font-semibold text-gray-800 mb-1'>常用命令示例</h4>
-                                <div className='bg-white rounded p-3 font-mono text-xs space-y-1 border border-gray-200'>
-                                    <div><span className='text-gray-400'># 缩放视频</span></div>
+                                <h4 className='mb-1 font-semibold text-[var(--wt-color-text)]'>常用命令示例</h4>
+                                <div className='space-y-1 rounded-[var(--wt-radius-md)] border border-[var(--wt-color-border)] bg-[var(--wt-color-surface-tinted)] p-3 font-mono text-xs'>
+                                    <div><span className='text-[var(--wt-color-text-muted)]'># 缩放视频</span></div>
                                     <div>-i input.mp4 -vf scale=640:480 output.mp4</div>
-                                    <div className='pt-1'><span className='text-gray-400'># 提取音频</span></div>
+                                    <div className='pt-1'><span className='text-[var(--wt-color-text-muted)]'># 提取音频</span></div>
                                     <div>-i input.mp4 -vn -acodec copy output.aac</div>
-                                    <div className='pt-1'><span className='text-gray-400'># 裁剪视频（从 10 秒开始，持续 5 秒）</span></div>
+                                    <div className='pt-1'><span className='text-[var(--wt-color-text-muted)]'># 裁剪视频（从 10 秒开始，持续 5 秒）</span></div>
                                     <div>-i input.mp4 -ss 10 -t 5 -c copy output.mp4</div>
-                                    <div className='pt-1'><span className='text-gray-400'># 转换格式</span></div>
+                                    <div className='pt-1'><span className='text-[var(--wt-color-text-muted)]'># 转换格式</span></div>
                                     <div>-i input.mp4 output.webm</div>
-                                    <div className='pt-1'><span className='text-gray-400'># 调整亮度</span></div>
+                                    <div className='pt-1'><span className='text-[var(--wt-color-text-muted)]'># 调整亮度</span></div>
                                     <div>-i input.mp4 -vf brightness=0.1 output.mp4</div>
-                                    <div className='pt-1'><span className='text-gray-400'># 旋转视频</span></div>
+                                    <div className='pt-1'><span className='text-[var(--wt-color-text-muted)]'># 旋转视频</span></div>
                                     <div>-i input.mp4 -vf transpose=1 output.mp4</div>
-                                    <div className='pt-1'><span className='text-gray-400'># 提取帧为图片</span></div>
+                                    <div className='pt-1'><span className='text-[var(--wt-color-text-muted)]'># 提取帧为图片</span></div>
                                     <div>-i input.mp4 -vf fps=1 output_%03d.png</div>
                                 </div>
                             </div>
                             <div>
-                                <h4 className='font-semibold text-gray-800 mb-1'>快捷键</h4>
+                                <h4 className='mb-1 font-semibold text-[var(--wt-color-text)]'>快捷键</h4>
                                 <ul className='list-disc list-inside space-y-0.5 text-xs'>
-                                    <li><kbd className='bg-gray-200 px-1 rounded'>Enter</kbd> — 执行命令</li>
-                                    <li><kbd className='bg-gray-200 px-1 rounded'>↑</kbd> / <kbd className='bg-gray-200 px-1 rounded'>↓</kbd> — 浏览命令历史</li>
+                                    <li><kbd className='rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-accent-soft)] px-1'>Enter</kbd> — 执行命令</li>
+                                    <li><kbd className='rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-accent-soft)] px-1'>↑</kbd> / <kbd className='rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-accent-soft)] px-1'>↓</kbd> — 浏览命令历史</li>
                                 </ul>
                             </div>
                             <div>
-                                <h4 className='font-semibold text-gray-800 mb-1'>撤销 / 重做</h4>
+                                <h4 className='mb-1 font-semibold text-[var(--wt-color-text)]'>撤销 / 重做</h4>
                                 <p>每次执行命令后，处理结果会保存到历史记录中。使用“撤销”回到上一步，“重做”前进到下一步，“重置”回到原始文件。</p>
                             </div>
                             <div>
-                                <h4 className='font-semibold text-gray-800 mb-1'>注意事项</h4>
-                                <ul className='list-disc list-inside space-y-0.5 text-xs text-gray-500'>
+                                <h4 className='mb-1 font-semibold text-[var(--wt-color-text)]'>注意事项</h4>
+                                <ul className='list-inside list-disc space-y-0.5 text-xs text-[var(--wt-color-text-muted)]'>
                                     <li>FFmpeg WASM 首次加载约需几秒（下载 ~25MB）</li>
                                     <li>处理大文件可能较慢，因为 WASM 性能低于原生 FFmpeg</li>
                                     <li>部分编解码器可能不被 WASM 版本支持</li>
                                     <li>所有处理在浏览器本地完成，文件不会上传到服务器</li>
                                 </ul>
                             </div>
-                        </div>
-                    )}
-                </div>
+                </CollapsibleSection>
             </div>
         </ToolLayout>
     );

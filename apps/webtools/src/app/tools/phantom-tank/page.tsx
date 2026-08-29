@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo } from 'react';
-import { Button } from '@heroui/react';
+import { Alert, Button, Checkbox, FileUpload, Progress } from '@webtools/ui';
 import { ToolLayout } from '@/components/ToolLayout';
 import { ImageViewer } from '@/components/ImageViewer';
+import { CollapsibleSection, ResultPlaceholder } from '@/components/ToolPatterns';
 import { imageDataToBlobUrl } from '@/lib/image-diff';
 import { useWorker } from '@/lib/useWorker';
 
@@ -31,79 +32,53 @@ function getImageBrightness({ width, height, data }: ImageData): number {
     return sum / count;
 }
 
-function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
-    const [open, setOpen] = useState(false);
-    return (
-        <div className='border border-gray-200 rounded-lg overflow-hidden'>
-            <button
-                className='w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors'
-                onClick={() => setOpen(!open)}
-            >
-                <span className='font-medium text-sm'>{title}</span>
-                <span className='text-gray-400 text-xs'>{open ? '▲ 收起' : '▼ 展开'}</span>
-            </button>
-            {open && (
-                <div className='px-4 pb-4 text-sm text-gray-600 leading-relaxed space-y-3 border-t border-gray-100'>
-                    {children}
-                </div>
-            )}
-        </div>
-    );
-}
-
 // ── 图片上传区 ──────────────────────────────────────────
 
 function ImageDropZone({
-    label, hint, image, previewBg, isActive, fileRef, onFile, onDrop, onDragEnter,
+    label, hint, image, previewBg, fileRef, onFile,
 }: {
     label: string;
     hint: string;
     image: ImageSlot | null;
     previewBg: 'white' | 'black';
-    isActive: boolean;
     fileRef: React.RefObject<HTMLInputElement | null>;
     onFile: (file: File) => void;
-    onDrop: (e: React.DragEvent) => void;
-    onDragEnter: (e: React.DragEvent) => void;
 }) {
     return (
         <div className='flex-1 min-w-0'>
-            <input ref={fileRef} type='file' accept='image/*' className='hidden'
-                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
             <div className='text-center mb-2'>
                 <h3 className='font-semibold text-sm'>{label}</h3>
-                <p className='text-gray-400 text-xs'>
+                <p className='text-xs text-[var(--wt-color-text-muted)]'>
                     {image
                         ? `${image.width}×${image.height} · 亮度 ${Math.round(image.brightness)}`
                         : hint}
                 </p>
             </div>
-            <div
-                className={`relative border-2 border-dashed rounded-lg h-48 flex flex-col items-center justify-center cursor-pointer transition-all ${image ? 'border-gray-200 hover:border-blue-400'
-                    : isActive ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-blue-500'
-                    }`}
-                style={image ? { backgroundColor: previewBg === 'white' ? '#fff' : '#1a1a1a' } : undefined}
-                onDragEnter={onDragEnter}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={onDrop}
-                onClick={() => fileRef.current?.click()}
-            >
-                {image ? (
-                    <>
+            {image ? (
+                <div>
+                    <input ref={fileRef} type='file' accept='image/*' className='hidden'
+                        onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+                    <button
+                        type='button'
+                        className='relative flex h-48 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)] transition hover:-translate-y-0.5 hover:border-[var(--wt-color-accent)] hover:shadow-lg'
+                        style={{ backgroundColor: previewBg === 'white' ? '#fff' : '#1a1a1a' }}
+                        onClick={() => fileRef.current?.click()}
+                    >
                         <img src={image.url} alt={label} className='max-w-full max-h-full object-contain p-2' />
                         <span className='absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full'>
                             亮度 {Math.round(image.brightness)}
                         </span>
-                    </>
-                ) : (
-                    <>
-                        <div className='text-3xl mb-1'>🖼️</div>
-                        <p className='text-gray-500 text-xs'>{isActive ? '释放鼠标上传' : '点击或拖拽图片'}</p>
-                        <p className='text-gray-400 text-xs mt-0.5'>PNG, JPG, WebP</p>
-                    </>
-                )}
-            </div>
+                    </button>
+                </div>
+            ) : (
+                <FileUpload
+                    accept='image/*'
+                    maxFiles={1}
+                    label='点击或拖拽图片'
+                    description='PNG、JPG 或 WebP'
+                    onFilesChange={(files: File[]) => files[0] && onFile(files[0])}
+                />
+            )}
         </div>
     );
 }
@@ -115,10 +90,10 @@ export default function PhantomTankPage() {
     const [resultImageData, setResultImageData] = useState<ImageData | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [dragTarget, setDragTarget] = useState<'A' | 'B' | null>(null);
     const [previewBg, setPreviewBg] = useState<'white' | 'black'>('white');
     const [showResult, setShowResult] = useState(false);
     const [useGrayscale, setUseGrayscale] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const fileARef = useRef<HTMLInputElement>(null);
     const fileBRef = useRef<HTMLInputElement>(null);
@@ -150,7 +125,11 @@ export default function PhantomTankPage() {
 
     // 加载图片（异步，避免阻塞主线程）
     const loadImage = useCallback((file: File, slot: 'A' | 'B') => {
-        if (!file.type.startsWith('image/')) return alert('请选择图片文件');
+        if (!file.type.startsWith('image/')) {
+            setError('请选择有效的图片文件。');
+            return;
+        }
+        setError(null);
         const url = URL.createObjectURL(file);
         // 撤销旧 URL 并清理旧 ImageData
         if (slot === 'A' && urlARef.current) {
@@ -247,16 +226,6 @@ export default function PhantomTankPage() {
         }
     }, []);
 
-    // 拖拽处理
-    const makeDropHandler = useCallback(
-        (slot: 'A' | 'B') => (e: React.DragEvent) => {
-            e.preventDefault(); e.stopPropagation();
-            setDragTarget(null);
-            if (e.dataTransfer.files?.[0]) loadImage(e.dataTransfer.files[0], slot);
-        },
-        [loadImage],
-    );
-
     // 生成
     const handleGenerate = useCallback(async () => {
         if (!imageA || !imageB) return;
@@ -296,7 +265,7 @@ export default function PhantomTankPage() {
             setIsProcessing(false);
             setProgress(0);
         } catch (e) {
-            alert(`生成失败: ${e instanceof Error ? e.message : String(e)}`);
+            setError(`生成失败：${e instanceof Error ? e.message : String(e)}`);
             setIsProcessing(false);
             setProgress(0);
         }
@@ -323,6 +292,7 @@ export default function PhantomTankPage() {
         imageDataMapRef.current.clear();
         setImageA(null); setImageB(null);
         setResultUrl(null); setResultImageData(null); setShowResult(false);
+        setError(null);
         if (fileARef.current) fileARef.current.value = '';
         if (fileBRef.current) fileBRef.current.value = '';
     }, []);
@@ -333,23 +303,22 @@ export default function PhantomTankPage() {
             description='图片叠加 — 在白色背景上显示图A，在黑色背景上显示图B'
         >
             <div className='max-w-5xl mx-auto space-y-6 w-full'>
+                {error && <Alert tone='danger' title='幻影坦克生成失败'>{error}</Alert>}
                 {/* 上传区域 */}
-                <div className='flex gap-4 shrink-0'>
+                <div className='flex shrink-0 flex-col gap-4 sm:flex-row'>
                     <ImageDropZone
                         label='图片 A（主图 · 白底显示）'
                         hint='点击或拖拽图片'
                         image={imageA}
                         previewBg='white'
-                        isActive={dragTarget === 'A'}
                         fileRef={fileARef}
                         onFile={(f) => loadImage(f, 'A')}
-                        onDrop={makeDropHandler('A')}
-                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget('A'); }}
                     />
                     <div className='flex flex-col items-center justify-center shrink-0 gap-2'>
-                        <span className='text-2xl text-gray-300 font-light'>+</span>
-                        <button
-                            className='text-xs text-blue-500 hover:text-blue-700 transition-colors whitespace-nowrap'
+                        <span className='text-2xl font-light text-[var(--wt-color-border-strong)]'>+</span>
+                        <Button
+                            size='sm'
+                            variant='ghost'
                             onClick={() => {
                                 const tmpA = imageA, tmpB = imageB;
                                 setImageA(tmpB); setImageB(tmpA);
@@ -362,50 +331,44 @@ export default function PhantomTankPage() {
                             disabled={!imageA && !imageB}
                         >
                             ⇄ 交换
-                        </button>
+                        </Button>
                     </div>
                     <ImageDropZone
                         label='图片 B（副图 · 黑底显示）'
                         hint='点击或拖拽图片'
                         image={imageB}
                         previewBg='black'
-                        isActive={dragTarget === 'B'}
                         fileRef={fileBRef}
                         onFile={(f) => loadImage(f, 'B')}
-                        onDrop={makeDropHandler('B')}
-                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragTarget('B'); }}
                     />
                 </div>
 
                 {/* 操作按钮 */}
-                <div className='flex items-center justify-center gap-3 shrink-0'>
-                    <label className='flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none'>
-                        <input
-                            type='checkbox'
-                            checked={useGrayscale}
-                            onChange={(e) => setUseGrayscale(e.target.checked)}
-                            className='w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500'
-                        />
-                        <span>🔲 灰度模式（自动调整色阶，保留双方细节）</span>
-                    </label>
+                <div className='flex shrink-0 items-center justify-center gap-3'>
+                    <Checkbox
+                        checked={useGrayscale}
+                        onCheckedChange={setUseGrayscale}
+                        label='🔲 灰度模式（自动调整色阶，保留双方细节）'
+                    />
                 </div>
                 <div className='flex items-center justify-center gap-3 shrink-0'>
                     <Button
-                        onPress={handleGenerate}
-                        isDisabled={!imageA || !imageB || isProcessing}
+                        onClick={handleGenerate}
+                        disabled={!imageA || !imageB || isProcessing}
+                        loading={isProcessing}
                     >
                         👻 生成幻影坦克
                     </Button>
                     <Button
-                        onPress={handleSave}
-                        isDisabled={!showResult || isProcessing}
+                        onClick={handleSave}
+                        disabled={!showResult || isProcessing}
                     >
                         💾 保存结果
                     </Button>
                     <Button
                         variant='ghost'
-                        onPress={handleReset}
-                        isDisabled={isProcessing}
+                        onClick={handleReset}
+                        disabled={isProcessing}
                     >
                         🔄 重选
                     </Button>
@@ -413,32 +376,22 @@ export default function PhantomTankPage() {
 
                 {/* 处理进度条 */}
                 {isProcessing && progress > 0 && (
-                    <div className='shrink-0 space-y-1'>
-                        <div className='bg-gray-200 rounded-full h-2 overflow-hidden'>
-                            <div
-                                className='bg-blue-500 h-full rounded-full transition-all duration-300'
-                                style={{ width: `${Math.round(progress * 100)}%` }}
-                            />
-                        </div>
-                        <p className='text-xs text-gray-400 text-center'>
-                            处理中... {Math.round(progress * 100)}%
-                        </p>
-                    </div>
+                    <Progress value={progress * 100} label='正在合成两张图片' showValue />
                 )}
                 {imageA && imageB && (
                     <div className='space-y-2 shrink-0'>
-                        <p className='text-center text-xs text-gray-400'>
+                        <p className='text-center text-xs text-[var(--wt-color-text-muted)]'>
                             输出尺寸将以主图 A 为准（{imageA.width}×{imageA.height}），
                             副图 B 将自动缩放适配
                         </p>
-                        <p className='text-center text-xs text-gray-400'>
+                        <p className='text-center text-xs text-[var(--wt-color-text-muted)]'>
                             图A 平均亮度: {Math.round(imageA.brightness)} · 图B 平均亮度: {Math.round(imageB.brightness)}
                         </p>
                         {!useGrayscale && imageA.brightness < imageB.brightness && (
-                            <div className='bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-600 text-center'>
-                                ⚠️ 图A（{Math.round(imageA.brightness)}）比图B（{Math.round(imageB.brightness)}）更暗，
+                            <Alert tone='warning' title='建议交换图片'>
+                                图A（{Math.round(imageA.brightness)}）比图B（{Math.round(imageB.brightness)}）更暗，
                                 算法要求图A亮度 ≥ 图B。建议交换两张图片的位置，或选择更亮的图片作为图A。
-                            </div>
+                            </Alert>
                         )}
                     </div>
                 )}
@@ -448,29 +401,25 @@ export default function PhantomTankPage() {
                     <div className='flex flex-col space-y-3'>
                         {/* 背景切换按钮 */}
                         <div className='flex items-center justify-center gap-2 shrink-0'>
-                            <span className='text-sm text-gray-500 mr-2'>预览背景：</span>
-                            <button
-                                className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${previewBg === 'white'
-                                    ? 'bg-gray-800 text-white shadow'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
+                            <span className='mr-2 text-sm text-[var(--wt-color-text-muted)]'>预览背景：</span>
+                            <Button
+                                size='sm'
+                                variant={previewBg === 'white' ? 'primary' : 'ghost'}
                                 onClick={() => setPreviewBg('white')}
                             >
                                 ☀️ 白色（看图A）
-                            </button>
-                            <button
-                                className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${previewBg === 'black'
-                                    ? 'bg-gray-800 text-white shadow'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
+                            </Button>
+                            <Button
+                                size='sm'
+                                variant={previewBg === 'black' ? 'primary' : 'ghost'}
                                 onClick={() => setPreviewBg('black')}
                             >
                                 🌙 黑色（看图B）
-                            </button>
+                            </Button>
                         </div>
 
                         {/* 预览容器 */}
-                        <div className='min-h-75 h-[50vh] rounded-lg overflow-hidden border border-gray-200'>
+                        <div className='min-h-75 h-[50vh] overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)]'>
                             <ImageViewer
                                 src={resultUrl}
                                 alt='幻影坦克结果'
@@ -483,60 +432,57 @@ export default function PhantomTankPage() {
 
                 {/* 占位（未生成时填充剩余空间） */}
                 {!showResult && (
-                    <div className='min-h-50 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg text-gray-400'>
-                        <div className='text-center'>
-                            <div className='text-4xl mb-2'>👻</div>
-                            <p className='text-sm'>上传两张图片后点击生成</p>
-                        </div>
-                    </div>
+                    <ResultPlaceholder
+                        icon={<span className='text-4xl'>👻</span>}
+                        title='等待两张图片'
+                        description='上传主图与副图后，就可以生成幻影坦克。'
+                    />
                 )}
 
                 {/* 算法原理说明 */}
                 <div className='shrink-0 space-y-3'>
                     <CollapsibleSection title='📐 算法原理'>
-                        <h4 className='font-semibold text-gray-800'>1. 标准 Alpha 合成公式</h4>
+                        <h4 className='font-semibold text-[var(--wt-color-text)]'>1. 标准 Alpha 合成公式</h4>
                         <p>
                             浏览器标准的非预乘 Alpha 合成：
                         </p>
-                        <div className='bg-gray-50 rounded p-3 font-mono text-xs overflow-x-auto'>
+                        <div className='overflow-x-auto rounded-[var(--wt-radius-md)] bg-[var(--wt-color-surface-tinted)] p-3 font-mono text-xs'>
                             <div>白色背景 (C_w = 255): R = P × α + 255 × (1 - α)</div>
                             <div>黑色背景 (C_b = 0):   R = P × α</div>
                         </div>
 
-                        <h4 className='font-semibold text-gray-800'>2. 求解方程组</h4>
+                        <h4 className='font-semibold text-[var(--wt-color-text)]'>2. 求解方程组</h4>
                         <p>
                             令白色背景合成结果 = 图A 像素值，黑色背景合成结果 = 图B 像素值：
                         </p>
-                        <div className='bg-gray-50 rounded p-3 font-mono text-xs overflow-x-auto'>
+                        <div className='overflow-x-auto rounded-[var(--wt-radius-md)] bg-[var(--wt-color-surface-tinted)] p-3 font-mono text-xs'>
                             <div>α = 1 - (A - B) / 255  （需要 A ≥ B）</div>
                             <div>P = B / α = 255B / (255 - A + B)</div>
                         </div>
-                        <p className='text-sm text-gray-500 mt-1'>
+                        <p className='mt-1 text-sm text-[var(--wt-color-text-muted)]'>
                             关键：结果图 RGB 不是 B，而是 B/α。这样才能在标准合成下精确还原。
                         </p>
 
-                        <h4 className='font-semibold text-gray-800'>3. 三通道平均与颜色限制</h4>
+                        <h4 className='font-semibold text-[var(--wt-color-text)]'>3. 三通道平均与颜色限制</h4>
                         <p>
                             对 R/G/B 三通道分别计算 alpha 值后取平均。由于 RGBA 只有一个 alpha 通道，
                             无法为三通道存储不同的 alpha，因此白底视图的<strong>颜色关系由图 B 决定</strong>。
                         </p>
-                        <div className='bg-amber-50 border border-amber-200 rounded p-3 text-sm'>
-                            <p className='font-semibold text-amber-700 mb-1'>⚠️ 颜色保留限制</p>
-                            <p className='text-amber-600'>
+                        <Alert tone='warning' title='颜色保留限制'>
+                            <p>
                                 如果图 B 是灰度图，图 A 在白底上也会显示为灰度。
                                 要保留图 A 的颜色，图 B 应选择与图 A 色彩特征相似（如色调相近）但整体更暗的图片。
                                 或使用<strong>灰度模式</strong>，完全避免颜色问题。
                             </p>
-                        </div>
+                        </Alert>
 
-                        <h4 className='font-semibold text-gray-800'>4. 约束条件（重要）</h4>
-                        <div className='bg-red-50 border border-red-200 rounded p-3 text-sm'>
-                            <p className='font-semibold text-red-700 mb-1'>必须满足 A ≥ B（每个像素）</p>
-                            <p className='text-red-600'>
+                        <h4 className='font-semibold text-[var(--wt-color-text)]'>4. 约束条件（重要）</h4>
+                        <Alert tone='danger' title='必须满足 A ≥ B（每个像素）'>
+                            <p>
                                 图A（白底显示）的每个像素亮度必须 ≥ 图B（黑底显示）对应像素。
                                 违反时该像素的 alpha 被钳制为 1，导致该像素在两种背景下都显示图B。
                             </p>
-                        </div>
+                        </Alert>
                         <p>
                             <strong>选择策略：</strong>图A 应选整体偏亮的图片，图B 应选整体偏暗的图片。
                             如果上传后发现亮度不满足要求，工具会给出警告提示。

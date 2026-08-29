@@ -6,7 +6,7 @@
 
 - **框架**: Next.js (App Router, SSG 静态导出)
 - **样式**: Tailwind CSS
-- **UI 组件库**: HeroUI V3
+- **UI 组件库**: `@webtools/ui`（Ark UI 交互基础 + Mochi 视觉系统）
 - **语言**: TypeScript
 
 ## 特性
@@ -14,7 +14,7 @@
 - 🚀 **快速加载**: SSG 静态生成，加载速度极快
 - 📦 **轻量依赖**: 最小化第三方依赖
 - 🔧 **独立工具**: 每个工具独立运行，互不影响
-- 🎨 **现代 UI**: HeroUI 组件库
+- 🎨 **统一视觉**: 可访问的 Ark UI 交互与 Mochi 可爱风动效
 - 📱 **响应式设计**: 支持各种设备和屏幕尺寸
 - ✨ **零配置注册**: 新增工具只需创建文件，无需手动注册
 
@@ -26,7 +26,7 @@ webtools/
 │   ├── app/
 │   │   ├── layout.tsx              # 根布局
 │   │   ├── page.tsx                # 首页 (Server Component)
-│   │   ├── providers.tsx           # HeroUI Provider
+│   │   ├── providers.tsx           # 应用级上下文入口
 │   │   ├── globals.css             # 全局样式
 │   │   └── tools/                  # 工具目录 (约定式路由)
 │   │       ├── image-show/
@@ -39,6 +39,7 @@ webtools/
 │   │   ├── Header.tsx              # 顶部导航
 │   │   ├── ToolCard.tsx            # 工具卡片
 │   │   ├── ToolLayout.tsx          # 工具页面布局
+│   │   ├── ToolPatterns.tsx        # 工具页通用反馈与折叠区
 │   │   └── HomeContent.tsx         # 首页内容 (Client Component)
 │   └── lib/
 │       ├── types.ts                # 类型定义
@@ -163,7 +164,7 @@ export default function MyToolPage() {
 ## 性能优化
 
 - **SSG 静态生成**: 所有页面在构建时生成，无需服务器
-- **包导入优化**: `optimizePackageImports` 优化 HeroUI 导入
+- **包导入优化**: `optimizePackageImports` 优化 `@webtools/ui` 导入
 - **代码分割**: 每个工具独立打包，按需加载
 - **环境分离**: 开发实时扫描，生产预生成数据
 

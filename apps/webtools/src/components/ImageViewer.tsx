@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Button, Tooltip } from '@heroui/react';
+import { IconButton, Toolbar, Tooltip } from '@webtools/ui';
 import { useElementSize } from '@reactuses/core';
 
 export interface ImageViewerProps {
@@ -114,7 +114,7 @@ export function ImageViewer({ src, alt = '图片', className = '', containerStyl
         : true;
 
     return (
-        <div className={`relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex flex-col ${className}`} style={containerStyle}>
+        <div className={`relative flex flex-col overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)] bg-[var(--wt-color-surface-tinted)] ${className}`} style={containerStyle}>
             <div
                 ref={containerRef}
                 className='flex-1 w-full'
@@ -144,75 +144,51 @@ export function ImageViewer({ src, alt = '图片', className = '', containerStyl
             </div>
 
             {/* 悬浮控制按钮 */}
-            <div className='absolute bottom-3 right-3 flex flex-col gap-1.5'>
-                <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                        <Button
+            <Toolbar className='absolute bottom-3 right-3 flex flex-col gap-1.5 p-1.5'>
+                <Tooltip content='重置位置'>
+                        <IconButton
                             size='sm'
-                            isIconOnly
-                            variant='tertiary'
-                            className='bg-white/80 backdrop-blur-sm shadow-sm'
-                            onPress={resetPosition}
+                            variant='ghost'
+                            onClick={resetPosition}
+                            aria-label='重置位置'
                         >
                             ⟳
-                        </Button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                        重置位置
-                    </Tooltip.Content>
+                        </IconButton>
                 </Tooltip>
-                <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                        <Button
+                <Tooltip content='放大'>
+                        <IconButton
                             size='sm'
-                            isIconOnly
-                            variant='tertiary'
-                            className='bg-white/80 backdrop-blur-sm shadow-sm'
-                            onPress={zoomIn}
+                            variant='ghost'
+                            onClick={zoomIn}
+                            aria-label='放大'
                         >
                             +
-                        </Button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                        放大
-                    </Tooltip.Content>
+                        </IconButton>
                 </Tooltip>
-                <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                        <Button
+                <Tooltip content='缩小'>
+                        <IconButton
                             size='sm'
-                            isIconOnly
-                            variant='tertiary'
-                            className='bg-white/80 backdrop-blur-sm shadow-sm'
-                            onPress={zoomOut}
+                            variant='ghost'
+                            onClick={zoomOut}
+                            aria-label='缩小'
                         >
                             −
-                        </Button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                        缩小
-                    </Tooltip.Content>
+                        </IconButton>
                 </Tooltip>
-                <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                        <Button
+                <Tooltip content={isFitMode ? '切换到 1:1' : '切换到适应窗口'}>
+                        <IconButton
                             size='sm'
-                            isIconOnly
-                            variant='tertiary'
-                            className='bg-white/80 backdrop-blur-sm shadow-sm text-xs'
-                            onPress={toggleFit1x}
+                            variant='ghost'
+                            onClick={toggleFit1x}
+                            aria-label={isFitMode ? '切换到 1:1' : '切换到适应窗口'}
                         >
                             {isFitMode ? '1:1' : '⊞'}
-                        </Button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                        {isFitMode ? '切换到 1:1' : '切换到适应窗口'}
-                    </Tooltip.Content>
+                        </IconButton>
                 </Tooltip>
-            </div>
+            </Toolbar>
 
             {/* 缩放比例显示 */}
-            <div className='absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded px-2 py-0.5 text-xs font-medium shadow-sm'>
+            <div className='absolute right-3 top-3 rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-surface)] px-2 py-0.5 text-xs font-medium shadow-[var(--wt-shadow-sm)]'>
                 {Math.round(scale * 100)}%
             </div>
         </div>

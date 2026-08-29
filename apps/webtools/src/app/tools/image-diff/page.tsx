@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Button, Tooltip } from '@heroui/react';
+import { Alert, Button, FileUpload, IconButton, Slider, Spinner, Toolbar, Tooltip } from '@webtools/ui';
 import { ToolLayout } from '@/components/ToolLayout';
 import { diffImages, loadImageData, imageDataToBlobUrl } from '@/lib/image-diff';
 
@@ -16,64 +16,32 @@ interface DropZoneProps {
 }
 
 function DropZone({ label, file, url, onFile, onClear }: DropZoneProps) {
-    const [isDragActive, setIsDragActive] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const handleFile = useCallback((f: File) => {
         if (!f.type.startsWith('image/')) {
-            alert('请选择图片文件');
+            setError('请选择有效的图片文件。');
             return;
         }
+        setError(null);
         onFile(f);
     }, [onFile]);
 
-    const onDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(true);
-    }, []);
-
-    const onDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(false);
-    }, []);
-
-    const onDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    const onDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(false);
-        if (e.dataTransfer.files?.[0]) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    }, [handleFile]);
-
-    const onInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files?.[0]) {
-            handleFile(e.target.files[0]);
-        }
-    }, [handleFile]);
-
     if (url) {
         return (
-            <div className='relative rounded-lg overflow-hidden border border-gray-200 group'>
-                <img src={url} alt={label} className='w-full h-48 object-contain bg-gray-50' />
+            <div className='group relative overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)]'>
+                <img src={url} alt={label} className='h-48 w-full bg-[var(--wt-color-surface-tinted)] object-contain' />
                 <div className='absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center'>
                     <Button
                         size='sm'
-                        variant='tertiary'
-                        className='opacity-0 group-hover:opacity-100 transition-opacity bg-white/90'
-                        onPress={onClear}
+                        variant='ghost'
+                        className='bg-[var(--wt-color-surface)] opacity-0 transition-opacity group-hover:opacity-100'
+                        onClick={onClear}
                     >
                         重新选择
                     </Button>
                 </div>
-                <div className='absolute bottom-2 left-2 bg-white/80 backdrop-blur-sm rounded px-2 py-0.5 text-xs'>
+                <div className='absolute bottom-2 left-2 rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-surface)] px-2 py-0.5 text-xs shadow-[var(--wt-shadow-sm)]'>
                     {file?.name}
                 </div>
             </div>
@@ -81,28 +49,16 @@ function DropZone({ label, file, url, onFile, onClear }: DropZoneProps) {
     }
 
     return (
-        <div
-            className={`border-2 border-dashed rounded-lg h-48 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
-            }`}
-            onDragEnter={onDragEnter}
-            onDragLeave={onDragLeave}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onClick={() => fileInputRef.current?.click()}
-        >
-            <input
-                ref={fileInputRef}
-                type='file'
+        <div className='space-y-2'>
+            {error && <Alert tone='danger'>{error}</Alert>}
+            <FileUpload
                 accept='image/*'
-                className='hidden'
-                onChange={onInputChange}
+                maxFiles={1}
+                label={`选择${label}`}
+                description='支持 PNG、JPG、GIF 和 WebP'
+                onFilesChange={(files: File[]) => files[0] && handleFile(files[0])}
+                onReject={() => setError('该文件不是受支持的图片格式。')}
             />
-            <div className='text-3xl mb-2'>📷</div>
-            <p className='text-sm font-medium'>
-                {isDragActive ? '释放鼠标' : `拖放或点击选择${label}`}
-            </p>
-            <p className='text-xs text-gray-400 mt-1'>支持 PNG, JPG, GIF, WebP</p>
         </div>
     );
 }
@@ -118,19 +74,15 @@ interface FloatingButtonProps {
 
 function FloatingButton({ label, icon, isActive, onClick }: FloatingButtonProps) {
     return (
-        <Tooltip delay={300}>
-            <Tooltip.Trigger>
-                <Button
+        <Tooltip content={label}>
+                <IconButton
                     size='sm'
-                    isIconOnly
-                    variant={isActive ? 'primary' : 'tertiary'}
-                    className='bg-white/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-shadow'
-                    onPress={onClick}
+                    variant={isActive ? 'primary' : 'ghost'}
+                    onClick={onClick}
+                    aria-label={label}
                 >
                     {icon}
-                </Button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>{label}</Tooltip.Content>
+                </IconButton>
         </Tooltip>
     );
 }
@@ -286,7 +238,7 @@ function DiffView({ img1, img2, mode, onModeChange, onSwap, onReselect, diffUrl 
     return (
         <div
             ref={containerRef}
-            className='relative w-full h-full rounded-lg border border-gray-200 bg-gray-50 select-none overflow-hidden'
+            className='relative h-full w-full select-none overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)] bg-[var(--wt-color-surface-tinted)]'
             style={{ cursor }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -362,15 +314,15 @@ function DiffView({ img1, img2, mode, onModeChange, onSwap, onReselect, diffUrl 
             {mode === 'split' && (
                 <>
                     <div
-                        className='absolute top-0 bottom-0 w-0.5 bg-white shadow-md z-10 pointer-events-none'
+                        className='pointer-events-none absolute bottom-0 top-0 z-10 w-0.5 bg-[var(--wt-color-surface)] shadow-md'
                         style={{ left: '50%', transform: 'translateX(-50%)' }}
                     />
                     {/* 中间圆形手柄 */}
                     <div
-                        className='absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white shadow-md z-10 pointer-events-none flex items-center justify-center'
+                        className='pointer-events-none absolute top-1/2 z-10 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--wt-color-surface)] shadow-[var(--wt-shadow-md)]'
                         style={{ left: '50%' }}
                     >
-                        <span className='text-gray-400 text-xs select-none'>⇔</span>
+                        <span className='select-none text-xs text-[var(--wt-color-text-muted)]'>⇔</span>
                     </div>
                     {/* 标签 */}
                     <div className='absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded z-20 pointer-events-none'>
@@ -397,34 +349,23 @@ function DiffView({ img1, img2, mode, onModeChange, onSwap, onReselect, diffUrl 
             {/* ─── 悬浮透明度拖拽条（仅 opacity 模式） ── */}
             {mode === 'opacity' && (
                 <div className='absolute bottom-12 left-1/2 -translate-x-1/2 z-20 w-64 pointer-events-auto'>
-                    <div className='flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-2 shadow-md'>
-                        <span className='text-xs text-gray-500 shrink-0'>1</span>
-                        <div className='relative flex-1 h-6 bg-gray-200 rounded-full cursor-pointer'>
-                            <div
-                                className='absolute inset-0 rounded-full'
-                                style={{ background: 'linear-gradient(to right, rgba(59,130,246,0.3), rgba(239,68,68,0.3))' }}
-                            />
-                            <input
-                                type='range'
+                    <div className='flex items-center gap-2 rounded-full bg-[var(--wt-color-surface)] px-3 py-2 shadow-[var(--wt-shadow-md)]'>
+                        <span className='shrink-0 text-xs text-[var(--wt-color-text-muted)]'>1</span>
+                        <div className='min-w-0 flex-1' onPointerDown={(e) => e.stopPropagation()}>
+                            <Slider
                                 min={0}
                                 max={100}
                                 value={opacity}
-                                onChange={(e) => setOpacity(Number(e.target.value))}
-                                className='absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10'
-                                onPointerDown={(e) => e.stopPropagation()}
-                            />
-                            <div
-                                className='absolute top-1/2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full shadow-md -translate-x-1/2 -translate-y-1/2 pointer-events-none'
-                                style={{ left: `${opacity}%` }}
+                                onValueChange={setOpacity}
                             />
                         </div>
-                        <span className='text-xs text-gray-500 shrink-0'>2</span>
+                        <span className='shrink-0 text-xs text-[var(--wt-color-text-muted)]'>2</span>
                     </div>
                 </div>
             )}
 
             {/* ─── 悬浮控制按钮（右侧居中） ──────────── */}
-            <div className='absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-1.5'>
+            <Toolbar className='absolute right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-1.5 p-1.5'>
                 <FloatingButton
                     label='分割模式'
                     icon='✂️'
@@ -443,7 +384,7 @@ function DiffView({ img1, img2, mode, onModeChange, onSwap, onReselect, diffUrl 
                     isActive={mode === 'diff'}
                     onClick={() => onModeChange('diff')}
                 />
-                <div className='h-px bg-gray-300 my-0.5' />
+                <div className='my-0.5 h-px bg-[var(--wt-color-border-strong)]' />
                 <FloatingButton label='交换图片' icon='⇅' onClick={onSwap} />
                 <FloatingButton label='重选图片' icon='📷' onClick={onReselect} />
                 {diffUrl && (
@@ -458,23 +399,23 @@ function DiffView({ img1, img2, mode, onModeChange, onSwap, onReselect, diffUrl 
                         }}
                     />
                 )}
-            </div>
+            </Toolbar>
 
             {/* ─── 缩放控制按钮（右下角） ────────────── */}
-            <div className='absolute bottom-3 right-3 flex flex-col gap-1.5 z-20'>
-                <Button size='sm' isIconOnly variant='tertiary' className='bg-white/80 backdrop-blur-sm shadow-sm' onPress={resetPosition}>
+            <Toolbar className='absolute bottom-3 right-3 z-20 flex flex-col gap-1.5 p-1.5'>
+                <IconButton size='sm' variant='ghost' onClick={resetPosition} aria-label='重置位置'>
                     ⟳
-                </Button>
-                <Button size='sm' isIconOnly variant='tertiary' className='bg-white/80 backdrop-blur-sm shadow-sm' onPress={zoomIn}>
+                </IconButton>
+                <IconButton size='sm' variant='ghost' onClick={zoomIn} aria-label='放大'>
                     +
-                </Button>
-                <Button size='sm' isIconOnly variant='tertiary' className='bg-white/80 backdrop-blur-sm shadow-sm' onPress={zoomOut}>
+                </IconButton>
+                <IconButton size='sm' variant='ghost' onClick={zoomOut} aria-label='缩小'>
                     −
-                </Button>
-            </div>
+                </IconButton>
+            </Toolbar>
 
             {/* 缩放比例 */}
-            <div className='absolute bottom-3 left-3 bg-white/80 backdrop-blur-sm rounded px-2 py-0.5 text-xs font-medium shadow-sm z-20 pointer-events-none'>
+            <div className='pointer-events-none absolute bottom-3 left-3 z-20 rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-surface)] px-2 py-0.5 text-xs font-medium shadow-[var(--wt-shadow-sm)]'>
                 {Math.round(scale * 100)}%
             </div>
         </div>
@@ -491,6 +432,7 @@ export default function ImageDiffPage() {
     const [diffUrl, setDiffUrl] = useState<string | null>(null);
     const [isComputing, setIsComputing] = useState(false);
     const [mode, setMode] = useState<ViewMode>('split');
+    const [error, setError] = useState<string | null>(null);
 
     const bothLoaded = !!(url1 && url2);
 
@@ -523,6 +465,7 @@ export default function ImageDiffPage() {
         if (url1) URL.revokeObjectURL(url1);
         if (diffUrl) URL.revokeObjectURL(diffUrl);
         setDiffUrl(null);
+        setError(null);
         setFile1(f);
         setUrl1(URL.createObjectURL(f));
     }, [url1, diffUrl]);
@@ -531,6 +474,7 @@ export default function ImageDiffPage() {
         if (url2) URL.revokeObjectURL(url2);
         if (diffUrl) URL.revokeObjectURL(diffUrl);
         setDiffUrl(null);
+        setError(null);
         setFile2(f);
         setUrl2(URL.createObjectURL(f));
     }, [url2, diffUrl]);
@@ -590,6 +534,7 @@ export default function ImageDiffPage() {
                 }
             } catch (err) {
                 console.error('计算差异失败:', err);
+                if (!cancelled) setError('无法计算图片差异，请尝试更换图片。');
             } finally {
                 if (!cancelled) setIsComputing(false);
             }
@@ -603,10 +548,11 @@ export default function ImageDiffPage() {
             title='图片对比'
             description='逐像素对比两张图片的差异'
         >
+            {error && <Alert tone='danger' title='图片对比失败'>{error}</Alert>}
             {!bothLoaded ? (
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 gap-5 md:grid-cols-2'>
                     <div>
-                        <h3 className='text-sm font-medium text-gray-500 mb-2'>图片 1</h3>
+                        <h3 className='mb-2 text-sm font-medium text-[var(--wt-color-text-muted)]'>图片 1</h3>
                         <DropZone
                             label='图片 1'
                             file={file1}
@@ -616,7 +562,7 @@ export default function ImageDiffPage() {
                         />
                     </div>
                     <div>
-                        <h3 className='text-sm font-medium text-gray-500 mb-2'>图片 2</h3>
+                        <h3 className='mb-2 text-sm font-medium text-[var(--wt-color-text-muted)]'>图片 2</h3>
                         <DropZone
                             label='图片 2'
                             file={file2}
@@ -629,11 +575,8 @@ export default function ImageDiffPage() {
             ) : (
                 <div className='flex-1 min-h-0'>
                     {isComputing ? (
-                        <div className='h-full flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200'>
-                            <div className='text-center'>
-                                <div className='text-4xl mb-2 animate-spin'>⏳</div>
-                                <p className='text-gray-500'>计算像素差异中...</p>
-                            </div>
+                        <div className='grid h-full place-items-center rounded-[var(--wt-radius-xl)] border border-[var(--wt-color-border)] bg-[var(--wt-color-surface-tinted)]'>
+                            <Spinner size='lg' label='计算像素差异中…' />
                         </div>
                     ) : (
                         <DiffView

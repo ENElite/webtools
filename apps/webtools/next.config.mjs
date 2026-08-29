@@ -3,8 +3,9 @@ const nextConfig = {
     output: 'export',
     images: { unoptimized: true },
     reactStrictMode: true,
+    transpilePackages: ['@webtools/ui'],
     experimental: {
-        optimizePackageImports: ['@heroui/react'],
+        optimizePackageImports: ['@webtools/ui'],
     },
 };
 

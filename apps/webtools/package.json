@@ -15,9 +15,8 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
-    "@heroui/react": "^3.1.0",
-    "@heroui/styles": "^3.1.0",
     "@reactuses/core": "^6.3.1",
+    "@webtools/ui": "workspace:*",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

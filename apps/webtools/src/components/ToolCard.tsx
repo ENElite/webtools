@@ -1,6 +1,6 @@
 'use client';
 
-import { Card } from '@heroui/react';
+import { Badge, Card, CardContent } from '@webtools/ui';
 import Link from 'next/link';
 import type { Tool } from '@/lib/types';
 
@@ -10,23 +10,18 @@ interface ToolCardProps {
 
 export function ToolCard({ tool }: ToolCardProps) {
     return (
-        <Link href={tool.href} className='block w-full h-full'>
-            <Card className='w-full h-full hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer'>
-                <Card.Content className='flex flex-col items-center justify-center p-6'>
-                    <span className='text-4xl mb-4'>{tool.icon}</span>
-                    <h3 className='text-xl font-bold mb-2 text-center'>{tool.name}</h3>
-                    <p className='text-gray-500 text-center text-sm'>{tool.description}</p>
-                    <div className='flex flex-wrap justify-center gap-2 mt-4'>
+        <Link href={tool.href} className='group block h-full rounded-[var(--wt-radius-xl)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--wt-color-focus)]'>
+            <Card className='h-full overflow-hidden transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-0.4deg] group-hover:shadow-xl'>
+                <CardContent className='flex h-full flex-col items-center justify-center p-7'>
+                    <span className='mb-4 grid size-16 place-items-center rounded-[40%_60%_58%_42%] bg-[var(--wt-color-accent-soft)] text-4xl transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110' aria-hidden='true'>{tool.icon}</span>
+                    <h3 className='mb-2 text-center text-xl font-extrabold tracking-tight'>{tool.name}</h3>
+                    <p className='text-center text-sm leading-6 text-[var(--wt-color-text-muted)]'>{tool.description}</p>
+                    <div className='mt-5 flex flex-wrap justify-center gap-2'>
                         {tool.tags.map((tag) => (
-                            <span
-                                key={tag}
-                                className='px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600'
-                            >
-                                {tag}
-                            </span>
+                            <Badge key={tag}>{tag}</Badge>
                         ))}
                     </div>
-                </Card.Content>
+                </CardContent>
             </Card>
         </Link>
     );

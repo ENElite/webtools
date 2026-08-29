@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Button, Card } from '@heroui/react';
+import { useState, useRef } from 'react';
+import { Alert, Button, Card, CardContent, CardFooter, FileUpload, Toolbar } from '@webtools/ui';
 import { ToolLayout } from '@/components/ToolLayout';
 
 export default function ImageShowPage() {
@@ -13,17 +13,19 @@ export default function ImageShowPage() {
         width: number;
         height: number;
     } | null>(null);
-    const [isDragActive, setIsDragActive] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
     const imgRef = useRef<HTMLImageElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFile = (file: File) => {
     // 验证文件类型
         if (!file.type.startsWith('image/')) {
-            alert('请选择图片文件');
+            setError('请选择有效的图片文件。');
             return;
         }
+
+        setError(null);
+        if (imageUrl) URL.revokeObjectURL(imageUrl);
 
         const url = URL.createObjectURL(file);
         setImageUrl(url);
@@ -43,39 +45,6 @@ export default function ImageShowPage() {
         img.src = url;
     };
 
-    const onDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(true);
-    }, []);
-
-    const onDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(false);
-    }, []);
-
-    const onDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-    const onDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    }, []);
-
-    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            handleFile(e.target.files[0]);
-        }
-    };
-
     const formatFileSize = (bytes: number) => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -91,9 +60,7 @@ export default function ImageShowPage() {
         setImageUrl(null);
         setImageInfo(null);
         setZoom(1);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        setError(null);
     };
 
     const zoomIn = () => {
@@ -113,46 +80,28 @@ export default function ImageShowPage() {
             title='图片查看器'
             description='选择并预览图片，支持多种格式和缩放功能'
         >
-            <div className='max-w-4xl mx-auto'>
+            <div className='mx-auto w-full max-w-4xl space-y-4'>
+                {error && <Alert tone='danger' title='无法打开图片'>{error}</Alert>}
                 {!imageUrl ? (
-                    <div
-                        className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                              isDragActive
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-300 hover:border-blue-500'
-                            }`}
-                        onDragEnter={onDragEnter}
-                        onDragLeave={onDragLeave}
-                        onDragOver={onDragOver}
-                        onDrop={onDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <input
-                            ref={fileInputRef}
-                            type='file'
-                            accept='image/*'
-                            className='hidden'
-                            onChange={handleFileInput}
-                        />
-                        <div className='text-6xl mb-4'>🖼️</div>
-                        <h3 className='text-xl font-bold mb-2'>
-                            {isDragActive ? '释放鼠标上传图片' : '点击或拖拽图片到此处'}
-                        </h3>
-                        <p className='text-gray-500'>
-                            支持 PNG, JPG, GIF, WebP, BMP, SVG 格式
-                        </p>
-                    </div>
+                    <FileUpload
+                        accept='image/*'
+                        maxFiles={1}
+                        label='把图片放到这里'
+                        description='点击或拖拽上传，支持 PNG、JPG、GIF、WebP、BMP 和 SVG'
+                        onFilesChange={(files: File[]) => files[0] && handleFile(files[0])}
+                        onReject={() => setError('该文件不是受支持的图片格式。')}
+                    />
                 )
                     : (
-                        <div>
+                        <div className='space-y-4'>
                             {/* 缩放控制栏 */}
-                            <div className='flex items-center justify-between mb-4 p-3 bg-gray-100 rounded-lg'>
+                            <Toolbar className='flex flex-wrap items-center justify-between gap-3'>
                                 <div className='flex items-center gap-2'>
                                     <Button
                                         size='sm'
-                                        variant='tertiary'
-                                        onPress={zoomOut}
-                                        isDisabled={zoom <= 0.25}
+                                        variant='ghost'
+                                        onClick={zoomOut}
+                                        disabled={zoom <= 0.25}
                                     >
                                         −
                                     </Button>
@@ -161,21 +110,21 @@ export default function ImageShowPage() {
                                     </span>
                                     <Button
                                         size='sm'
-                                        variant='tertiary'
-                                        onPress={zoomIn}
-                                        isDisabled={zoom >= 5}
+                                        variant='ghost'
+                                        onClick={zoomIn}
+                                        disabled={zoom >= 5}
                                     >
                                         +
                                     </Button>
-                                    <Button size='sm' variant='ghost' onPress={resetZoom}>
+                                    <Button size='sm' variant='ghost' onClick={resetZoom}>
                                         重置
                                     </Button>
                                 </div>
                                 <div className='flex items-center gap-2'>
                                     <Button
-                                        variant='tertiary'
+                                        variant='secondary'
                                         size='sm'
-                                        onPress={() => {
+                                        onClick={() => {
                                             const link = document.createElement('a');
                                             link.href = imageUrl;
                                             link.download = imageInfo?.name || 'image';
@@ -184,14 +133,14 @@ export default function ImageShowPage() {
                                     >
                                         下载图片
                                     </Button>
-                                    <Button variant='danger' size='sm' onPress={reset}>
+                                    <Button variant='danger' size='sm' onClick={reset}>
                                         清除图片
                                     </Button>
                                 </div>
-                            </div>
+                            </Toolbar>
 
                             <Card className='w-full'>
-                                <Card.Content className='flex flex-col items-center p-4'>
+                                <CardContent className='flex flex-col items-center p-4'>
                                     <div className='relative w-full overflow-auto max-h-[60vh]'>
                                         <img
                                             ref={imgRef}
@@ -201,33 +150,33 @@ export default function ImageShowPage() {
                                             style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
                                         />
                                     </div>
-                                </Card.Content>
+                                </CardContent>
                                 {imageInfo && (
-                                    <Card.Footer className='flex flex-col items-start p-4'>
+                                    <CardFooter className='flex flex-col items-start p-4'>
                                         <div className='w-full'>
                                             <h4 className='text-lg font-bold mb-2'>图片信息</h4>
                                             <div className='grid grid-cols-2 gap-2 text-sm'>
                                                 <div>
-                                                    <span className='text-gray-500'>文件名：</span>
+                                                    <span className='text-[var(--wt-color-text-muted)]'>文件名：</span>
                                                     <span>{imageInfo.name}</span>
                                                 </div>
                                                 <div>
-                                                    <span className='text-gray-500'>文件大小：</span>
+                                                    <span className='text-[var(--wt-color-text-muted)]'>文件大小：</span>
                                                     <span>{formatFileSize(imageInfo.size)}</span>
                                                 </div>
                                                 <div>
-                                                    <span className='text-gray-500'>文件类型：</span>
+                                                    <span className='text-[var(--wt-color-text-muted)]'>文件类型：</span>
                                                     <span>{imageInfo.type}</span>
                                                 </div>
                                                 <div>
-                                                    <span className='text-gray-500'>尺寸：</span>
+                                                    <span className='text-[var(--wt-color-text-muted)]'>尺寸：</span>
                                                     <span>
                                                         {imageInfo.width} × {imageInfo.height} 像素
                                                     </span>
                                                 </div>
                                             </div>
                                         </div>
-                                    </Card.Footer>
+                                    </CardFooter>
                                 )}
                             </Card>
                         </div>

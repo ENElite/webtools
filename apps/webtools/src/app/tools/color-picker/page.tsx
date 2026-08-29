@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useEyeDropper, useDropZone, useClipboard } from '@reactuses/core';
-import { Button } from '@heroui/react';
+import { Alert, Button, Card, CardContent, EmptyState, FileUpload, IconButton } from '@webtools/ui';
 import { ToolLayout } from '@/components/ToolLayout';
 
 interface PickedColor {
@@ -29,6 +29,7 @@ export default function ColorPickerPage() {
     const imgRef = useRef<HTMLImageElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
     const [copied, setCopied] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // 使用 @reactuses/core 的 hooks
     const [isEyeDropperSupported, openEyeDropper] = useEyeDropper();
@@ -108,9 +109,10 @@ export default function ColorPickerPage() {
 
     const handleFile = useCallback((file: File) => {
         if (!file.type.startsWith('image/')) {
-            alert('请选择图片文件');
+            setError('请选择有效的图片文件。');
             return;
         }
+        setError(null);
         if (imageSrc) URL.revokeObjectURL(imageSrc);
         setImageSrc(URL.createObjectURL(file));
     }, [imageSrc]);
@@ -134,18 +136,18 @@ export default function ColorPickerPage() {
         >
             <div className='max-w-4xl mx-auto'>
                 {/* 取色方式选择 */}
-                <div className='flex gap-3 mb-6'>
+                <div className='mb-6 flex flex-wrap gap-3'>
                     {isEyeDropperSupported && (
                         <Button
                             variant='primary'
-                            onPress={pickWithEyeDropper}
+                            onClick={pickWithEyeDropper}
                         >
                             🎯 屏幕取色
                         </Button>
                     )}
                     <Button
-                        variant='tertiary'
-                        onPress={() => {
+                        variant='secondary'
+                        onClick={() => {
                             const input = document.createElement('input');
                             input.type = 'file';
                             input.accept = 'image/*';
@@ -161,20 +163,21 @@ export default function ColorPickerPage() {
                 </div>
 
                 {!isEyeDropperSupported && (
-                    <div className='mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700'>
+                    <Alert tone='warning' title='当前浏览器不支持屏幕取色'>
                         当前浏览器不支持屏幕取色 API（EyeDropper），请使用图片取色模式。
                         Chrome / Edge 95+ 支持屏幕取色。
-                    </div>
+                    </Alert>
                 )}
+                {error && <Alert tone='danger' title='无法读取图片'>{error}</Alert>}
 
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                     {/* 左侧：取色区域 */}
                     <div
                         ref={dropZoneRef}
-                        className={`relative ${isOverDropZone ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+                        className={`relative rounded-[var(--wt-radius-lg)] ${isOverDropZone ? 'ring-2 ring-[var(--wt-color-focus)] ring-offset-2' : ''}`}
                     >
                         {imageSrc ? (
-                            <div className='relative rounded-lg overflow-hidden border border-gray-200'>
+                            <div className='relative overflow-hidden rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)]'>
                                 <img
                                     ref={imgRef}
                                     src={imageSrc}
@@ -189,37 +192,25 @@ export default function ColorPickerPage() {
                                 />
                             </div>
                         ) : (
-                            <div
-                                className={`border-2 border-dashed rounded-lg h-64 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                                    isOverDropZone ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
-                                }`}
-                                onClick={() => {
-                                    const input = document.createElement('input');
-                                    input.type = 'file';
-                                    input.accept = 'image/*';
-                                    input.onchange = (e) => {
-                                        const file = (e.target as HTMLInputElement).files?.[0];
-                                        if (file) handleFile(file);
-                                    };
-                                    input.click();
-                                }}
-                            >
-                                <div className='text-4xl mb-3'>🎨</div>
-                                <p className='text-sm font-medium'>
-                                    {isOverDropZone ? '释放鼠标' : '拖放或点击上传图片'}
-                                </p>
-                                <p className='text-xs text-gray-400 mt-1'>上传后点击图片任意位置取色</p>
-                            </div>
+                            <FileUpload
+                                accept='image/*'
+                                maxFiles={1}
+                                label='上传一张图片取色'
+                                description='拖拽或点击上传，随后点击图片中的任意位置'
+                                onFilesChange={(files: File[]) => files[0] && handleFile(files[0])}
+                                onReject={() => setError('该文件不是受支持的图片格式。')}
+                            />
                         )}
                     </div>
 
                     {/* 右侧：颜色信息 */}
                     <div>
                         {pickedColor ? (
-                            <div className='space-y-4'>
+                            <Card>
+                                <CardContent className='space-y-4'>
                                 {/* 颜色预览 */}
                                 <div
-                                    className='w-full h-32 rounded-lg border border-gray-200 shadow-inner'
+                                    className='h-32 w-full rounded-[var(--wt-radius-lg)] border border-[var(--wt-color-border)] shadow-inner'
                                     style={{ backgroundColor: pickedColor.hex }}
                                 />
 
@@ -231,28 +222,36 @@ export default function ColorPickerPage() {
                                 </div>
 
                                 {copied && (
-                                    <p className='text-sm text-green-600'>✓ 已复制到剪贴板</p>
+                                    <Alert tone='success'>已复制到剪贴板。</Alert>
                                 )}
-                            </div>
+                                </CardContent>
+                            </Card>
                         ) : (
-                            <div className='h-64 flex items-center justify-center text-gray-400 text-sm'>
-                                {isEyeDropperSupported ? '点击"屏幕取色"或上传图片后点击取色' : '上传图片后点击图片取色'}
-                            </div>
+                            <EmptyState
+                                icon={<span className='text-4xl'>🎨</span>}
+                                title='还没有选中颜色'
+                                description={isEyeDropperSupported ? '点击“屏幕取色”，或上传图片后点击取色。' : '上传图片后点击图片取色。'}
+                                className='h-64'
+                            />
                         )}
 
                         {/* 取色历史 */}
                         {history.length > 0 && (
                             <div className='mt-6'>
-                                <h3 className='text-sm font-medium text-gray-500 mb-2'>取色历史</h3>
+                                <h3 className='mb-2 text-sm font-medium text-[var(--wt-color-text-muted)]'>取色历史</h3>
                                 <div className='flex flex-wrap gap-2'>
                                     {history.map((c, i) => (
-                                        <button
+                                        <IconButton
                                             key={`${c.hex}-${i}`}
-                                            className='w-8 h-8 rounded border border-gray-200 shadow-sm hover:scale-110 transition-transform cursor-pointer'
+                                            size='sm'
+                                            variant='ghost'
+                                            className='hover:scale-110'
                                             style={{ backgroundColor: c.hex }}
-                                            title={c.hex}
+                                            aria-label={`复制颜色 ${c.hex}`}
                                             onClick={() => copyToClipboard(c.hex)}
-                                        />
+                                        >
+                                            <span className='sr-only'>{c.hex}</span>
+                                        </IconButton>
                                     ))}
                                 </div>
                             </div>
@@ -277,11 +276,11 @@ function ColorValueRow({
 }) {
     return (
         <div className='flex items-center gap-2'>
-            <span className='text-xs text-gray-400 w-10'>{label}</span>
-            <code className='flex-1 bg-gray-100 rounded px-3 py-1.5 text-sm font-mono'>{value}</code>
-            <Button size='sm' variant='tertiary' isIconOnly onPress={() => onCopy(value)}>
+            <span className='w-10 text-xs text-[var(--wt-color-text-muted)]'>{label}</span>
+            <code className='flex-1 rounded-[var(--wt-radius-sm)] bg-[var(--wt-color-surface-tinted)] px-3 py-1.5 font-mono text-sm'>{value}</code>
+            <IconButton size='sm' variant='ghost' onClick={() => onCopy(value)} aria-label={`复制 ${label}`}>
                 📋
-            </Button>
+            </IconButton>
         </div>
     );
 }
