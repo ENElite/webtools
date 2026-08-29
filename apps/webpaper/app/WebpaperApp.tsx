@@ -6,6 +6,7 @@ import { WidgetCanvas, WidgetRuntimeProvider } from '@webtools/widget-react';
 import {
     Alert,
     Button,
+    ContextMenu,
     Drawer,
     Field,
     NumberInput,
@@ -19,7 +20,7 @@ import {
     WidgetDevtools,
     WidgetStudioPanel,
 } from '@webtools/widget-studio';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     DEFAULT_APP_SETTINGS,
@@ -56,6 +57,7 @@ function WebpaperSession() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historySearch, setHistorySearch] = useState('');
+    const [fullscreen, setFullscreen] = useState(false);
     const [{ engine, persistenceWarning }] = useState(() => createEngine(widgetCatalogs.definitions));
     const player = useMediaPlayer({ catalog: mediaCatalog, prefetchThreshold: 2 });
 
@@ -64,6 +66,12 @@ function WebpaperSession() {
     }, [activeSelection, player.controller]);
 
     useEffect(() => saveAppSettings(localStorage, settings), [settings]);
+
+    useEffect(() => {
+        const syncFullscreen = () => setFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+    }, []);
 
     useEffect(() => {
         const persist = () => saveWidgetDocument(localStorage, engine.getSnapshot().document);
@@ -93,6 +101,66 @@ function WebpaperSession() {
         ? player.session.mode.cursor
         : (player.session.cursor ?? 0);
     const total = historyMode ? player.session.history.length : player.session.items.length;
+    const dock = useAutoHideDock(settingsOpen || historyOpen);
+    const contextMenuItems = [
+        {
+            value: 'toggle-play',
+            label: player.session.autoplay.kind === 'running' ? '暂停自动切换' : '开始自动切换',
+            icon: player.session.autoplay.kind === 'running' ? 'Ⅱ' : '▶',
+            onSelect: player.session.autoplay.kind === 'running'
+                ? () => player.controller.stopAutoplay()
+                : () => player.controller.startAutoplay(settings.player.autoplayIntervalMs ?? 30_000),
+        },
+        {
+            value: 'previous',
+            label: '上一张',
+            icon: '←',
+            disabled: total === 0,
+            onSelect: () => void player.controller.previous(),
+        },
+        {
+            value: 'next',
+            label: '下一张',
+            icon: '→',
+            disabled: total === 0,
+            onSelect: () => void player.controller.next(),
+        },
+        {
+            value: 'history',
+            label: '历史记录',
+            icon: '◷',
+            onSelect: () => setHistoryOpen(true),
+        },
+        {
+            value: 'fullscreen',
+            label: fullscreen ? '退出全屏' : '进入全屏',
+            icon: '⛶',
+            onSelect: () => {
+                if (document.fullscreenElement) void document.exitFullscreen();
+                else void document.documentElement.requestFullscreen();
+            },
+        },
+        {
+            value: 'settings',
+            label: '壁纸设置',
+            icon: '⚙',
+            separatorBefore: true,
+            onSelect: () => setSettingsOpen(true),
+        },
+        {
+            value: 'editable',
+            label: settings.widgetsEditable ? '退出组件编辑' : '进入组件编辑',
+            icon: settings.widgetsEditable ? '✓' : '✎',
+            onSelect: () => patchSettings({ widgetsEditable: !settings.widgetsEditable }),
+        },
+        ...widgetCatalogs.definitions.kinds.map((kind, index) => ({
+            value: `add-${kind}`,
+            label: `添加 ${kind}`,
+            icon: '＋',
+            separatorBefore: index === 0,
+            onSelect: () => addWidget(kind),
+        })),
+    ];
 
     return (
         <WidgetRuntimeProvider
@@ -100,75 +168,149 @@ function WebpaperSession() {
             views={widgetCatalogs.views}
             editable={settings.widgetsEditable}
         >
-            <main className='wp-shell'>
-                <MediaStage
-                    item={player.currentMedia}
-                    status={player.status}
-                    error={player.error}
-                    settings={settings.player}
-                    onMediaError={() => void player.controller.handleMediaError()}
-                    onVideoEnded={() => void player.controller.next()}
-                />
-
-                <WidgetCanvas className='wp-widget-layer' />
-
-                <header className='wp-toolbar'>
-                    <strong className='wp-brand'>WebPaper</strong>
-                    <span className='wp-source-badge'>{sourceLabel(activeSelection.sourceId)}</span>
-                    <PlaybackControls
-                        current={current}
-                        total={total}
-                        loading={player.status === 'loading' || player.status === 'loading-more'}
-                        historyMode={historyMode}
-                        autoplayRunning={player.session.autoplay.kind === 'running'}
-                        onPrevious={() => void player.controller.previous()}
-                        onNext={() => void player.controller.next()}
-                        onStartAutoplay={() => player.controller.startAutoplay(
-                            settings.player.autoplayIntervalMs ?? 30_000,
-                        )}
-                        onStopAutoplay={() => player.controller.stopAutoplay()}
-                        onOpenHistory={() => setHistoryOpen(true)}
-                        onLeaveHistory={() => player.controller.leaveHistory()}
+            <ContextMenu items={contextMenuItems} aria-label='WebPaper 快捷菜单'>
+                <main className='wp-shell'>
+                    <MediaStage
+                        item={player.currentMedia}
+                        status={player.status}
+                        error={player.error}
+                        settings={settings.player}
+                        onMediaError={() => void player.controller.handleMediaError()}
+                        onVideoEnded={() => void player.controller.next()}
                     />
-                    <Button
-                        type='button'
-                        variant={settingsOpen ? 'secondary' : 'ghost'}
-                        size='sm'
-                        aria-expanded={settingsOpen}
-                        onClick={() => setSettingsOpen((open) => !open)}
+
+                    <WidgetCanvas className='wp-widget-layer' />
+
+                    <header
+                        className='wp-toolbar'
+                        data-hidden={dock.hidden || undefined}
+                        aria-label='WebPaper Dock'
+                        onPointerEnter={dock.hold}
+                        onPointerLeave={dock.release}
+                        onFocusCapture={dock.reveal}
                     >
-                        <span aria-hidden='true'>⚙</span><span className='wp-control-label'>设置</span>
-                    </Button>
-                </header>
+                        <strong className='wp-brand'>WebPaper</strong>
+                        <span className='wp-source-badge'>{sourceLabel(activeSelection.sourceId)}</span>
+                        <PlaybackControls
+                            current={current}
+                            total={total}
+                            loading={player.status === 'loading' || player.status === 'loading-more'}
+                            historyMode={historyMode}
+                            autoplayRunning={player.session.autoplay.kind === 'running'}
+                            onPrevious={() => void player.controller.previous()}
+                            onNext={() => void player.controller.next()}
+                            onStartAutoplay={() => player.controller.startAutoplay(
+                                settings.player.autoplayIntervalMs ?? 30_000,
+                            )}
+                            onStopAutoplay={() => player.controller.stopAutoplay()}
+                            onOpenHistory={() => setHistoryOpen(true)}
+                            onLeaveHistory={() => player.controller.leaveHistory()}
+                        />
+                        <Button
+                            type='button'
+                            variant={settingsOpen ? 'secondary' : 'ghost'}
+                            size='sm'
+                            aria-expanded={settingsOpen}
+                            onClick={() => setSettingsOpen((open) => !open)}
+                        >
+                            <span aria-hidden='true'>⚙</span><span className='wp-control-label'>设置</span>
+                        </Button>
+                    </header>
 
-                <SettingsPanel
-                    open={settingsOpen}
-                    settings={settings}
-                    kinds={widgetCatalogs.definitions.kinds}
-                    persistenceWarning={persistenceWarning}
-                    onChange={patchSettings}
-                    onApplySource={() => setActiveSelection(toSelection(settings))}
-                    onAddWidget={addWidget}
-                    onClose={() => setSettingsOpen(false)}
-                />
+                    <SettingsPanel
+                        open={settingsOpen}
+                        settings={settings}
+                        kinds={widgetCatalogs.definitions.kinds}
+                        persistenceWarning={persistenceWarning}
+                        onChange={patchSettings}
+                        onApplySource={() => setActiveSelection(toSelection(settings))}
+                        onAddWidget={addWidget}
+                        onClose={() => setSettingsOpen(false)}
+                    />
 
-                <HistoryDrawer
-                    open={historyOpen}
-                    items={player.session.history}
-                    search={historySearch}
-                    onSearchChange={setHistorySearch}
-                    onSelect={(_item, historyIndex) => {
-                        player.controller.selectHistory(historyIndex);
-                        setHistoryOpen(false);
-                    }}
-                    onClose={() => setHistoryOpen(false)}
-                />
+                    <HistoryDrawer
+                        open={historyOpen}
+                        items={player.session.history}
+                        search={historySearch}
+                        onSearchChange={setHistorySearch}
+                        onSelect={(_item, historyIndex) => {
+                            player.controller.selectHistory(historyIndex);
+                            setHistoryOpen(false);
+                        }}
+                        onClose={() => setHistoryOpen(false)}
+                    />
 
-                <WidgetStudioPanel schemas={widgetCatalogs.inspectors} controls={inspectorControls} />
-                {process.env.NODE_ENV === 'development' ? <WidgetDevtools /> : null}
-            </main>
+                    <WidgetStudioPanel schemas={widgetCatalogs.inspectors} controls={inspectorControls} />
+                    {process.env.NODE_ENV === 'development' ? <WidgetDevtools /> : null}
+                </main>
+            </ContextMenu>
         </WidgetRuntimeProvider>
     );
+}
+
+function useAutoHideDock(blocked: boolean, timeoutMs = 4_500) {
+    const [hidden, setHidden] = useState(false);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const heldRef = useRef(false);
+
+    const clearTimer = useCallback(() => {
+        if (!timerRef.current) return;
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+    }, []);
+
+    const schedule = useCallback(() => {
+        clearTimer();
+        if (blocked || heldRef.current) {
+            setHidden(false);
+            return;
+        }
+        timerRef.current = setTimeout(() => setHidden(true), timeoutMs);
+    }, [blocked, clearTimer, timeoutMs]);
+
+    const reveal = useCallback(() => {
+        setHidden(false);
+        schedule();
+    }, [schedule]);
+
+    const hold = useCallback(() => {
+        heldRef.current = true;
+        setHidden(false);
+        clearTimer();
+    }, [clearTimer]);
+
+    const release = useCallback(() => {
+        heldRef.current = false;
+        schedule();
+    }, [schedule]);
+
+    useEffect(() => {
+        schedule();
+        return clearTimer;
+    }, [clearTimer, schedule]);
+
+    useEffect(() => {
+        const onPointerMove = (event: PointerEvent) => {
+            if (hidden) {
+                if (event.clientY >= window.innerHeight - 72) reveal();
+                return;
+            }
+            schedule();
+        };
+        const onActivity = () => reveal();
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerdown', onActivity, { passive: true });
+        window.addEventListener('keydown', onActivity);
+        window.addEventListener('touchstart', onActivity, { passive: true });
+        return () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerdown', onActivity);
+            window.removeEventListener('keydown', onActivity);
+            window.removeEventListener('touchstart', onActivity);
+        };
+    }, [hidden, reveal, schedule]);
+
+    return { hidden, reveal, hold, release };
 }
 
 function SettingsPanel({

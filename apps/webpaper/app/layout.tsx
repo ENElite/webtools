@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
     return (
-        <html lang='zh-CN' data-theme='dark'>
+        <html lang='zh-CN' data-theme='light'>
             <body>{children}</body>
         </html>
     );
