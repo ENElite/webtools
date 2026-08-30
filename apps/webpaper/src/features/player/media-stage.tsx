@@ -6,9 +6,24 @@ import type { MediaItem } from '../../domain';
 import type { MediaPlayerLoadStatus } from './media-player-controller';
 import type { MediaPlayerSettings } from './player-settings';
 
-type IntroPhase = 'waiting' | 'celebrating' | 'complete';
+type StandbyPhase = 'waiting' | 'celebrating' | 'complete';
 
 const CELEBRATION_DURATION_MS = 1_400;
+const STICKER_KINDS = [
+    'heart',
+    'ice-cream',
+    'star',
+    'flower',
+    'candy',
+    'heart',
+    'cloud',
+    'ice-cream',
+    'flower',
+    'star',
+    'candy',
+    'heart',
+] as const;
+const STICKER_TILE_COUNT = 9;
 
 export interface MediaStageProps {
     readonly item: MediaItem | null;
@@ -31,7 +46,7 @@ export function MediaStage({
     onVideoEnded,
 }: MediaStageProps) {
     const [readyMediaKey, setReadyMediaKey] = useState<string | null>(null);
-    const [introPhase, setIntroPhase] = useState<IntroPhase>('waiting');
+    const [standbyPhase, setStandbyPhase] = useState<StandbyPhase>('waiting');
     const celebratedRef = useRef(false);
     const mediaKey = item ? `${item.sourceId}:${item.kind}:${item.id}:${item.url}` : null;
     const mediaReady = mediaKey !== null && readyMediaKey === mediaKey;
@@ -41,26 +56,26 @@ export function MediaStage({
         setReadyMediaKey(mediaKey);
         if (celebratedRef.current) return;
         celebratedRef.current = true;
-        setIntroPhase('celebrating');
+        setStandbyPhase('celebrating');
     }, [mediaKey]);
 
     useEffect(() => {
-        if (introPhase !== 'celebrating') return;
-        const timer = window.setTimeout(() => setIntroPhase('complete'), CELEBRATION_DURATION_MS);
+        if (standbyPhase !== 'celebrating') return;
+        const timer = window.setTimeout(() => setStandbyPhase('complete'), CELEBRATION_DURATION_MS);
         return () => window.clearTimeout(timer);
-    }, [introPhase]);
+    }, [standbyPhase]);
 
-    const showStatus = !mediaReady || introPhase === 'celebrating';
-    const waitingPhase: Exclude<IntroPhase, 'complete'> = introPhase === 'celebrating'
+    const showStandby = standbyPhase !== 'complete';
+    const visibleStandbyPhase: Exclude<StandbyPhase, 'complete'> = standbyPhase === 'celebrating'
         ? 'celebrating'
         : 'waiting';
     const statusText = status === 'error'
         ? (error?.message ?? '媒体加载失败')
-        : introPhase === 'celebrating'
+        : standbyPhase === 'celebrating'
             ? '信号接通，开播啦！'
-            : '正在布置直播间…';
+            : '正在准备壁纸…';
 
-    if (!item) return <MediaStageWaitingRoom phase='waiting' status={status} message={statusText} />;
+    if (!item) return <MediaStageStandbyOverlay phase='waiting' status={status} message={statusText} />;
 
     const backgroundUrl = item.kind === 'image'
         ? (item.previewUrl ?? item.url)
@@ -108,52 +123,60 @@ export function MediaStage({
                     onEnded={settings.videoAdvanceOnEnded ? onVideoEnded : undefined}
                 />
             )}
-            {showStatus ? <MediaStageWaitingRoom phase={waitingPhase} status={status} message={statusText} /> : null}
+            {showStandby ? (
+                <MediaStageStandbyOverlay
+                    phase={visibleStandbyPhase}
+                    status={status}
+                    message={statusText}
+                />
+            ) : null}
         </section>
     );
 }
 
-export function MediaStageWaitingRoom({
+export function MediaStageStandbyOverlay({
     phase,
     status,
     message,
 }: {
-    readonly phase: Exclude<IntroPhase, 'complete'>;
+    readonly phase: Exclude<StandbyPhase, 'complete'>;
     readonly status: MediaPlayerLoadStatus;
     readonly message: string;
 }) {
     const error = status === 'error';
     return (
         <section className='wp-stage-status' aria-live='polite' data-phase={phase} data-status={status}>
-            <div className='wp-waiting-room' aria-hidden='true'>
-                <span className='wp-waiting-room__beam wp-waiting-room__beam--left' />
-                <span className='wp-waiting-room__beam wp-waiting-room__beam--right' />
-                <div className='wp-waiting-room__screen'>
-                    <span className='wp-waiting-room__on-air'>{error ? 'SIGNAL LOST' : phase === 'celebrating' ? 'ON AIR' : 'STANDBY'}</span>
-                    <div className='wp-waiting-room__avatar'>
-                        <span className='wp-waiting-room__ear wp-waiting-room__ear--left' />
-                        <span className='wp-waiting-room__ear wp-waiting-room__ear--right' />
-                        <span className='wp-waiting-room__face'>
-                            <i className='wp-waiting-room__eye wp-waiting-room__eye--left' />
-                            <i className='wp-waiting-room__eye wp-waiting-room__eye--right' />
-                            <i className='wp-waiting-room__mouth' />
-                        </span>
-                        <span className='wp-waiting-room__body' />
-                    </div>
-                    <div className='wp-waiting-room__equalizer'>
-                        <i /><i /><i /><i /><i />
-                    </div>
+            <div className='wp-sticker-wall' aria-hidden='true'>
+                <div className='wp-sticker-track'>
+                    {Array.from({ length: STICKER_TILE_COUNT }, (_, tileIndex) => (
+                        <div className='wp-sticker-tile' data-sticker-tile key={tileIndex}>
+                            {STICKER_KINDS.map((kind, stickerIndex) => (
+                                <i data-sticker={kind} key={`${kind}-${stickerIndex}`}><span /></i>
+                            ))}
+                        </div>
+                    ))}
                 </div>
-                <div className='wp-waiting-room__chat'>
-                    <i /><i /><i />
-                </div>
-                <div className='wp-waiting-room__desk' />
             </div>
             <div className='wp-confetti' aria-hidden='true'>
                 {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
             </div>
-            <p className='wp-stage-status__message'>{message}</p>
-            {!error && phase === 'waiting' ? <span className='wp-stage-status__dots' aria-hidden='true'><i /><i /><i /></span> : null}
+            <div className='wp-stage-loader'>
+                <p className='wp-stage-status__message'>
+                    <span aria-hidden='true'>{error ? '×' : phase === 'celebrating' ? '♥' : '♡'}</span>
+                    {message}
+                </p>
+                <div
+                    className='wp-stage-progress'
+                    role='progressbar'
+                    aria-label='壁纸加载进度'
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuetext={error ? '壁纸加载失败' : phase === 'celebrating' ? '加载完成' : '正在加载'}
+                    {...(phase === 'celebrating' ? { 'aria-valuenow': 100 } : {})}
+                >
+                    <span className='wp-stage-progress__bar' />
+                </div>
+            </div>
         </section>
     );
 }

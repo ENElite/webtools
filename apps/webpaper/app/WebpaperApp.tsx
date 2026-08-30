@@ -37,7 +37,7 @@ import { createWebPaperMediaCatalog, type MediaSourceSelection } from '../src/fe
 import {
     MediaPlayerSettingsForm,
     MediaStage,
-    MediaStageWaitingRoom,
+    MediaStageStandbyOverlay,
     PlaybackControls,
     useMediaPlayer,
 } from '../src/features/player';
@@ -50,10 +50,10 @@ export function WebpaperApp() {
     if (!mounted) {
         return (
             <main className='wp-boot'>
-                <MediaStageWaitingRoom
+                <MediaStageStandbyOverlay
                     phase='waiting'
                     status='idle'
-                    message='正在布置直播间…'
+                    message='正在准备壁纸…'
                 />
             </main>
         );

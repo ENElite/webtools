@@ -6,10 +6,23 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ImageMediaItem, VideoMediaItem } from '../../domain';
-import { MediaStage } from './media-stage';
+import { MediaStage, MediaStageStandbyOverlay } from './media-stage';
 import { DEFAULT_MEDIA_PLAYER_SETTINGS } from './player-settings';
 
 describe('MediaStage', () => {
+    it('renders a repeated CSS sticker standby overlay without image assets', () => {
+        const markup = renderToStaticMarkup(
+            <MediaStageStandbyOverlay phase='waiting' status='loading' message='正在准备壁纸…' />,
+        );
+
+        expect(markup.match(/data-sticker-tile="true"/g)).toHaveLength(9);
+        expect(markup).toContain('data-sticker="heart"');
+        expect(markup).toContain('data-sticker="ice-cream"');
+        expect(markup).toContain('role="progressbar"');
+        expect(markup).not.toContain('<img');
+        expect(markup).not.toContain('<svg');
+    });
+
     it('renders image media with its preview as the backdrop', () => {
         const item: ImageMediaItem = {
             id: 'image',
@@ -58,7 +71,7 @@ describe('MediaStage', () => {
         expect(markup).toContain('poster="/poster.jpg"');
     });
 
-    it('celebrates only after the first media actually loads, then fades the waiting room away', () => {
+    it('celebrates after the first wallpaper loads, then never blocks later wallpaper changes', () => {
         vi.useFakeTimers();
         const host = document.createElement('div');
         const root = createRoot(host);
@@ -83,7 +96,7 @@ describe('MediaStage', () => {
             });
 
             expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('waiting');
-            expect(host.querySelector('.wp-waiting-room img')).toBeNull();
+            expect(host.querySelector('.wp-sticker-wall img')).toBeNull();
             expect(host.querySelector('.wp-media-stage')?.hasAttribute('data-media-ready')).toBe(false);
 
             act(() => {
@@ -91,6 +104,7 @@ describe('MediaStage', () => {
             });
 
             expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
+            expect(host.querySelector('.wp-stage-progress')?.getAttribute('aria-valuenow')).toBe('100');
             expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-ready')).toBe('true');
 
             act(() => vi.advanceTimersByTime(1_400));
@@ -115,7 +129,7 @@ describe('MediaStage', () => {
                 );
             });
 
-            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('waiting');
+            expect(host.querySelector('.wp-stage-status')).toBeNull();
             act(() => {
                 host.querySelector<HTMLVideoElement>('.wp-media-content')
                     ?.dispatchEvent(new Event('loadeddata'));
