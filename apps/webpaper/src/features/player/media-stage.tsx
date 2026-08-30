@@ -3,14 +3,17 @@
 import {
     createComponentLoadPort,
     type ComponentLoadAttempt,
-    type ComponentLoadBarrier,
     type ComponentRuntimeSignalMap,
     type SignalHub,
 } from '@webtools/widget-core';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { MediaItem } from '../../domain';
-import { BACKGROUND_COMPONENT_ID, STANDBY_COMPONENT_ID } from '../../application';
+import {
+    BACKGROUND_COMPONENT_ID,
+    STANDBY_COMPONENT_ID,
+    type WebpaperRuntimeSignals,
+} from '../../application';
 import type { MediaPlayerLoadStatus } from './media-player-controller';
 import type { MediaPlayerSettings } from './player-settings';
 
@@ -33,6 +36,8 @@ const STICKER_TILE_COUNT = 36;
 export interface MediaStageProps {
     readonly item: MediaItem | null;
     readonly signals: SignalHub<ComponentRuntimeSignalMap>;
+    readonly status?: MediaPlayerLoadStatus;
+    readonly error?: Error | null;
     readonly settings: Pick<
         MediaPlayerSettings,
         'objectFit' | 'videoMuted' | 'videoControls' | 'videoAdvanceOnEnded'
@@ -44,6 +49,8 @@ export interface MediaStageProps {
 export function MediaStage({
     item,
     signals,
+    status = 'idle',
+    error = null,
     settings,
     onMediaError,
     onVideoEnded,
@@ -52,52 +59,74 @@ export function MediaStage({
     const mediaKey = item ? `${item.sourceId}:${item.kind}:${item.id}:${item.url}` : null;
     const mediaReady = mediaKey !== null && readyMediaKey === mediaKey;
     const resourceKey = mediaKey ?? 'awaiting-media';
+    const renderRef = useRef<{ readonly resourceKey: string; readonly generation: number } | null>(null);
+    if (!renderRef.current || renderRef.current.resourceKey !== resourceKey) {
+        renderRef.current = {
+            resourceKey,
+            generation: (renderRef.current?.generation ?? 0) + 1,
+        };
+    }
+    const generation = renderRef.current.generation;
     const loadPort = useMemo(() => createComponentLoadPort({
         hub: signals,
         componentId: BACKGROUND_COMPONENT_ID,
     }), [signals]);
     const activeAttemptRef = useRef<{
-        readonly resourceKey: string;
+        readonly generation: number;
         readonly attempt: ComponentLoadAttempt;
     } | null>(null);
-    const pendingTerminalRef = useRef<{
-        readonly resourceKey: string;
-        readonly error?: unknown;
-    } | null>(null);
+    const terminalRef = useRef<
+        | { readonly generation: number; readonly type: 'complete' }
+        | { readonly generation: number; readonly type: 'error'; readonly error: unknown }
+        | null
+    >(null);
 
     useEffect(() => {
         const attempt = loadPort.start(resourceKey);
-        activeAttemptRef.current = { resourceKey, attempt };
-        const pending = pendingTerminalRef.current;
-        if (pending?.resourceKey === resourceKey) {
-            pendingTerminalRef.current = null;
-            if ('error' in pending) attempt.error(pending.error);
+        const active = { generation, attempt };
+        activeAttemptRef.current = active;
+        const terminal = terminalRef.current;
+        if (terminal?.generation === generation) {
+            if (terminal.type === 'error') attempt.error(terminal.error);
             else attempt.complete();
         }
 
         return () => {
-            if (activeAttemptRef.current?.attempt === attempt) activeAttemptRef.current = null;
-            attempt.dispose();
+            if (activeAttemptRef.current === active) activeAttemptRef.current = null;
+            queueMicrotask(() => {
+                attempt.error(new Error(`背景组件在加载完成前已卸载：${resourceKey}`));
+            });
         };
-    }, [loadPort, resourceKey]);
+    }, [generation, loadPort, resourceKey]);
 
     const handleMediaReady = useCallback(() => {
-        if (!mediaKey) return;
+        if (!mediaKey || renderRef.current?.generation !== generation) return;
         setReadyMediaKey(mediaKey);
+        terminalRef.current = { generation, type: 'complete' };
         const active = activeAttemptRef.current;
-        if (active?.resourceKey === mediaKey) active.attempt.complete();
-        else pendingTerminalRef.current = { resourceKey: mediaKey };
-    }, [mediaKey]);
+        if (active?.generation === generation) active.attempt.complete();
+    }, [generation, mediaKey]);
+
+    const reportMediaError = useCallback((failure: unknown) => {
+        if (renderRef.current?.generation !== generation) return;
+        terminalRef.current = { generation, type: 'error', error: failure };
+        const active = activeAttemptRef.current;
+        if (active?.generation === generation) active.attempt.error(failure);
+    }, [generation]);
 
     const handleMediaError = useCallback(() => {
         if (mediaKey) {
-            const error = new Error(`背景媒体加载失败：${mediaKey}`);
-            const active = activeAttemptRef.current;
-            if (active?.resourceKey === mediaKey) active.attempt.error(error);
-            else pendingTerminalRef.current = { resourceKey: mediaKey, error };
+            reportMediaError(new Error(`背景媒体加载失败：${mediaKey}`));
         }
         onMediaError();
-    }, [mediaKey, onMediaError]);
+    }, [mediaKey, onMediaError, reportMediaError]);
+
+    useEffect(() => {
+        if (mediaKey !== null || (status !== 'error' && status !== 'ready')) return;
+        reportMediaError(error ?? new Error(
+            status === 'error' ? '媒体源加载失败。' : '媒体源没有返回可播放内容。',
+        ));
+    }, [error, mediaKey, reportMediaError, status]);
 
     if (!item) {
         return (
@@ -156,16 +185,15 @@ export function MediaStage({
 }
 
 export function StartupStandby({
-    signals,
-    barrier,
+    runtime,
     status = 'idle',
     error = null,
 }: {
-    readonly signals: SignalHub<ComponentRuntimeSignalMap>;
-    readonly barrier: ComponentLoadBarrier;
+    readonly runtime: WebpaperRuntimeSignals;
     readonly status?: MediaPlayerLoadStatus;
     readonly error?: Error | null;
 }) {
+    const { hub: signals, startupBarrier: barrier } = runtime;
     const snapshot = useSyncExternalStore(
         barrier.subscribe,
         barrier.getSnapshot,

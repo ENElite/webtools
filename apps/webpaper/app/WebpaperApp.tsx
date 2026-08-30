@@ -248,6 +248,8 @@ function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: Med
                     <MediaStage
                         item={player.currentMedia}
                         signals={runtimeSignals.hub}
+                        status={player.status}
+                        error={player.error}
                         settings={settings.player}
                         onMediaError={() => void player.controller.handleMediaError()}
                         onVideoEnded={() => void player.controller.next()}
@@ -255,8 +257,7 @@ function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: Med
 
                     <WidgetCanvas className='wp-widget-layer' />
                     <StartupStandby
-                        signals={runtimeSignals.hub}
-                        barrier={runtimeSignals.startupBarrier}
+                        runtime={runtimeSignals}
                         status={player.status}
                         error={player.error}
                     />

@@ -124,7 +124,7 @@ describe('MediaStage', () => {
                             onMediaError={vi.fn()}
                             onVideoEnded={vi.fn()}
                         />
-                        <StartupStandby signals={runtime.hub} barrier={runtime.startupBarrier} />
+                        <StartupStandby runtime={runtime} />
                     </>,
                 );
             });
@@ -208,8 +208,7 @@ describe('MediaStage', () => {
                             onVideoEnded={vi.fn()}
                         />
                         <StartupStandby
-                            signals={runtime.hub}
-                            barrier={runtime.startupBarrier}
+                            runtime={runtime}
                             status='loading'
                         />
                     </>,
@@ -223,6 +222,67 @@ describe('MediaStage', () => {
         } finally {
             act(() => root.unmount());
             stopBarrier();
+        }
+    });
+
+    it('settles an empty failed media source without waiting for the hard deadline', async () => {
+        const host = document.createElement('div');
+        const root = createRoot(host);
+        const runtime = createWebpaperRuntimeSignals([]);
+        const stopBarrier = runtime.startupBarrier.start();
+        const sourceError = new Error('catalog unavailable');
+
+        try {
+            act(() => {
+                root.render(
+                    <>
+                        <MediaStage
+                            item={null}
+                            signals={runtime.hub}
+                            status='error'
+                            error={sourceError}
+                            settings={DEFAULT_MEDIA_PLAYER_SETTINGS}
+                            onMediaError={vi.fn()}
+                            onVideoEnded={vi.fn()}
+                        />
+                        <StartupStandby
+                            runtime={runtime}
+                            status='error'
+                            error={sourceError}
+                        />
+                    </>,
+                );
+            });
+            await act(async () => Promise.resolve());
+
+            expect(runtime.startupBarrier.getSnapshot()).toMatchObject({
+                status: 'complete',
+                pending: 0,
+                failedIds: [BACKGROUND_COMPONENT_ID],
+            });
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
+        } finally {
+            act(() => root.unmount());
+            stopBarrier();
+        }
+    });
+
+    it('uses the retained barrier snapshot when standby mounts after completion', async () => {
+        const host = document.createElement('div');
+        const root = createRoot(host);
+        const runtime = createWebpaperRuntimeSignals([]);
+        runtime.startupBarrier.start();
+        createComponentLoadPort({
+            hub: runtime.hub,
+            componentId: BACKGROUND_COMPONENT_ID,
+        }).start('already-loaded').complete();
+        await Promise.resolve();
+
+        try {
+            act(() => root.render(<StartupStandby runtime={runtime} />));
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
+        } finally {
+            act(() => root.unmount());
         }
     });
 });
