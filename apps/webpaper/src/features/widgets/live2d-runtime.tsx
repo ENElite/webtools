@@ -122,6 +122,8 @@ export function Live2dWidgetRuntime({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const instanceRef = useRef<L2D | null>(null);
     const precisionCanvasRef = useRef<PrecisionCanvas | null>(null);
+    const scaleRef = useRef(scale);
+    scaleRef.current = scale;
     const [state, setState] = useState<LoadingState>({
         status: 'loading',
         loaded: 0,
@@ -131,7 +133,9 @@ export function Live2dWidgetRuntime({
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        precisionCanvasRef.current ??= installPrecisionCanvas(canvas, renderPrecision);
+        // The resize effect applies the current precision independently; using
+        // a neutral initial value avoids reloading the model when precision changes.
+        precisionCanvasRef.current ??= installPrecisionCanvas(canvas, 100);
 
         if (!modelPath.trim()) {
             setState({
@@ -169,10 +173,11 @@ export function Live2dWidgetRuntime({
             });
             instance.on('loaded', () => {
                 loaded = true;
+                instance?.setScale(scaleRef.current);
                 if (!cancelled) setState({ status: 'loaded', loaded: 1, total: 1 });
             });
 
-            await instance.load({ path: modelPath, scale, logLevel: 'warn' });
+            await instance.load({ path: modelPath, scale: scaleRef.current, logLevel: 'warn' });
             // l2d reports HTTP/fetch failures to its logger and resolves load().
             // Requiring the loaded event turns that silent failure into UI feedback.
             if (!loaded) throw new Error('模型资源未能完成加载，请检查地址、CORS 与模型文件。');
