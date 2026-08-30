@@ -5,6 +5,7 @@ import type { L2D } from 'l2d/dist/index.js';
 import { useEffect, useRef, useState } from 'react';
 
 import { live2dInstanceRegistry } from './live2d-instance-registry';
+import { playConfiguredLive2dMotion } from './live2d-motion';
 
 export type Live2dRuntimeProps = {
     readonly modelPath: string;
@@ -12,6 +13,10 @@ export type Live2dRuntimeProps = {
     readonly renderPrecision: number;
     readonly resizeDelay: number;
     readonly interaction: boolean;
+    readonly clickMotion: boolean;
+    readonly motionGroup: string;
+    readonly motionIndex: number;
+    readonly motionPriority: number;
 };
 
 type LoadingState = {
@@ -117,11 +122,16 @@ export function Live2dWidgetRuntime({
     renderPrecision,
     resizeDelay,
     interaction,
+    clickMotion,
+    motionGroup,
+    motionIndex,
+    motionPriority,
 }: Live2dRuntimeProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const instanceRef = useRef<L2D | null>(null);
     const precisionCanvasRef = useRef<PrecisionCanvas | null>(null);
+    const motionNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scaleRef = useRef(scale);
     scaleRef.current = scale;
     const [state, setState] = useState<LoadingState>({
@@ -129,6 +139,7 @@ export function Live2dWidgetRuntime({
         loaded: 0,
         total: 0,
     });
+    const [motionNotice, setMotionNotice] = useState<string | null>(null);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -242,7 +253,22 @@ export function Live2dWidgetRuntime({
     useEffect(() => () => {
         precisionCanvasRef.current?.restore();
         precisionCanvasRef.current = null;
+        if (motionNoticeTimerRef.current) clearTimeout(motionNoticeTimerRef.current);
     }, []);
+
+    const handleMotionClick = () => {
+        if (!interaction || !clickMotion || state.status !== 'loaded') return;
+        const instance = instanceRef.current;
+        if (!instance) return;
+        const result = playConfiguredLive2dMotion(instance, {
+            group: motionGroup.trim(),
+            index: motionIndex,
+            priority: motionPriority,
+        });
+        setMotionNotice(result.message);
+        if (motionNoticeTimerRef.current) clearTimeout(motionNoticeTimerRef.current);
+        motionNoticeTimerRef.current = setTimeout(() => setMotionNotice(null), 2_400);
+    };
 
     const percent = state.total > 0 ? Math.round((state.loaded / state.total) * 100) : 0;
     return (
@@ -260,6 +286,7 @@ export function Live2dWidgetRuntime({
             <canvas
                 ref={canvasRef}
                 aria-label='Live2D 模型'
+                onClick={handleMotionClick}
                 style={{
                     display: 'block',
                     height: '100%',
@@ -269,6 +296,31 @@ export function Live2dWidgetRuntime({
                     width: '100%',
                 }}
             />
+            {motionNotice ? (
+                <span
+                    role='status'
+                    aria-live='polite'
+                    data-live2d-motion-notice
+                    style={{
+                        background: 'color-mix(in srgb, var(--wt-color-surface, #2d2234) 90%, transparent)',
+                        border: '1px solid var(--wt-color-border, rgba(255, 255, 255, 0.2))',
+                        borderRadius: '999px',
+                        bottom: 8,
+                        fontSize: 11,
+                        left: '50%',
+                        maxWidth: 'calc(100% - 16px)',
+                        overflow: 'hidden',
+                        padding: '4px 9px',
+                        position: 'absolute',
+                        textOverflow: 'ellipsis',
+                        transform: 'translateX(-50%)',
+                        whiteSpace: 'nowrap',
+                        zIndex: 2,
+                    }}
+                >
+                    {motionNotice}
+                </span>
+            ) : null}
             {state.status === 'loading' ? (
                 <div
                     role='status'

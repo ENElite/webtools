@@ -26,6 +26,10 @@ export const live2dWidgetPropsSchema = z.object({
     renderPrecision: z.number().finite().min(50).max(300),
     resizeDelay: z.number().finite().nonnegative().max(2_000),
     interaction: z.boolean(),
+    clickMotion: z.boolean(),
+    motionGroup: z.string(),
+    motionIndex: z.number().int().min(-1).max(999),
+    motionPriority: z.number().int().min(1).max(3),
 }).strict();
 
 export type Live2dWidgetProps = z.infer<typeof live2dWidgetPropsSchema>;
@@ -42,6 +46,10 @@ export const live2dWidgetDefinition = defineWidgetPlugin({
         renderPrecision: 200,
         resizeDelay: 0,
         interaction: true,
+        clickMotion: true,
+        motionGroup: '',
+        motionIndex: -1,
+        motionPriority: 2,
     },
     defaultLayout: {
         anchorX: 'right',
@@ -67,6 +75,10 @@ export const live2dWidgetView = defineWidgetView<Live2dWidgetProps>({
                 renderPrecision={widget.props.renderPrecision}
                 resizeDelay={widget.props.resizeDelay}
                 interaction={widget.props.interaction}
+                clickMotion={widget.props.clickMotion}
+                motionGroup={widget.props.motionGroup}
+                motionIndex={widget.props.motionIndex}
+                motionPriority={widget.props.motionPriority}
             />
         );
     },
@@ -78,6 +90,7 @@ export const live2dWidgetInspector: WidgetInspectorDefinition = {
         pages: [
             { key: 'model', label: '模型', order: 100 },
             { key: 'rendering', label: '渲染', order: 200 },
+            { key: 'motion', label: '动作', order: 300 },
         ],
         fields: [
             {
@@ -153,6 +166,52 @@ export const live2dWidgetInspector: WidgetInspectorDefinition = {
                 page: 'rendering',
                 order: 400,
                 description: '真实运行时接入后用于控制点击与指针跟随。',
+            },
+            {
+                key: 'clickMotion',
+                label: '点击播放动作',
+                path: 'props.clickMotion',
+                control: 'boolean',
+                page: 'motion',
+                order: 100,
+                description: '点击模型时从它实际提供的 motion groups 中播放动作。',
+            },
+            {
+                key: 'motionGroup',
+                label: '动作组',
+                path: 'props.motionGroup',
+                control: 'string',
+                page: 'motion',
+                order: 200,
+                description: '例如 TapBody 或 Idle；留空自动选择可用动作组。',
+                visibleWhen: { path: 'props.clickMotion', equals: true },
+            },
+            {
+                key: 'motionIndex',
+                label: '动作索引',
+                path: 'props.motionIndex',
+                control: 'number',
+                page: 'motion',
+                order: 300,
+                min: -1,
+                max: 999,
+                step: 1,
+                description: '-1 表示在动作组内随机播放。',
+                visibleWhen: { path: 'props.clickMotion', equals: true },
+            },
+            {
+                key: 'motionPriority',
+                label: '播放优先级',
+                path: 'props.motionPriority',
+                control: 'enum',
+                page: 'motion',
+                order: 400,
+                options: [
+                    { label: '空闲 (1)', value: 1 },
+                    { label: '普通 (2)', value: 2 },
+                    { label: '强制 (3)', value: 3 },
+                ],
+                visibleWhen: { path: 'props.clickMotion', equals: true },
             },
         ],
     },

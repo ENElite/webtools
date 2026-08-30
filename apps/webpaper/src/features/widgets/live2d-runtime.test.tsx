@@ -24,6 +24,8 @@ function createInstance(load: (listeners: Map<string, Listener>) => Promise<void
         }),
         resize: vi.fn(),
         setScale: vi.fn(),
+        getMotions: vi.fn(() => ({ TapBody: ['tap-0.motion3.json', 'tap-1.motion3.json'] })),
+        playMotion: vi.fn(),
     };
 }
 
@@ -90,6 +92,10 @@ describe('Live2dWidgetRuntime', () => {
                     renderPrecision={150}
                     resizeDelay={0}
                     interaction={false}
+                    clickMotion
+                    motionGroup='TapBody'
+                    motionIndex={1}
+                    motionPriority={3}
                 />,
             );
         });
@@ -122,6 +128,10 @@ describe('Live2dWidgetRuntime', () => {
                     renderPrecision={100}
                     resizeDelay={0}
                     interaction
+                    clickMotion
+                    motionGroup=''
+                    motionIndex={-1}
+                    motionPriority={2}
                 />,
             );
         });
@@ -129,5 +139,35 @@ describe('Live2dWidgetRuntime', () => {
 
         expect(container.querySelector('[role="alert"]')?.textContent).toContain('network unavailable');
         expect(instance.destroy).toHaveBeenCalledOnce();
+    });
+
+    it('plays the configured model motion when the loaded canvas is clicked', async () => {
+        const instance = createInstance(async (listeners) => {
+            listeners.get('loaded')?.();
+        });
+        runtime.init.mockReturnValue(instance);
+
+        act(() => {
+            root.render(
+                <Live2dWidgetRuntime
+                    modelPath='https://example.com/model.model3.json'
+                    scale={1}
+                    renderPrecision={100}
+                    resizeDelay={0}
+                    interaction
+                    clickMotion
+                    motionGroup='TapBody'
+                    motionIndex={1}
+                    motionPriority={3}
+                />,
+            );
+        });
+        await flush();
+
+        act(() => container.querySelector('canvas')?.click());
+
+        expect(instance.getMotions).toHaveBeenCalledOnce();
+        expect(instance.playMotion).toHaveBeenCalledWith('TapBody', 1, 3);
+        expect(container.querySelector('[data-live2d-motion-notice]')?.textContent).toContain('TapBody #1');
     });
 });

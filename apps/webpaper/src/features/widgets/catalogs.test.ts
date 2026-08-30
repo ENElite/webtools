@@ -39,6 +39,16 @@ describe('WebPaper built-in widgets', () => {
         expect(definition.label).toBe('Live2D');
         expect(defaults['source']).toBe('builtin');
         expect(defaults['modelPath']).toMatch(/\.model3\.json$/);
+        expect(defaults['clickMotion']).toBe(true);
+        expect(defaults['motionIndex']).toBe(-1);
         expect(definition.defaultLayout).toBeTypeOf('function');
+
+        const inspector = catalogs.inspectors.get('live2d');
+        expect(inspector.schema.fields.map(({ path }) => path)).toEqual(expect.arrayContaining([
+            'props.clickMotion',
+            'props.motionGroup',
+            'props.motionIndex',
+            'props.motionPriority',
+        ]));
     });
 });
