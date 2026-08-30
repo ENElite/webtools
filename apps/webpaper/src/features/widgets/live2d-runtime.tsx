@@ -4,6 +4,8 @@ import { Progress, Spinner } from '@webtools/ui';
 import type { L2D } from 'l2d/dist/index.js';
 import { useEffect, useRef, useState } from 'react';
 
+import { live2dInstanceRegistry } from './live2d-instance-registry';
+
 export type Live2dRuntimeProps = {
     readonly modelPath: string;
     readonly scale: number;
@@ -150,6 +152,7 @@ export function Live2dWidgetRuntime({
             if (cancelled) return;
             instance = init(canvas);
             if (!instance) throw new Error('Live2D 无法初始化 Canvas。');
+            live2dInstanceRegistry.acquire(instance);
             instanceRef.current = instance;
 
             let loaded = false;
@@ -175,11 +178,7 @@ export function Live2dWidgetRuntime({
             if (!loaded) throw new Error('模型资源未能完成加载，请检查地址、CORS 与模型文件。');
         }).catch((error: unknown) => {
             if (cancelled) return;
-            try {
-                instance?.destroy();
-            } catch {
-                // The runtime may be only partially initialized.
-            }
+            live2dInstanceRegistry.release(instance);
             if (instanceRef.current === instance) instanceRef.current = null;
             setState({
                 status: 'error',
@@ -191,11 +190,7 @@ export function Live2dWidgetRuntime({
 
         return () => {
             cancelled = true;
-            try {
-                instance?.destroy();
-            } catch {
-                // Destroy is best-effort when model loading was interrupted.
-            }
+            live2dInstanceRegistry.release(instance);
             if (instanceRef.current === instance) instanceRef.current = null;
         };
     }, [modelPath]);
@@ -274,7 +269,6 @@ export function Live2dWidgetRuntime({
                     role='status'
                     style={{
                         alignItems: 'center',
-                        backdropFilter: 'blur(12px)',
                         background: 'color-mix(in srgb, var(--wt-color-surface, #2d2234) 82%, transparent)',
                         display: 'flex',
                         flexDirection: 'column',
