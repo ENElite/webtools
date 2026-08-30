@@ -743,6 +743,29 @@ textarea { font: inherit; }
 
 .wp-history-card:is(:hover, :focus-visible) .wp-history-meta { opacity: 1; }
 
+.wp-media-info {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--wt-color-border-strong);
+    border-radius: var(--wt-radius-md);
+}
+
+.wp-media-info > div {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    border-bottom: 1px solid var(--wt-color-border);
+}
+
+.wp-media-info > div:last-child { border-bottom: 0; }
+.wp-media-info dt,
+.wp-media-info dd { margin: 0; padding: 10px 12px; }
+.wp-media-info dt { color: var(--wt-color-text-muted); background: var(--wt-color-surface-tinted); font-weight: 700; }
+.wp-media-info dd { min-width: 0; overflow-wrap: anywhere; }
+.wp-media-info code { font-size: 12px; }
+.wp-media-info pre { margin: 0; overflow: auto; font: 12px/1.55 ui-monospace, monospace; white-space: pre-wrap; }
+
 @keyframes wp-studio-stars {
     to { transform: rotate(360deg); }
 }

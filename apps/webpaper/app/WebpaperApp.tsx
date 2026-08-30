@@ -15,6 +15,7 @@ import {
     Textarea,
     TextInput,
 } from '@webtools/ui';
+import type { ContextMenuItem } from '@webtools/ui';
 import {
     createDefaultInspectorControls,
     WidgetDevtools,
@@ -30,6 +31,7 @@ import {
     saveWidgetDocument,
     type AppSettings,
 } from '../src/application';
+import type { MediaItem } from '../src/domain';
 import { HistoryDrawer } from '../src/features/history';
 import { createWebPaperMediaCatalog, type MediaSourceSelection } from '../src/features/media';
 import {
@@ -67,6 +69,7 @@ function WebpaperSession() {
     const [activeSelection, setActiveSelection] = useState<MediaSourceSelection>(() => toSelection(settings));
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [infoOpen, setInfoOpen] = useState(false);
     const [historySearch, setHistorySearch] = useState('');
     const [fullscreen, setFullscreen] = useState(false);
     const [{ engine, persistenceWarning }] = useState(() => createEngine(widgetCatalogs.definitions));
@@ -101,19 +104,23 @@ function WebpaperSession() {
     }, []);
 
     const addWidget = useCallback((kind: WidgetKind) => {
+        const offset = (engine.getSnapshot().document.widgets.length % 10) * 2;
+        const ownsDefaultLayout = widgetCatalogs.definitions.get(kind).defaultLayout !== undefined;
         engine.dispatch({
             type: 'widget.add',
-            widget: { kind, layout: { x: 5, y: 5, w: 32, h: 20 } },
+            widget: ownsDefaultLayout
+                ? { kind }
+                : { kind, layout: { x: 5 + offset, y: 5 + offset } },
         });
-    }, [engine]);
+    }, [engine, widgetCatalogs.definitions]);
 
     const historyMode = player.session.mode.kind === 'history';
     const current = historyMode
         ? player.session.mode.cursor
         : (player.session.cursor ?? 0);
     const total = historyMode ? player.session.history.length : player.session.items.length;
-    const dock = useAutoHideDock(settingsOpen || historyOpen);
-    const contextMenuItems = [
+    const dock = useAutoHideDock(settingsOpen || historyOpen || infoOpen);
+    const contextMenuItems: readonly ContextMenuItem[] = [
         {
             value: 'toggle-play',
             label: player.session.autoplay.kind === 'running' ? '暂停自动切换' : '开始自动切换',
@@ -121,6 +128,13 @@ function WebpaperSession() {
             onSelect: player.session.autoplay.kind === 'running'
                 ? () => player.controller.stopAutoplay()
                 : () => player.controller.startAutoplay(settings.player.autoplayIntervalMs ?? 30_000),
+        },
+        {
+            value: 'current-info',
+            label: '当前信息',
+            icon: 'ⓘ',
+            disabled: !player.currentMedia,
+            onSelect: () => setInfoOpen(true),
         },
         {
             value: 'previous',
@@ -138,9 +152,16 @@ function WebpaperSession() {
         },
         {
             value: 'history',
-            label: '历史记录',
+            label: '播放历史',
             icon: '◷',
             onSelect: () => setHistoryOpen(true),
+        },
+        {
+            value: 'return-latest',
+            label: '回到最新',
+            icon: '↥',
+            disabled: !historyMode,
+            onSelect: () => player.controller.leaveHistory(),
         },
         {
             value: 'fullscreen',
@@ -159,18 +180,32 @@ function WebpaperSession() {
             onSelect: () => setSettingsOpen(true),
         },
         {
+            value: 'reset-settings',
+            label: '重置壁纸设置',
+            icon: '↺',
+            onSelect: () => {
+                setSettings(DEFAULT_APP_SETTINGS);
+                setActiveSelection(toSelection(DEFAULT_APP_SETTINGS));
+            },
+        },
+        {
             value: 'editable',
             label: settings.widgetsEditable ? '退出组件编辑' : '进入组件编辑',
             icon: settings.widgetsEditable ? '✓' : '✎',
             onSelect: () => patchSettings({ widgetsEditable: !settings.widgetsEditable }),
         },
-        ...widgetCatalogs.definitions.kinds.map((kind, index) => ({
-            value: `add-${kind}`,
-            label: `添加 ${kind}`,
+        {
+            value: 'add-widget',
+            label: '添加组件',
             icon: '＋',
-            separatorBefore: index === 0,
-            onSelect: () => addWidget(kind),
-        })),
+            separatorBefore: true,
+            items: widgetCatalogs.definitions.kinds.map((kind) => ({
+                value: `add-${kind}`,
+                label: widgetCatalogs.definitions.get(kind).label,
+                icon: kind === 'live2d' ? '♙' : '＋',
+                onSelect: () => addWidget(kind),
+            })),
+        },
     ];
 
     return (
@@ -251,11 +286,54 @@ function WebpaperSession() {
                         onClose={() => setHistoryOpen(false)}
                     />
 
+                    <MediaInfoDrawer
+                        open={infoOpen}
+                        item={player.currentMedia}
+                        onClose={() => setInfoOpen(false)}
+                    />
+
                     <WidgetStudioPanel schemas={widgetCatalogs.inspectors} controls={inspectorControls} />
                     {process.env.NODE_ENV === 'development' ? <WidgetDevtools /> : null}
                 </main>
             </ContextMenu>
         </WidgetRuntimeProvider>
+    );
+}
+
+function MediaInfoDrawer({
+    open,
+    item,
+    onClose,
+}: {
+    readonly open: boolean;
+    readonly item: MediaItem | null;
+    readonly onClose: () => void;
+}) {
+    return (
+        <Drawer
+            open={open}
+            title='当前媒体信息'
+            description='当前正在播放的媒体及来源数据。'
+            placement='right'
+            size='lg'
+            className='wp-info-drawer'
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) onClose();
+            }}
+        >
+            {item ? (
+                <dl className='wp-media-info'>
+                    <div><dt>ID</dt><dd>{item.id}</dd></div>
+                    <div><dt>来源</dt><dd>{item.sourceId}</dd></div>
+                    <div><dt>类型</dt><dd>{item.kind}</dd></div>
+                    <div><dt>地址</dt><dd><code>{item.url}</code></dd></div>
+                    <div className='wp-media-info__raw'>
+                        <dt>原始数据</dt>
+                        <dd><pre>{formatRawMedia(item.raw)}</pre></dd>
+                    </div>
+                </dl>
+            ) : <p>当前没有可显示的媒体信息。</p>}
+        </Drawer>
     );
 }
 
@@ -540,6 +618,16 @@ function sourceLabel(sourceId: MediaSourceSelection['sourceId']): string {
     if (sourceId === 'bird-paper') return '小鸟壁纸';
     if (sourceId === 'konachan') return 'Konachan';
     return 'JSON';
+}
+
+function formatRawMedia(raw: unknown): string {
+    if (raw === null || raw === undefined) return '无';
+    if (typeof raw === 'string') return raw;
+    try {
+        return JSON.stringify(raw, null, 2);
+    } catch {
+        return String(raw);
+    }
 }
 
 function clampPageSize(value: number): number {
