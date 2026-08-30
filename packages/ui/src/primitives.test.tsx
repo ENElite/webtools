@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -266,7 +267,9 @@ describe('Mochi primitives', () => {
     });
 
     it('clips number steppers inside the flat rounded input edge', () => {
-        const styles = readFileSync('src/styles.css', 'utf8');
+        const packageStyles = resolve(process.cwd(), 'src/styles.css');
+        const workspaceStyles = resolve(process.cwd(), 'packages/ui/src/styles.css');
+        const styles = readFileSync(existsSync(packageStyles) ? packageStyles : workspaceStyles, 'utf8');
         const controlsRule = styles.match(/\.wt-number-input__controls\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
         const rootRule = styles.match(/\.wt-number-input\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
 
