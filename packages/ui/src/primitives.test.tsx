@@ -311,8 +311,26 @@ describe('Mochi primitives', () => {
         const rootRule = styles.match(/\.wt-number-input\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
 
         expect(rootRule).toContain('border-radius: var(--wt-radius-md)');
+        expect(rootRule).toContain('overflow: hidden');
         expect(controlsRule).toContain('inset-block: 2px');
         expect(controlsRule).toContain('inset-inline-end: 2px');
         expect(controlsRule).toContain('overflow: hidden');
+        expect(controlsRule).toContain('border-radius: 0');
+        expect(styles).not.toContain('calc(var(--wt-radius-md) - 4px)');
+    });
+
+    it('keeps Ark number steppers inside the root clipping boundary at custom sizes', () => {
+        const host = render(
+            <NumberInput aria-label='每页数量' defaultValue={12} style={{ width: 112, height: 34 }} />,
+        );
+        const numberRoot = host.querySelector<HTMLElement>('.wt-number-input');
+        const input = numberRoot?.querySelector<HTMLInputElement>('.wt-number-input__input');
+        const controls = numberRoot?.querySelector<HTMLElement>('.wt-number-input__controls');
+
+        expect(numberRoot?.style.width).toBe('112px');
+        expect(numberRoot?.style.height).toBe('34px');
+        expect(input?.parentElement).toBe(numberRoot);
+        expect(controls?.parentElement).toBe(numberRoot);
+        expect(controls?.querySelectorAll('.wt-number-input__stepper')).toHaveLength(2);
     });
 });

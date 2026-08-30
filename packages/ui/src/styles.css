@@ -501,6 +501,7 @@
     position: relative;
     display: flex;
     min-width: 0;
+    overflow: hidden;
     border-radius: var(--wt-radius-md);
 }
 
@@ -516,7 +517,7 @@
     width: 30px;
     overflow: hidden;
     border-inline-start: 1px solid var(--wt-color-border);
-    border-radius: 0 calc(var(--wt-radius-md) - 4px) calc(var(--wt-radius-md) - 4px) 0;
+    border-radius: 0;
 }
 
 .wt-number-input__stepper {
@@ -1605,7 +1606,7 @@
         .wt-drawer__close,
         .wt-toast__close
     ):focus-visible,
-:where(.wt-checkbox, .wt-switch, .wt-slider__thumb, .wt-segmented__item, .wt-file-upload__dropzone):focus-within {
+:where(.wt-number-input, .wt-checkbox, .wt-switch, .wt-slider__thumb, .wt-segmented__item, .wt-file-upload__dropzone):focus-within {
     outline: 2px solid var(--wt-color-focus);
     outline-offset: 2px;
 }
