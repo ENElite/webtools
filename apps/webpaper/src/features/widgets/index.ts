@@ -6,6 +6,7 @@ import { clockWidgetDefinition, clockWidgetInspector, clockWidgetView } from './
 import { htmlWidgetDefinition, htmlWidgetInspector, htmlWidgetView } from './html';
 import { iframeWidgetDefinition, iframeWidgetInspector, iframeWidgetView } from './iframe';
 import { imageWidgetDefinition, imageWidgetInspector, imageWidgetView } from './image';
+import { live2dWidgetDefinition, live2dWidgetInspector, live2dWidgetView } from './live2d';
 import { textWidgetDefinition, textWidgetInspector, textWidgetView } from './text';
 import { videoWidgetDefinition, videoWidgetInspector, videoWidgetView } from './video';
 
@@ -13,6 +14,7 @@ export * from './clock';
 export * from './html';
 export * from './iframe';
 export * from './image';
+export * from './live2d';
 export * from './text';
 export * from './video';
 
@@ -24,6 +26,7 @@ export const definitions = Object.freeze([
     videoWidgetDefinition,
     iframeWidgetDefinition,
     htmlWidgetDefinition,
+    live2dWidgetDefinition,
 ] as const);
 
 export const views = Object.freeze([
@@ -33,6 +36,7 @@ export const views = Object.freeze([
     videoWidgetView,
     iframeWidgetView,
     htmlWidgetView,
+    live2dWidgetView,
 ] as const);
 
 export const inspectors = Object.freeze([
@@ -42,6 +46,7 @@ export const inspectors = Object.freeze([
     videoWidgetInspector,
     iframeWidgetInspector,
     htmlWidgetInspector,
+    live2dWidgetInspector,
 ] as const);
 
 export const builtInWidgetDefinitions = definitions;

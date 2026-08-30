@@ -7,7 +7,7 @@ import {
     views,
 } from './index';
 
-const EXPECTED_KINDS = ['text', 'clock', 'image', 'video', 'iframe', 'html'];
+const EXPECTED_KINDS = ['text', 'clock', 'image', 'video', 'iframe', 'html', 'live2d'];
 
 describe('WebPaper built-in widgets', () => {
     it('keeps definition, view and inspector kinds aligned', () => {
@@ -29,5 +29,16 @@ describe('WebPaper built-in widgets', () => {
 
             expect(definition.propsSchema.safeParse(defaults).success, definition.kind).toBe(true);
         }
+    });
+
+    it('registers the real Live2D runtime with explicit model and layout defaults', () => {
+        const catalogs = createBuiltInWidgetCatalogs();
+        const definition = catalogs.definitions.get('live2d');
+        const defaults = catalogs.definitions.createProps('live2d');
+
+        expect(definition.label).toBe('Live2D');
+        expect(defaults['source']).toBe('builtin');
+        expect(defaults['modelPath']).toMatch(/\.model3\.json$/);
+        expect(definition.defaultLayout).toBeTypeOf('function');
     });
 });

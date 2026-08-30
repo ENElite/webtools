@@ -4,8 +4,8 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 5173",
-    "build": "next build",
+    "dev": "next dev --webpack -H 0.0.0.0 -p 5173",
+    "build": "next build --webpack",
     "start": "next start -H 0.0.0.0 -p 5173",
     "lint": "eslint app src --max-warnings=0",
     "test": "vitest run",
@@ -17,6 +17,7 @@
     "@webtools/widget-core": "workspace:*",
     "@webtools/widget-react": "workspace:*",
     "@webtools/widget-studio": "workspace:*",
+    "l2d": "^2.1.1",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

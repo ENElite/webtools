@@ -15,6 +15,13 @@ const nextConfig = {
         '@webtools/widget-react',
         '@webtools/widget-studio',
     ],
+    webpack(config) {
+        config.module.rules.push({
+            test: /node_modules[\\/]l2d[\\/]dist[\\/]index\.js$/,
+            use: [path.resolve(appDirectory, 'loaders/strip-pure-annotations.cjs')],
+        });
+        return config;
+    },
 };
 
 export default nextConfig;
