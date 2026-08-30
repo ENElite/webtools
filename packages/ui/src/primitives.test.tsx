@@ -27,6 +27,12 @@ function render(node: React.ReactNode) {
     return host;
 }
 
+function readUiStyles() {
+    const packageStyles = resolve(process.cwd(), 'src/styles.css');
+    const workspaceStyles = resolve(process.cwd(), 'packages/ui/src/styles.css');
+    return readFileSync(existsSync(packageStyles) ? packageStyles : workspaceStyles, 'utf8');
+}
+
 function dispatchPointer(
     element: Element | null | undefined,
     type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
@@ -135,11 +141,25 @@ describe('Mochi primitives', () => {
             await new Promise((resolve) => setTimeout(resolve, 30));
         });
 
-        expect(document.body.querySelector('.wt-select__content[data-state="open"]')).not.toBeNull();
+        const content = document.body.querySelector<HTMLElement>('.wt-select__content[data-state="open"]');
+        expect(content).not.toBeNull();
+        expect(content?.hidden).toBe(false);
+        expect(content?.closest('.wt-select__positioner')?.parentElement).toBe(document.body);
         expect([...document.body.querySelectorAll('.wt-select__item')].map((item) => item.textContent)).toEqual([
             '小鸟壁纸✓',
             'Konachan✓',
         ]);
+    });
+
+    it('gives select content the popover layer used by Zag positioning', () => {
+        const styles = readUiStyles();
+        const rootRule = styles.match(/:root\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        const contentRule = styles.match(
+            /\.wt-select__content,\s*\.wt-color-picker__content\s*\{(?<body>[^}]+)\}/,
+        )?.groups?.['body'];
+
+        expect(rootRule).toContain('--wt-z-popover: 1200');
+        expect(contentRule).toContain('z-index: var(--wt-z-popover)');
     });
 
     it('opens a context menu at the app surface', async () => {
@@ -267,9 +287,7 @@ describe('Mochi primitives', () => {
     });
 
     it('clips number steppers inside the flat rounded input edge', () => {
-        const packageStyles = resolve(process.cwd(), 'src/styles.css');
-        const workspaceStyles = resolve(process.cwd(), 'packages/ui/src/styles.css');
-        const styles = readFileSync(existsSync(packageStyles) ? packageStyles : workspaceStyles, 'utf8');
+        const styles = readUiStyles();
         const controlsRule = styles.match(/\.wt-number-input__controls\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
         const rootRule = styles.match(/\.wt-number-input\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
 

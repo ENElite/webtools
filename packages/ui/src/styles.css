@@ -33,6 +33,7 @@
     --wt-shadow-lg: none;
     --wt-shadow-focus: none;
     --wt-z-overlay: 1100;
+    --wt-z-popover: 1200;
     --wt-z-toast: 1300;
     --wt-font-sans: Inter, ui-rounded, 'SF Pro Rounded', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
     --wt-font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
@@ -568,6 +569,8 @@
 
 .wt-select__content,
 .wt-color-picker__content {
+    /* Zag copies the floating content's computed layer onto its Portal positioner. */
+    z-index: var(--wt-z-popover);
     min-width: var(--reference-width);
     padding: 6px;
     color: var(--wt-color-text);
