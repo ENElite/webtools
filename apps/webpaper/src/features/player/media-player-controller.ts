@@ -5,6 +5,7 @@ import {
     reducePlayerSession,
     selectCurrentMedia,
     type MediaItem,
+    type MediaPage,
     type PlayerSession,
     type PlayerSessionEvent,
 } from '../../domain';
@@ -26,6 +27,13 @@ export interface CreateMediaPlayerControllerOptions {
     readonly catalog: MediaSourceCatalog;
     /** Starts prefetching once this many loaded items remain after the cursor. */
     readonly prefetchThreshold?: number;
+    /** A server-fetched first page that is already safe to render and paginate from. */
+    readonly initialPage?: MediaPlayerInitialPage;
+}
+
+export interface MediaPlayerInitialPage {
+    readonly selection: MediaSourceSelection;
+    readonly page: MediaPage;
 }
 
 export interface MediaPlayerController {
@@ -66,7 +74,7 @@ export function createMediaPlayerController(
 ): MediaPlayerController {
     const prefetchThreshold = Math.max(0, Math.round(options.prefetchThreshold ?? 2));
     const listeners = new Set<() => void>();
-    let state = INITIAL_STATE;
+    let state = createInitialState(options.initialPage);
     let requestRevision = 0;
     let activeRequest: ActiveRequest | null = null;
     let disposed = false;
@@ -189,7 +197,7 @@ export function createMediaPlayerController(
             return () => listeners.delete(listener);
         },
         async switchSource(selection) {
-            if (state.selection === selection) {
+            if (state.selection && sameSelection(state.selection, selection)) {
                 if (activeRequest) return activeRequest.promise;
                 if (state.status === 'ready') return true;
             }
@@ -264,6 +272,39 @@ export function createMediaPlayerController(
     };
 
     return controller;
+}
+
+function createInitialState(initialPage: MediaPlayerInitialPage | undefined): MediaPlayerState {
+    if (!initialPage) return INITIAL_STATE;
+    const expectedPage = initialPage.selection.initialPage ?? 1;
+    if (
+        initialPage.page.sourceId !== initialPage.selection.sourceId
+        || initialPage.page.page !== expectedPage
+    ) {
+        return INITIAL_STATE;
+    }
+    return {
+        session: createPlayerSession(initialPage.page.items),
+        selection: initialPage.selection,
+        page: initialPage.page.page,
+        hasMore: initialPage.page.hasMore,
+        status: 'ready',
+        error: null,
+    };
+}
+
+function sameSelection(first: MediaSourceSelection, second: MediaSourceSelection): boolean {
+    if (first === second) return true;
+    if (
+        first.sourceId !== second.sourceId
+        || first.pageSize !== second.pageSize
+        || first.initialPage !== second.initialPage
+    ) return false;
+    try {
+        return JSON.stringify(first.params) === JSON.stringify(second.params);
+    } catch {
+        return false;
+    }
 }
 
 interface ActiveRequest {

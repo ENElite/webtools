@@ -26,6 +26,36 @@ function page(pageNumber: number, items: readonly ImageMediaItem[], hasMore: boo
 }
 
 describe('media player controller', () => {
+    it('hydrates a server page without requesting it again and continues at page two', async () => {
+        const fetchPage = vi.fn<MediaSource<JsonMediaQueryParams, ImageMediaItem>['fetchPage']>(
+            async () => page(2, [image('c')], false),
+        );
+        const catalog = new MediaSourceCatalog([{ id: 'json', fetchPage }]);
+        const selection = { sourceId: 'json', params: { content: '[]' }, pageSize: 2 } as const;
+        const controller = createMediaPlayerController({
+            catalog,
+            initialPage: {
+                selection,
+                page: page(1, [image('a'), image('b')], true),
+            },
+        });
+
+        expect(controller.getSnapshot()).toMatchObject({ page: 1, status: 'ready', hasMore: true });
+        expect(controller.getSnapshot().session.items.map(({ id }) => id)).toEqual(['a', 'b']);
+
+        await controller.switchSource({
+            sourceId: 'json',
+            params: { content: '[]' },
+            pageSize: 2,
+        });
+        expect(fetchPage).not.toHaveBeenCalled();
+
+        await controller.loadMore();
+        expect(fetchPage).toHaveBeenCalledOnce();
+        expect(fetchPage.mock.calls[0]?.[0].page).toBe(2);
+        expect(controller.getSnapshot().session.items.map(({ id }) => id)).toEqual(['a', 'b', 'c']);
+    });
+
     it('combines pagination, prefetch and the pure player session state', async () => {
         const fetchPage = vi.fn<MediaSource<JsonMediaQueryParams, ImageMediaItem>['fetchPage']>(
             async (query) => query.page === 1

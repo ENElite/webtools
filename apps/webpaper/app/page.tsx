@@ -1,5 +1,9 @@
 import { WebpaperApp } from './WebpaperApp';
+import { prefetchDefaultKonachanPage } from './server-konachan-prefetch';
 
-export default function Page() {
-    return <WebpaperApp />;
+export const revalidate = 60;
+
+export default async function Page() {
+    const initialMediaPage = await prefetchDefaultKonachanPage();
+    return <WebpaperApp {...(initialMediaPage ? { initialMediaPage } : {})} />;
 }

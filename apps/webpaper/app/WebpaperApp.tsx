@@ -40,11 +40,16 @@ import {
     MediaStageStandbyOverlay,
     PlaybackControls,
     useMediaPlayer,
+    type MediaPlayerInitialPage,
 } from '../src/features/player';
 import { createBuiltInWidgetCatalogs } from '../src/features/widgets';
 import { toSelection } from './source-selection';
 
-export function WebpaperApp() {
+export function WebpaperApp({
+    initialMediaPage,
+}: {
+    readonly initialMediaPage?: MediaPlayerInitialPage;
+}) {
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
@@ -59,10 +64,10 @@ export function WebpaperApp() {
             </main>
         );
     }
-    return <WebpaperSession />;
+    return <WebpaperSession {...(initialMediaPage ? { initialMediaPage } : {})} />;
 }
 
-function WebpaperSession() {
+function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: MediaPlayerInitialPage }) {
     const mediaCatalog = useMemo(() => createWebPaperMediaCatalog(), []);
     const widgetCatalogs = useMemo(() => createBuiltInWidgetCatalogs(), []);
     const inspectorControls = useMemo(() => createDefaultInspectorControls(), []);
@@ -74,7 +79,11 @@ function WebpaperSession() {
     const [historySearch, setHistorySearch] = useState('');
     const [fullscreen, setFullscreen] = useState(false);
     const [{ engine, persistenceWarning }] = useState(() => createEngine(widgetCatalogs.definitions));
-    const player = useMediaPlayer({ catalog: mediaCatalog, prefetchThreshold: 2 });
+    const player = useMediaPlayer({
+        catalog: mediaCatalog,
+        prefetchThreshold: 2,
+        ...(initialMediaPage ? { initialPage: initialMediaPage } : {}),
+    });
 
     useEffect(() => {
         void player.controller.switchSource(activeSelection);

@@ -37,7 +37,7 @@ export const appSettingsSchema = z.object({
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-    source: 'bird-paper',
+    source: 'konachan',
     pageSize: 12,
     bird: {
         mode: 'latest',

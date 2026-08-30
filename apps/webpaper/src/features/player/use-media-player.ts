@@ -24,7 +24,7 @@ export function useMediaPlayer(
 ): UseMediaPlayerResult {
     const controller = useMemo(
         () => createMediaPlayerController(options),
-        [options.catalog, options.prefetchThreshold],
+        [options.catalog, options.initialPage, options.prefetchThreshold],
     );
     const state = useSyncExternalStore(
         controller.subscribe,
