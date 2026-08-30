@@ -14,8 +14,13 @@ const STICKER_KINDS = [
     'ice-cream',
     'star',
     'flower',
+    'candy',
+    'cherry',
+    'moon',
+    'paw',
+    'sparkle',
 ] as const;
-const STICKER_TILE_COUNT = 64;
+const STICKER_TILE_COUNT = 36;
 
 export interface MediaStageProps {
     readonly item: MediaItem | null;

@@ -100,7 +100,7 @@ textarea { font: inherit; }
 }
 
 .wp-sticker-wall {
-    --wp-sticker-tile-size: max(180px, 22vw, 22vh);
+    --wp-sticker-tile-size: max(270px, 33vw, 33vh);
     position: absolute;
     inset: 0;
     overflow: hidden;
@@ -109,15 +109,15 @@ textarea { font: inherit; }
 
 .wp-sticker-track {
     position: absolute;
-    top: calc(var(--wp-sticker-tile-size) * -2);
-    left: calc(var(--wp-sticker-tile-size) * -2);
+    top: calc(var(--wp-sticker-tile-size) * -1);
+    left: calc(var(--wp-sticker-tile-size) * -1);
     display: grid;
-    width: calc(var(--wp-sticker-tile-size) * 8);
-    height: calc(var(--wp-sticker-tile-size) * 8);
-    grid-template-columns: repeat(8, var(--wp-sticker-tile-size));
-    grid-template-rows: repeat(8, var(--wp-sticker-tile-size));
+    width: calc(var(--wp-sticker-tile-size) * 6);
+    height: calc(var(--wp-sticker-tile-size) * 6);
+    grid-template-columns: repeat(6, var(--wp-sticker-tile-size));
+    grid-template-rows: repeat(6, var(--wp-sticker-tile-size));
     will-change: transform;
-    animation: wp-sticker-drift 14s linear infinite;
+    animation: wp-sticker-drift 16s linear infinite;
 }
 
 .wp-sticker-tile {
@@ -125,14 +125,14 @@ textarea { font: inherit; }
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     place-items: center;
     background: #dff7ff;
 }
 
 .wp-sticker-tile > i {
-    --sticker-size: clamp(44px, calc(var(--wp-sticker-tile-size) * .18), 120px);
+    --sticker-size: clamp(30px, calc(var(--wp-sticker-tile-size) * .09), 76px);
     --sticker-offset-x: 0px;
     --sticker-offset-y: 0px;
     position: relative;
@@ -147,34 +147,69 @@ textarea { font: inherit; }
 }
 
 .wp-sticker-tile > i:nth-child(1) {
-    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * -.07);
-    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * .05);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * -.025);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * .018);
     --sticker-turn: -12deg;
 }
 
 .wp-sticker-tile > i:nth-child(2) {
-    --sticker-size: clamp(50px, calc(var(--wp-sticker-tile-size) * .2), 132px);
-    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .06);
-    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.04);
+    --sticker-size: clamp(34px, calc(var(--wp-sticker-tile-size) * .1), 82px);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .032);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.022);
     --sticker-turn: 9deg;
 }
 
 .wp-sticker-tile > i:nth-child(3) {
-    --sticker-size: clamp(40px, calc(var(--wp-sticker-tile-size) * .15), 104px);
-    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .05);
-    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * .06);
+    --sticker-size: clamp(28px, calc(var(--wp-sticker-tile-size) * .082), 70px);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .015);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * .028);
     --sticker-turn: 7deg;
 }
 
 .wp-sticker-tile > i:nth-child(4) {
-    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * -.05);
-    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.06);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * -.03);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.018);
     --sticker-turn: -8deg;
+}
+
+.wp-sticker-tile > i:nth-child(5) {
+    --sticker-size: clamp(32px, calc(var(--wp-sticker-tile-size) * .095), 80px);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .026);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * .012);
+    --sticker-turn: 13deg;
+}
+
+.wp-sticker-tile > i:nth-child(6) {
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * -.012);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.03);
+    --sticker-turn: -9deg;
+}
+
+.wp-sticker-tile > i:nth-child(7) {
+    --sticker-size: clamp(29px, calc(var(--wp-sticker-tile-size) * .085), 72px);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .034);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.006);
+    --sticker-turn: 11deg;
+}
+
+.wp-sticker-tile > i:nth-child(8) {
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * -.028);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * .03);
+    --sticker-turn: -6deg;
+}
+
+.wp-sticker-tile > i:nth-child(9) {
+    --sticker-size: clamp(28px, calc(var(--wp-sticker-tile-size) * .08), 68px);
+    --sticker-offset-x: calc(var(--wp-sticker-tile-size) * .005);
+    --sticker-offset-y: calc(var(--wp-sticker-tile-size) * -.024);
+    --sticker-turn: 8deg;
 }
 
 .wp-sticker-tile > i[data-sticker='heart']::before,
 .wp-sticker-tile > i[data-sticker='star']::before,
-.wp-sticker-tile > i[data-sticker='flower']::before {
+.wp-sticker-tile > i[data-sticker='flower']::before,
+.wp-sticker-tile > i[data-sticker='moon']::before,
+.wp-sticker-tile > i[data-sticker='sparkle']::before {
     position: absolute;
     inset: 50% auto auto 50%;
     font-size: var(--sticker-size);
@@ -197,6 +232,16 @@ textarea { font: inherit; }
 .wp-sticker-tile > i[data-sticker='flower']::before {
     content: "✿";
     color: #ff9cc5;
+}
+
+.wp-sticker-tile > i[data-sticker='moon']::before {
+    content: "☾";
+    color: #8f84dc;
+}
+
+.wp-sticker-tile > i[data-sticker='sparkle']::before {
+    content: "✦";
+    color: #ffd05f;
 }
 
 .wp-sticker-tile > i[data-sticker='ice-cream']::before {
@@ -242,6 +287,101 @@ textarea { font: inherit; }
     inset: 7% 10% 12%;
     background: #f2bd7d;
     clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.wp-sticker-tile > i[data-sticker='candy']::before,
+.wp-sticker-tile > i[data-sticker='candy']::after {
+    content: "";
+    position: absolute;
+    top: 25%;
+    width: 31%;
+    height: 50%;
+    border: 3px solid #fff;
+    background: #6fd2ea;
+    clip-path: polygon(0 0, 100% 24%, 100% 76%, 0 100%);
+}
+
+.wp-sticker-tile > i[data-sticker='candy']::before { left: 0; }
+
+.wp-sticker-tile > i[data-sticker='candy']::after {
+    right: 0;
+    background: #ff87b8;
+    transform: scaleX(-1);
+}
+
+.wp-sticker-tile > i[data-sticker='candy'] > span {
+    position: absolute;
+    z-index: 1;
+    inset: 18% 23%;
+    border: 3px solid #fff;
+    border-radius: 38%;
+    background: #ffc6dc;
+}
+
+.wp-sticker-tile > i[data-sticker='cherry']::before {
+    content: "";
+    position: absolute;
+    top: 5%;
+    left: 44%;
+    width: 32%;
+    height: 46%;
+    border-top: 3px solid #61b98a;
+    border-left: 3px solid #61b98a;
+    border-radius: 55% 0 0;
+    transform: rotate(22deg);
+}
+
+.wp-sticker-tile > i[data-sticker='cherry']::after {
+    content: "";
+    position: absolute;
+    top: 9%;
+    right: 7%;
+    width: 25%;
+    height: 16%;
+    border: 3px solid #fff;
+    border-radius: 70% 15% 70% 15%;
+    background: #72cf9d;
+    transform: rotate(-18deg);
+}
+
+.wp-sticker-tile > i[data-sticker='cherry'] > span {
+    position: absolute;
+    right: 8%;
+    bottom: 5%;
+    width: 38%;
+    height: 38%;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: #ff6f9f;
+    box-shadow: calc(var(--sticker-size) * -.34) calc(var(--sticker-size) * .06) 0 -1px #ff6f9f,
+        calc(var(--sticker-size) * -.34) calc(var(--sticker-size) * .06) 0 2px #fff;
+}
+
+.wp-sticker-tile > i[data-sticker='paw']::before {
+    content: "";
+    position: absolute;
+    top: 8%;
+    left: 14%;
+    width: 22%;
+    height: 25%;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: #76d4eb;
+    box-shadow: calc(var(--sticker-size) * .28) calc(var(--sticker-size) * -.08) 0 -1px #76d4eb,
+        calc(var(--sticker-size) * .28) calc(var(--sticker-size) * -.08) 0 2px #fff,
+        calc(var(--sticker-size) * .56) 0 0 -1px #76d4eb,
+        calc(var(--sticker-size) * .56) 0 0 2px #fff;
+}
+
+.wp-sticker-tile > i[data-sticker='paw'] > span {
+    position: absolute;
+    bottom: 8%;
+    left: 20%;
+    width: 60%;
+    height: 50%;
+    border: 3px solid #fff;
+    border-radius: 55% 55% 48% 48%;
+    background: #76d4eb;
 }
 
 .wp-stage-loader {

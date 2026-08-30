@@ -15,13 +15,17 @@ describe('MediaStage', () => {
             <MediaStageStandbyOverlay phase='waiting' status='loading' message='正在加载页面…' />,
         );
 
-        expect(markup.match(/data-sticker-tile="true"/g)).toHaveLength(64);
-        expect(markup.match(/data-grid-cell=/g)).toHaveLength(256);
+        expect(markup.match(/data-sticker-tile="true"/g)).toHaveLength(36);
+        expect(markup.match(/data-grid-cell=/g)).toHaveLength(324);
         expect(markup).toContain('data-sticker="heart"');
         expect(markup).toContain('data-sticker="ice-cream"');
         expect(markup).toContain('data-sticker="star"');
         expect(markup).toContain('data-sticker="flower"');
-        expect(markup).not.toContain('data-sticker="candy"');
+        expect(markup).toContain('data-sticker="candy"');
+        expect(markup).toContain('data-sticker="cherry"');
+        expect(markup).toContain('data-sticker="moon"');
+        expect(markup).toContain('data-sticker="paw"');
+        expect(markup).toContain('data-sticker="sparkle"');
         expect(markup).toContain('role="progressbar"');
         expect(markup).not.toContain('<img');
         expect(markup).not.toContain('<svg');
