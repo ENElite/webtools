@@ -36,12 +36,44 @@ export interface WidgetStyle {
     readonly overflow?: boolean | undefined;
 }
 
+export const WIDGET_ANIMATABLE_STYLE_PROPERTIES = [
+    'opacity',
+    'backgroundColor',
+    'borderRadius',
+    'outline',
+    'outlineOffset',
+    'boxShadow',
+    'backdropFilter',
+    'backgroundImage',
+] as const;
+
+export type WidgetAnimatedStyleProperty = typeof WIDGET_ANIMATABLE_STYLE_PROPERTIES[number];
+export type WidgetAnimationEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
+
+/** CSS transitions applied to selected, animatable outputs of {@link WidgetStyle}. */
+export interface WidgetAnimationSettings {
+    readonly easing: WidgetAnimationEasing;
+    /** Transition duration in seconds. */
+    readonly duration: number;
+    /** Transition delay in seconds. */
+    readonly delay: number;
+    readonly animatedProperties: readonly WidgetAnimatedStyleProperty[];
+}
+
+export const DEFAULT_WIDGET_ANIMATION: WidgetAnimationSettings = Object.freeze({
+    easing: 'ease-out',
+    duration: 0.3,
+    delay: 0,
+    animatedProperties: Object.freeze([]),
+});
+
 export interface WidgetEntity<TProps extends JsonObject = JsonObject> {
     readonly id: WidgetId;
     readonly kind: WidgetKind;
     readonly label: string;
     readonly props: TProps;
     readonly style: WidgetStyle;
+    readonly animation: WidgetAnimationSettings;
     readonly layout: WidgetLayout;
     readonly locked: boolean;
     readonly autoHide: boolean;
@@ -72,6 +104,7 @@ export interface WidgetDraft {
     readonly label?: string;
     readonly props?: JsonObject;
     readonly style?: WidgetStyle;
+    readonly animation?: Partial<WidgetAnimationSettings>;
     readonly layout?: Partial<Omit<WidgetLayout, 'order'>>;
     readonly locked?: boolean;
     readonly autoHide?: boolean;
@@ -82,6 +115,8 @@ export interface WidgetUpdate {
     /** Props are shallow-merged and then checked by the owning plugin schema. */
     readonly props?: JsonObject;
     readonly style?: WidgetStyle;
+    /** Animation settings are shallow-merged and normalized by the engine schema. */
+    readonly animation?: Partial<WidgetAnimationSettings>;
     readonly locked?: boolean;
     readonly autoHide?: boolean;
 }

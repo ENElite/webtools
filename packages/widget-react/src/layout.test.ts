@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { layoutToPixels, layoutToStyle, pixelsToLayout } from './layout';
+import { animationToTransitionStyle, layoutToPixels, layoutToStyle, pixelsToLayout } from './layout';
 
 const base = {
     anchorX: 'left' as const,
@@ -32,6 +32,31 @@ describe('layoutToStyle', () => {
             top: '72%',
             transform: 'rotate(15deg)',
         });
+    });
+
+    it('builds CSS transitions only for selected style outputs', () => {
+        expect(animationToTransitionStyle({
+            easing: 'ease-in-out',
+            duration: 0.6,
+            delay: 0.15,
+            animatedProperties: ['backgroundColor', 'boxShadow'],
+        })).toEqual({
+            transition: [
+                'visibility 0s linear 180ms',
+                'opacity 180ms ease',
+                'background-color 0.6s ease-in-out 0.15s',
+                'box-shadow 0.6s ease-in-out 0.15s',
+            ].join(', '),
+        });
+    });
+
+    it('disables frame transitions when reduced motion is preferred', () => {
+        expect(animationToTransitionStyle({
+            easing: 'linear',
+            duration: 1,
+            delay: 0,
+            animatedProperties: ['opacity'],
+        }, true)).toEqual({ transition: 'none' });
     });
 
     it.each([

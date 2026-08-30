@@ -63,6 +63,12 @@ describe('widget engine operations', () => {
                 kind: 'text',
                 label: 'Text',
                 props: { text: 'Hello', fontSize: 14 },
+                animation: {
+                    easing: 'ease-out',
+                    duration: 0.3,
+                    delay: 0,
+                    animatedProperties: [],
+                },
                 locked: false,
                 autoHide: false,
                 layout: expect.objectContaining({ order: 1 }),
@@ -167,6 +173,44 @@ describe('widget engine operations', () => {
             type: 'widget.updated',
             fields: ['label', 'props', 'style', 'locked'],
         }));
+    });
+
+    it('updates normalized animation settings and preserves them through undo and redo', () => {
+        const engine = createTestEngine();
+        addText(engine, 'animated');
+
+        const result = engine.dispatch({
+            type: 'widget.update',
+            widgetId: 'animated',
+            changes: {
+                animation: {
+                    easing: 'ease-in-out',
+                    duration: 0.75,
+                    delay: 0.1,
+                    animatedProperties: ['opacity', 'backgroundColor'],
+                },
+            },
+        });
+
+        expect(result.document.widgets[0]?.animation).toEqual({
+            easing: 'ease-in-out',
+            duration: 0.75,
+            delay: 0.1,
+            animatedProperties: ['opacity', 'backgroundColor'],
+        });
+        expect(result.events[0]).toEqual(expect.objectContaining({
+            type: 'widget.updated',
+            fields: ['animation'],
+        }));
+        expect(engine.undo()?.document.widgets[0]?.animation).toEqual({
+            easing: 'ease-out',
+            duration: 0.3,
+            delay: 0,
+            animatedProperties: [],
+        });
+        expect(engine.redo()?.document.widgets[0]?.animation).toEqual(
+            result.document.widgets[0]?.animation,
+        );
     });
 
     it('changes layout without allowing order to bypass reorder', () => {
@@ -310,6 +354,12 @@ describe('persistent document validation', () => {
             label: 'Text',
             props: { text: 'Hello', fontSize: 14 },
             style: {},
+            animation: {
+                easing: 'ease-out',
+                duration: 0.3,
+                delay: 0,
+                animatedProperties: [],
+            },
             layout: {
                 anchorX: 'left',
                 anchorY: 'top',
@@ -325,6 +375,25 @@ describe('persistent document validation', () => {
             autoHide: false,
         }],
     };
+
+    it('normalizes legacy v1 documents that omit animation settings', () => {
+        const widget = validDocument.widgets[0];
+        expect(widget).toBeDefined();
+        if (!widget) return;
+        const { animation: _animation, ...legacyWidget } = widget;
+
+        const parsed = parseWidgetDocument({
+            ...validDocument,
+            widgets: [legacyWidget],
+        }, catalog);
+
+        expect(parsed.widgets[0]?.animation).toEqual({
+            easing: 'ease-out',
+            duration: 0.3,
+            delay: 0,
+            animatedProperties: [],
+        });
+    });
 
     it('rejects malformed, non-canonical, and plugin-invalid documents', () => {
         expect(() => parseWidgetDocument({

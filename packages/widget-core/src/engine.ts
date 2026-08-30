@@ -250,10 +250,14 @@ function applyOperation(
             const props = changes.props === undefined
                 ? previous.props
                 : catalog.validateProps(previous.kind, { ...previous.props, ...changes.props });
+            const animation = changes.animation === undefined
+                ? previous.animation
+                : { ...previous.animation, ...changes.animation };
             const next = validateEntity({
                 ...previous,
                 ...(changes.label === undefined ? {} : { label: changes.label }),
                 ...(changes.style === undefined ? {} : { style: { ...previous.style, ...changes.style } }),
+                ...(changes.animation === undefined ? {} : { animation }),
                 ...(changes.locked === undefined ? {} : { locked: changes.locked }),
                 ...(changes.autoHide === undefined ? {} : { autoHide: changes.autoHide }),
                 props,
@@ -376,6 +380,7 @@ function createEntity(
         label: draft.label ?? plugin.label,
         props: catalog.createProps(draft.kind, draft.props),
         style: draft.style ?? {},
+        animation: draft.animation ?? {},
         layout: {
             ...DEFAULT_WIDGET_LAYOUT,
             ...resolveDefaultLayout(plugin),

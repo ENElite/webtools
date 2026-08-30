@@ -33,6 +33,37 @@ afterEach(() => {
 });
 
 describe('WidgetCanvas', () => {
+    it('applies selected style transitions to the widget frame', () => {
+        const engine = createWidgetEngine({ catalog: definitions });
+        engine.dispatch({
+            type: 'widget.add',
+            widget: {
+                kind: 'clock',
+                animation: {
+                    easing: 'ease-in',
+                    duration: 0.8,
+                    delay: 0.2,
+                    animatedProperties: ['opacity', 'borderRadius'],
+                },
+            },
+        });
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+        act(() => {
+            mountedRoot?.render(
+                <WidgetRuntimeProvider engine={engine} views={views}>
+                    <WidgetCanvas />
+                </WidgetRuntimeProvider>,
+            );
+        });
+
+        expect(host.querySelector<HTMLElement>('.wt-widget-frame')?.style.transition).toBe([
+            'visibility 0s linear 180ms',
+            'opacity 0.8s ease-in 0.2s',
+            'border-radius 0.8s ease-in 0.2s',
+        ].join(', '));
+    });
+
     it('keeps one Moveable control box after a selected widget layout changes', () => {
         const updateRect = vi.spyOn(Moveable.prototype, 'updateRect');
         const engine = createWidgetEngine({ catalog: definitions });

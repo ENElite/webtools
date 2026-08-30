@@ -9,6 +9,7 @@ import { useWidgetRuntime, useWidgetSnapshot } from './context';
 import { WidgetErrorBoundary } from './ErrorBoundary';
 import {
     applyMoveableTransform,
+    animationToTransitionStyle,
     layoutToPixels,
     layoutToStyle,
     pixelsToLayout,
@@ -70,6 +71,21 @@ function WidgetRenderer({
     return <View widget={widget} selected={selected} />;
 }
 
+function usePrefersReducedMotion(): boolean {
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+    useEffect(() => {
+        if (typeof window.matchMedia !== 'function') return;
+        const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const update = () => setPrefersReducedMotion(media.matches);
+        update();
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
+
+    return prefersReducedMotion;
+}
+
 export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetContextMenu }: WidgetCanvasProps) {
     const runtime = useWidgetRuntime();
     const snapshot = useWidgetSnapshot();
@@ -80,6 +96,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
     const pendingBorderRadiusRef = useRef<string | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [idle, setIdle] = useState(false);
+    const prefersReducedMotion = usePrefersReducedMotion();
 
     const widgets = useMemo(
         () => [...snapshot.document.widgets].sort((a, b) => a.layout.order - b.layout.order),
@@ -247,6 +264,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                     label: `${selected.label} 副本`,
                     props: selected.props,
                     style: selected.style,
+                    animation: selected.animation,
                     layout: { ...layout, x: layout.x + 2, y: layout.y + 2 },
                     locked: selected.locked,
                     autoHide: selected.autoHide,
@@ -293,7 +311,10 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                         data-selected={isSelected || undefined}
                         data-auto-hidden={hiddenByIdle || undefined}
                         className='wt-widget-frame'
-                        style={layoutToStyle(widget.layout, widget.style)}
+                        style={{
+                            ...layoutToStyle(widget.layout, widget.style),
+                            ...animationToTransitionStyle(widget.animation, prefersReducedMotion),
+                        }}
                         onPointerDown={(event) => {
                             event.stopPropagation();
                             if (runtime.editable) runtime.selectWidget(widget.id);

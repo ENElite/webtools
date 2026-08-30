@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+import {
+    DEFAULT_WIDGET_ANIMATION,
+    WIDGET_ANIMATABLE_STYLE_PROPERTIES,
+} from './types';
 import type { JsonValue } from './types';
 
 export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
@@ -40,12 +44,28 @@ export const widgetStyleSchema = z.object({
     overflow: z.boolean().optional(),
 }).strict();
 
+export const widgetAnimationSchema = z.object({
+    easing: z.enum(['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'])
+        .default(DEFAULT_WIDGET_ANIMATION.easing),
+    duration: z.number().finite().nonnegative().default(DEFAULT_WIDGET_ANIMATION.duration),
+    delay: z.number().finite().nonnegative().default(DEFAULT_WIDGET_ANIMATION.delay),
+    animatedProperties: z.array(z.enum(WIDGET_ANIMATABLE_STYLE_PROPERTIES))
+        .refine((properties) => new Set(properties).size === properties.length, {
+            message: 'Animated properties must be unique',
+        })
+        .default([...DEFAULT_WIDGET_ANIMATION.animatedProperties]),
+}).strict().default({
+    ...DEFAULT_WIDGET_ANIMATION,
+    animatedProperties: [...DEFAULT_WIDGET_ANIMATION.animatedProperties],
+});
+
 export const widgetEntitySchema = z.object({
     id: z.string().min(1),
     kind: z.string().min(1),
     label: z.string().min(1),
     props: jsonObjectSchema,
     style: widgetStyleSchema,
+    animation: widgetAnimationSchema,
     layout: widgetLayoutSchema,
     locked: z.boolean(),
     autoHide: z.boolean(),

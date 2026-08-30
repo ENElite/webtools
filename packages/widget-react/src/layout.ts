@@ -1,5 +1,21 @@
 import type { CSSProperties } from 'react';
-import type { WidgetLayout, WidgetStyle } from '@webtools/widget-core';
+import type {
+    WidgetAnimatedStyleProperty,
+    WidgetAnimationSettings,
+    WidgetLayout,
+    WidgetStyle,
+} from '@webtools/widget-core';
+
+const ANIMATED_PROPERTY_CSS_NAMES: Readonly<Record<WidgetAnimatedStyleProperty, string>> = Object.freeze({
+    opacity: 'opacity',
+    backgroundColor: 'background-color',
+    borderRadius: 'border-radius',
+    outline: 'outline',
+    outlineOffset: 'outline-offset',
+    boxShadow: 'box-shadow',
+    backdropFilter: 'backdrop-filter',
+    backgroundImage: 'background-image',
+});
 
 export interface PixelWidgetLayout {
     readonly left: number;
@@ -144,6 +160,23 @@ export function layoutToStyle(layout: WidgetLayout, style: WidgetStyle): CSSProp
         overflow: style.overflow ? 'hidden' : 'visible',
         backdropFilter: style.backgroundEffect === 'blur' ? 'blur(12px)' : undefined,
     };
+}
+
+export function animationToTransitionStyle(
+    animation: WidgetAnimationSettings,
+    prefersReducedMotion = false,
+): CSSProperties {
+    if (prefersReducedMotion) return { transition: 'none' };
+    const properties = [...new Set(
+        animation.animatedProperties.map((property) => ANIMATED_PROPERTY_CSS_NAMES[property]),
+    )];
+    if (properties.length === 0) return {};
+
+    const transitions = ['visibility 0s linear 180ms'];
+    if (!properties.includes('opacity')) transitions.push('opacity 180ms ease');
+    transitions.push(...properties.map((property) =>
+        `${property} ${animation.duration}s ${animation.easing} ${animation.delay}s`));
+    return { transition: transitions.join(', ') };
 }
 
 export function applyMoveableTransform(target: HTMLElement | SVGElement, transform: string): void {

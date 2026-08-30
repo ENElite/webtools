@@ -128,5 +128,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .wt-widget-frame { transition: none !important; }
     .wt-widget-able__button { transition: none; }
 }
