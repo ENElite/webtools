@@ -50,8 +50,23 @@ describe('widget inspector catalog', () => {
             'animation.duration',
             'animation.delay',
             'animation.animatedProperties',
+            'animation.entry.effect',
+            'animation.entry.direction',
+            'animation.entry.duration',
+            'animation.entry.delay',
+            'animation.entry.easing',
             'props.content',
         ]));
+        expect(schema.fields
+            .filter((field) => field.page === 'layout')
+            .map(({ label, path, control }) => ({ label, path, control })))
+            .toEqual(expect.arrayContaining([
+                { label: 'X', path: 'layout.x', control: 'number' },
+                { label: 'Y', path: 'layout.y', control: 'number' },
+                { label: '宽度', path: 'layout.w', control: 'number' },
+                { label: '高度', path: 'layout.h', control: 'number' },
+                { label: '旋转', path: 'layout.rotation', control: 'number' },
+            ]));
     });
 
     it('lets a plugin override a common field without rendering it twice', () => {

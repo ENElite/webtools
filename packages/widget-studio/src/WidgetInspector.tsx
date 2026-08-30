@@ -33,6 +33,13 @@ function toEditableRecord(widget: WidgetEntity): EditableWidgetRecord {
             duration: widget.animation.duration,
             delay: widget.animation.delay,
             animatedProperties: [...widget.animation.animatedProperties],
+            entry: {
+                effect: widget.animation.entry.effect,
+                direction: widget.animation.entry.direction,
+                duration: widget.animation.entry.duration,
+                delay: widget.animation.entry.delay,
+                easing: widget.animation.entry.easing,
+            },
         },
         layout: { ...widget.layout },
     };
