@@ -615,6 +615,8 @@
 }
 
 .wt-menu {
+    /* Keep Zag's portalled positioner above drawers and app stacking contexts. */
+    z-index: var(--wt-z-popover);
     min-width: 210px;
     padding: 7px;
     color: var(--wt-color-text);
@@ -643,7 +645,7 @@
     font-weight: 650;
 }
 
-.wt-menu__item[data-highlighted] {
+.wt-menu__item:is(:hover, [data-highlighted]):not([data-disabled]) {
     color: var(--wt-color-accent);
     background: var(--wt-color-accent-soft);
 }

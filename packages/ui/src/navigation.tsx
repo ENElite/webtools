@@ -9,12 +9,12 @@ import {
     SegmentGroup as ArkSegmentGroup,
     Tabs as ArkTabs,
     Tooltip as ArkTooltip,
+    useMenu as useArkMenu,
 } from '@ark-ui/react';
-import { Fragment, cloneElement, forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Fragment, cloneElement, forwardRef, useCallback, useEffect, useId, useRef } from 'react';
 import type {
     ComponentProps,
     HTMLAttributes,
-    MouseEventHandler,
     PointerEventHandler,
     ReactElement,
     ReactNode,
@@ -47,8 +47,7 @@ export interface ContextMenuProps {
 }
 
 interface ContextMenuTriggerProps {
-    onClick?: MouseEventHandler<HTMLElement>;
-    onContextMenu?: MouseEventHandler<HTMLElement>;
+    onClick?: React.MouseEventHandler<HTMLElement>;
     onPointerCancel?: PointerEventHandler<HTMLElement>;
     onPointerDown?: PointerEventHandler<HTMLElement>;
     onPointerMove?: PointerEventHandler<HTMLElement>;
@@ -56,8 +55,31 @@ interface ContextMenuTriggerProps {
     style?: React.CSSProperties;
 }
 
+const arkLongPressCancelEvents = new WeakSet<Event>();
+
+function cancelArkLongPress(target: HTMLElement, point: { x: number; y: number }) {
+    const cancelEvent = new MouseEvent('pointercancel', {
+        bubbles: true,
+        cancelable: true,
+        clientX: point.x,
+        clientY: point.y,
+    });
+    Object.defineProperty(cancelEvent, 'pointerType', { value: 'touch' });
+    arkLongPressCancelEvents.add(cancelEvent);
+    target.dispatchEvent(cancelEvent);
+}
+
 function menuAriaLabel(item: ContextMenuItem) {
     return typeof item.label === 'string' ? `${item.label} 子菜单` : `${item.value} 子菜单`;
+}
+
+function findMenuItem(items: ReadonlyArray<ContextMenuItem>, value: string): ContextMenuItem | undefined {
+    for (const item of items) {
+        if (item.value === value) return item;
+        const childItem = item.items ? findMenuItem(item.items, value) : undefined;
+        if (childItem) return childItem;
+    }
+    return undefined;
 }
 
 function MenuItemContent({ item, submenu = false }: { item: ContextMenuItem; submenu?: boolean }) {
@@ -81,6 +103,10 @@ function NestedContextMenu({ item, onAction }: { item: ContextMenuItem; onAction
             unmountOnExit
             aria-label={menuAriaLabel(item)}
             positioning={{ placement: 'right-start', gutter: 4 }}
+            onSelect={(details) => {
+                const selectedItem = findMenuItem(childItems, details.value);
+                if (selectedItem) onAction(selectedItem);
+            }}
         >
             <ArkMenu.TriggerItem className='wt-menu__item wt-menu__item--submenu' data-tone={item.tone ?? 'default'}>
                 <MenuItemContent item={item} submenu />
@@ -114,7 +140,6 @@ function ContextMenuItems({
                     disabled={item.disabled}
                     className='wt-menu__item'
                     data-tone={item.tone ?? 'default'}
-                    onClick={item.disabled ? undefined : () => onAction(item)}
                 >
                     <MenuItemContent item={item} submenu={Boolean(item.items?.length)} />
                 </ArkMenu.Item>
@@ -132,32 +157,33 @@ export function ContextMenu({
     longPressMoveTolerance = 10,
     onOpenChange,
 }: ContextMenuProps) {
-    const [open, setOpen] = useState(false);
-    const [anchorPoint, setAnchorPoint] = useState<{ x: number; y: number } | null>(null);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const suppressClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+    const touchTargetRef = useRef<HTMLElement | null>(null);
     const suppressNextClickRef = useRef(false);
-    const openRef = useRef(false);
     const child = children as ReactElement<ContextMenuTriggerProps>;
+
+    const menu = useArkMenu({
+        'aria-label': ariaLabel,
+        positioning: { gutter: 6 },
+        onOpenChange: (details) => onOpenChange?.(details.open),
+        onSelect: (details) => {
+            const selectedItem = findMenuItem(items, details.value);
+            selectedItem?.onSelect?.();
+        },
+    });
 
     const clearLongPress = useCallback(() => {
         if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
         touchStartRef.current = null;
+        touchTargetRef.current = null;
     }, []);
-
-    const updateOpen = useCallback((nextOpen: boolean) => {
-        if (openRef.current === nextOpen) return;
-        openRef.current = nextOpen;
-        setOpen(nextOpen);
-        onOpenChange?.(nextOpen);
-    }, [onOpenChange]);
 
     const runAction = useCallback((item: ContextMenuItem) => {
         item.onSelect?.();
-        updateOpen(false);
-    }, [updateOpen]);
+    }, []);
 
     useEffect(() => () => {
         clearLongPress();
@@ -170,17 +196,29 @@ export function ContextMenu({
             if (event.defaultPrevented || event.pointerType !== 'touch') return;
             clearLongPress();
             const point = { x: event.clientX, y: event.clientY };
+            const target = event.currentTarget;
             touchStartRef.current = point;
+            touchTargetRef.current = target;
+            queueMicrotask(() => {
+                if (touchTargetRef.current === target && touchStartRef.current === point) {
+                    cancelArkLongPress(target, point);
+                }
+            });
             longPressTimerRef.current = setTimeout(() => {
                 longPressTimerRef.current = null;
-                setAnchorPoint(point);
                 suppressNextClickRef.current = true;
-                updateOpen(true);
                 if (suppressClickTimerRef.current !== null) clearTimeout(suppressClickTimerRef.current);
                 suppressClickTimerRef.current = setTimeout(() => {
                     suppressNextClickRef.current = false;
                     suppressClickTimerRef.current = null;
                 }, 800);
+                touchTargetRef.current?.dispatchEvent(new MouseEvent('contextmenu', {
+                    bubbles: true,
+                    cancelable: true,
+                    button: 2,
+                    clientX: point.x,
+                    clientY: point.y,
+                }));
             }, Math.max(0, longPressDelay));
         },
         onPointerMove: (event) => {
@@ -196,6 +234,7 @@ export function ContextMenu({
             clearLongPress();
         },
         onPointerCancel: (event) => {
+            if (arkLongPressCancelEvents.has(event.nativeEvent)) return;
             child.props.onPointerCancel?.(event);
             clearLongPress();
         },
@@ -208,28 +247,16 @@ export function ContextMenu({
             }
             child.props.onClick?.(event);
         },
-        onContextMenu: (event) => {
-            child.props.onContextMenu?.(event);
-            if (event.defaultPrevented) return;
-            event.preventDefault();
-            clearLongPress();
-            setAnchorPoint({ x: event.clientX, y: event.clientY });
-            updateOpen(true);
-        },
         style: { WebkitTouchCallout: 'none', ...child.props.style },
     });
 
     return (
-        <ArkMenu.Root
-            open={open}
-            anchorPoint={anchorPoint}
-            onOpenChange={(details) => updateOpen(details.open)}
+        <ArkMenu.RootProvider
+            value={menu}
             lazyMount
             unmountOnExit
-            aria-label={ariaLabel}
-            positioning={{ gutter: 6 }}
         >
-            {trigger}
+            <ArkMenu.ContextTrigger asChild>{trigger}</ArkMenu.ContextTrigger>
             <Portal>
                 <ArkMenu.Positioner className='wt-positioner wt-menu__positioner'>
                     <ArkMenu.Content className='wt-menu' aria-label={ariaLabel}>
@@ -237,7 +264,7 @@ export function ContextMenu({
                     </ArkMenu.Content>
                 </ArkMenu.Positioner>
             </Portal>
-        </ArkMenu.Root>
+        </ArkMenu.RootProvider>
     );
 }
 

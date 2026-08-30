@@ -169,6 +169,7 @@ describe('Mochi primitives', () => {
             </ContextMenu>,
         );
         const surface = host.querySelector('[data-testid="surface"]');
+        expect(surface?.getAttribute('data-part')).toBe('context-trigger');
         await act(async () => {
             surface?.dispatchEvent(new MouseEvent('contextmenu', {
                 bubbles: true,
@@ -180,7 +181,10 @@ describe('Mochi primitives', () => {
         });
 
         const item = document.body.querySelector<HTMLElement>('.wt-menu__item');
+        const positioner = document.body.querySelector<HTMLElement>('.wt-menu__positioner');
         expect(item?.textContent).toContain('壁纸设置');
+        expect(positioner?.style.pointerEvents).not.toBe('none');
+        expect(positioner?.style.transform).not.toContain('-100vh');
     });
 
     it('selects a context menu item through the Ark menu root', async () => {
@@ -201,9 +205,13 @@ describe('Mochi primitives', () => {
             }));
             await new Promise((resolve) => setTimeout(resolve, 30));
         });
+        const item = document.body.querySelector<HTMLElement>('.wt-menu__item');
         await act(async () => {
-            const item = document.body.querySelector<HTMLElement>('.wt-menu__item');
             dispatchPointer(item, 'pointerdown', { pointerType: 'mouse' });
+            dispatchPointer(item, 'pointermove', { pointerType: 'mouse' });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+        await act(async () => {
             item?.click();
             await new Promise((resolve) => setTimeout(resolve, 30));
         });
@@ -248,6 +256,9 @@ describe('Mochi primitives', () => {
         const submenuItem = openMenus[1]?.querySelector<HTMLElement>('.wt-menu__item');
         await act(async () => {
             dispatchPointer(submenuItem, 'pointerdown', { pointerType: 'mouse' });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+        await act(async () => {
             submenuItem?.click();
             await new Promise((resolve) => setTimeout(resolve, 30));
         });
@@ -284,6 +295,14 @@ describe('Mochi primitives', () => {
         });
         expect(onSurfaceClick).not.toHaveBeenCalled();
         expect(document.body.querySelectorAll('.wt-menu[data-state="open"]')).toHaveLength(1);
+    });
+
+    it('keeps context menus on the popover layer with a pointer hover fallback', () => {
+        const styles = readUiStyles();
+        const menuRule = styles.match(/\.wt-menu\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+
+        expect(menuRule).toContain('z-index: var(--wt-z-popover)');
+        expect(styles).toContain('.wt-menu__item:is(:hover, [data-highlighted]):not([data-disabled])');
     });
 
     it('clips number steppers inside the flat rounded input edge', () => {
