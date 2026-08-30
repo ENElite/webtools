@@ -408,8 +408,9 @@ textarea { font: inherit; }
     left: 50%;
     bottom: 18px;
     display: flex;
-    max-width: calc(100vw - 24px);
+    width: min(820px, calc(100vw - 24px));
     align-items: center;
+    justify-content: space-between;
     gap: 9px;
     padding: 8px 10px;
     border: 2px solid rgb(255 196 220 / 88%);
@@ -472,8 +473,16 @@ textarea { font: inherit; }
 
 .wp-playback-controls {
     display: flex;
+    min-width: 0;
+    flex: 1;
     align-items: center;
+    justify-content: center;
     gap: 4px;
+}
+
+.wp-toolbar .wt-button,
+.wp-control-label {
+    white-space: nowrap;
 }
 
 .wp-playback-counter {
