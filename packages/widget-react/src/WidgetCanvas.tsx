@@ -4,7 +4,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { CSSProperties, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 import Moveable from 'react-moveable';
-import type { WidgetEntity } from '@webtools/widget-core';
+import { createComponentLoadPort, widgetComponentId } from '@webtools/widget-core';
+import type {
+    ComponentLoadAttempt,
+    ComponentRuntimeSignalMap,
+    SignalHub,
+    WidgetEntity,
+} from '@webtools/widget-core';
 
 import { useWidgetRuntime, useWidgetSnapshot } from './context';
 import { WidgetErrorBoundary } from './ErrorBoundary';
@@ -17,13 +23,14 @@ import {
     pixelsToLayout,
 } from './layout';
 import type { PixelWidgetLayout } from './layout';
-import type { WidgetViewCatalog } from './catalog';
+import type { WidgetViewPlugin } from './catalog';
 import { Dimensionable } from './ables/Dimensionable';
 import { Orderable } from './ables/Orderable';
 import { Widgetable } from './ables/Widgetable';
 import type { WidgetableAction } from './ables/Widgetable';
 
 const SNAP_THRESHOLD = 8;
+const SYNC_RESOURCE_KEY = '@widget/sync';
 const SNAP_DIRECTIONS = Object.freeze({
     left: true,
     top: true,
@@ -49,6 +56,17 @@ export interface WidgetCanvasProps {
     readonly onWidgetContextMenu?: (widget: WidgetEntity, event: ReactMouseEvent<HTMLElement>) => void;
 }
 
+interface DeferredLoadReport {
+    readonly generation: number;
+    progress: readonly [loaded: number, total: number] | undefined;
+    terminal: { readonly type: 'complete' } | { readonly type: 'error'; readonly error: unknown } | undefined;
+}
+
+interface ActiveLoadAttempt {
+    readonly generation: number;
+    readonly attempt: ComponentLoadAttempt;
+}
+
 function isTextEditingTarget(target: EventTarget | null): boolean {
     return target instanceof HTMLElement
         && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
@@ -63,14 +81,109 @@ function isFinitePixels(pixels: PixelWidgetLayout): boolean {
 function WidgetRenderer({
     widget,
     selected,
-    views,
+    view,
+    readinessKey,
+    signals,
 }: {
     readonly widget: WidgetEntity;
     readonly selected: boolean;
-    readonly views: WidgetViewCatalog;
+    readonly view: WidgetViewPlugin;
+    readonly readinessKey: string | null;
+    readonly signals: SignalHub<ComponentRuntimeSignalMap>;
 }) {
-    const View = views.get(widget.kind).View;
-    return <View widget={widget} selected={selected} />;
+    const port = useMemo(() => createComponentLoadPort({
+        hub: signals,
+        componentId: widgetComponentId(widget.id),
+    }), [signals, widget.id]);
+    const renderRef = useRef<{ readonly readinessKey: string | null; readonly generation: number } | null>(null);
+    if (!renderRef.current || renderRef.current.readinessKey !== readinessKey) {
+        renderRef.current = {
+            readinessKey,
+            generation: (renderRef.current?.generation ?? 0) + 1,
+        };
+    }
+    const generation = renderRef.current.generation;
+    const resourceKey = readinessKey ?? `${SYNC_RESOURCE_KEY}:${widget.kind}`;
+    const activeRef = useRef<ActiveLoadAttempt | null>(null);
+    const deferredRef = useRef<DeferredLoadReport | null>(null);
+
+    const getDeferred = useCallback((): DeferredLoadReport | null => {
+        if (renderRef.current?.generation !== generation) return null;
+        if (deferredRef.current?.generation !== generation) {
+            deferredRef.current = { generation, progress: undefined, terminal: undefined };
+        }
+        return deferredRef.current;
+    }, [generation]);
+
+    const reportReady = useCallback(() => {
+        if (renderRef.current?.generation !== generation) return;
+        const active = activeRef.current;
+        if (active?.generation === generation) {
+            active.attempt.complete();
+            return;
+        }
+        const deferred = getDeferred();
+        if (deferred && !deferred.terminal) deferred.terminal = { type: 'complete' };
+    }, [generation, getDeferred]);
+    const reportError = useCallback((error?: unknown) => {
+        if (renderRef.current?.generation !== generation) return;
+        const failure = error ?? new Error(`Widget ${widget.id} failed to load.`);
+        const active = activeRef.current;
+        if (active?.generation === generation) {
+            active.attempt.error(failure);
+            return;
+        }
+        const deferred = getDeferred();
+        if (deferred && !deferred.terminal) deferred.terminal = { type: 'error', error: failure };
+    }, [generation, getDeferred, widget.id]);
+    const reportProgress = useCallback((loaded: number, total: number) => {
+        if (renderRef.current?.generation !== generation) return;
+        const active = activeRef.current;
+        if (active?.generation === generation) {
+            active.attempt.progress(loaded, total);
+            return;
+        }
+        const deferred = getDeferred();
+        if (deferred) deferred.progress = [loaded, total];
+    }, [generation, getDeferred]);
+
+    useEffect(() => {
+        const attempt = port.start(resourceKey);
+        const active: ActiveLoadAttempt = { generation, attempt };
+        activeRef.current = active;
+        const deferred = deferredRef.current?.generation === generation
+            ? deferredRef.current
+            : null;
+        deferredRef.current = null;
+        if (deferred?.progress) attempt.progress(...deferred.progress);
+        if (deferred?.terminal?.type === 'error') attempt.error(deferred.terminal.error);
+        else if (deferred?.terminal?.type === 'complete' || readinessKey === null) attempt.complete();
+
+        return () => {
+            if (activeRef.current === active) activeRef.current = null;
+            queueMicrotask(() => {
+                attempt.error(new Error(`Widget ${widget.id} unmounted before loading settled.`));
+            });
+        };
+    }, [generation, port, readinessKey, resourceKey, widget.id]);
+
+    const View = view.View;
+
+    return (
+        <WidgetErrorBoundary
+            resetKey={widget}
+            onError={reportError}
+        >
+            <View
+                widget={widget}
+                selected={selected}
+                signals={signals}
+                onReady={reportReady}
+                onError={reportError}
+                onProgress={reportProgress}
+            />
+        </WidgetErrorBoundary>
+    );
 }
 
 function usePrefersReducedMotion(): boolean {
@@ -88,7 +201,12 @@ function usePrefersReducedMotion(): boolean {
     return prefersReducedMotion;
 }
 
-export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetContextMenu }: WidgetCanvasProps) {
+export function WidgetCanvas({
+    className,
+    style,
+    idleAfterMs = 4_000,
+    onWidgetContextMenu,
+}: WidgetCanvasProps) {
     const runtime = useWidgetRuntime();
     const snapshot = useWidgetSnapshot();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -306,6 +424,8 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
             {widgets.map((widget) => {
                 const isSelected = widget.id === runtime.selectedWidgetId;
                 const hiddenByIdle = idle && widget.autoHide && !isSelected;
+                const view = runtime.views.get(widget.kind);
+                const readinessKey = view.readinessKey?.(widget) ?? null;
                 return (
                     <div
                         key={widget.id}
@@ -337,9 +457,13 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                             onWidgetContextMenu?.(widget, event);
                         }}
                     >
-                        <WidgetErrorBoundary resetKey={widget}>
-                            <WidgetRenderer widget={widget} selected={isSelected} views={runtime.views} />
-                        </WidgetErrorBoundary>
+                        <WidgetRenderer
+                            widget={widget}
+                            selected={isSelected}
+                            view={view}
+                            readinessKey={readinessKey}
+                            signals={runtime.signals}
+                        />
                     </div>
                 );
             })}

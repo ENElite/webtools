@@ -1,15 +1,34 @@
 import { createElement } from 'react';
 import type { ComponentType } from 'react';
-import type { JsonObject, WidgetEntity, WidgetKind } from '@webtools/widget-core';
+import type {
+    ComponentRuntimeSignalMap,
+    JsonObject,
+    SignalHub,
+    WidgetEntity,
+    WidgetKind,
+} from '@webtools/widget-core';
 
 export interface WidgetViewProps<TProps extends JsonObject = JsonObject> {
     readonly widget: WidgetEntity<TProps>;
     readonly selected: boolean;
+    /** Shared signal/slot hub for time synchronization and component messages. */
+    readonly signals: SignalHub<ComponentRuntimeSignalMap>;
+    /** Completes this view's current scoped load attempt. */
+    readonly onReady: () => void;
+    /** Fails and settles this view's current scoped load attempt. */
+    readonly onError: (error?: unknown) => void;
+    /** Publishes progress for this view's current scoped load attempt. */
+    readonly onProgress: (loaded: number, total: number) => void;
 }
 
 export interface WidgetViewDefinition<TProps extends JsonObject = JsonObject> {
     readonly kind: WidgetKind;
     readonly View: ComponentType<WidgetViewProps<TProps>>;
+    /**
+     * Returns the resource identity represented by this render. Omit this for
+     * synchronous views; they complete automatically after their passive effect.
+     */
+    readonly readinessKey?: (widget: WidgetEntity<TProps>) => string | null;
 }
 
 /**
@@ -20,6 +39,7 @@ export interface WidgetViewDefinition<TProps extends JsonObject = JsonObject> {
 export interface WidgetViewPlugin {
     readonly kind: WidgetKind;
     readonly View: ComponentType<WidgetViewProps>;
+    readonly readinessKey?: (widget: WidgetEntity) => string | null;
 }
 
 export interface WidgetViewCatalog {
@@ -31,13 +51,30 @@ export interface WidgetViewCatalog {
 export function defineWidgetView<TProps extends JsonObject>(
     definition: WidgetViewDefinition<TProps>,
 ): WidgetViewPlugin {
-    const View: ComponentType<WidgetViewProps> = ({ widget, selected }) =>
+    const View: ComponentType<WidgetViewProps> = ({
+        widget,
+        selected,
+        signals,
+        onReady,
+        onError,
+        onProgress,
+    }) =>
         createElement(definition.View, {
             widget: widget as WidgetEntity<TProps>,
             selected,
+            signals,
+            onReady,
+            onError,
+            onProgress,
         });
 
-    return Object.freeze({ kind: definition.kind, View });
+    if (!definition.readinessKey) return Object.freeze({ kind: definition.kind, View });
+    const readinessKey = definition.readinessKey;
+    return Object.freeze({
+        kind: definition.kind,
+        View,
+        readinessKey: (widget: WidgetEntity) => readinessKey(widget as WidgetEntity<TProps>),
+    });
 }
 
 export function createWidgetViewCatalog(plugins: readonly WidgetViewPlugin[]): WidgetViewCatalog {

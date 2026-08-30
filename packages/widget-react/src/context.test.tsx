@@ -1,7 +1,8 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createWidgetCatalog, createWidgetEngine } from '@webtools/widget-core';
+import { createSignalHub, createWidgetCatalog, createWidgetEngine } from '@webtools/widget-core';
+import type { ComponentRuntimeSignalMap } from '@webtools/widget-core';
 import { z } from 'zod';
 
 import { createWidgetViewCatalog, defineWidgetView } from './catalog';
@@ -79,7 +80,10 @@ describe('WidgetRuntimeProvider', () => {
 
         expect(firstRuntime.current).not.toBeNull();
         expect(secondRuntime.current).not.toBeNull();
+        expect(firstRuntime.current?.signals).not.toBe(secondRuntime.current?.signals);
+        const firstSignals = firstRuntime.current?.signals;
         act(() => firstRuntime.current?.requestSettings(firstId));
+        expect(firstRuntime.current?.signals).toBe(firstSignals);
         expect(host.querySelector('[data-probe="first"]')?.textContent).toBe(firstId);
         expect(host.querySelector('[data-probe="second"]')?.textContent).toBe('none');
         expect(firstRuntime.current?.settingsWidgetId).toBe(firstId);
@@ -91,5 +95,27 @@ describe('WidgetRuntimeProvider', () => {
         expect(host.querySelector('[data-probe="first"]')?.textContent).toBe('none');
         expect(firstRuntime.current?.settingsWidgetId).toBeNull();
         expect(secondEngine.getSnapshot().document.widgets[0]?.id).toBe(secondId);
+    });
+
+    it('exposes the supplied stable signal hub through context', () => {
+        const engine = createEngine('signals');
+        const signals = createSignalHub<ComponentRuntimeSignalMap>();
+        const runtimeRef: { current: WidgetRuntimeContextValue | null } = { current: null };
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+
+        act(() => mountedRoot?.render(
+            <WidgetRuntimeProvider engine={engine} views={views} signals={signals}>
+                <Probe name='signals' capture={(runtime) => { runtimeRef.current = runtime; }} />
+            </WidgetRuntimeProvider>,
+        ));
+        expect(runtimeRef.current?.signals).toBe(signals);
+
+        act(() => mountedRoot?.render(
+            <WidgetRuntimeProvider engine={engine} views={views} signals={signals} editable={false}>
+                <Probe name='signals' capture={(runtime) => { runtimeRef.current = runtime; }} />
+            </WidgetRuntimeProvider>,
+        ));
+        expect(runtimeRef.current?.signals).toBe(signals);
     });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonObject } from '@webtools/widget-core';
+import type { JsonObject, WidgetEntity } from '@webtools/widget-core';
 
 import { createWidgetViewCatalog, defineWidgetView } from './catalog';
 
@@ -31,5 +31,19 @@ describe('WidgetViewCatalog', () => {
         expect(clocks.has('label')).toBe(false);
         expect(Object.isFrozen(labels.kinds)).toBe(true);
         expect(() => labels.get('clock')).toThrow('No widget view registered for "clock"');
+    });
+
+    it('preserves readiness metadata across the typed plugin boundary', () => {
+        const resource = defineWidgetView<LabelProps>({
+            kind: 'label',
+            readinessKey: (widget) => `label:${widget.props.label}`,
+            View: () => <span />,
+        });
+        const widget = {
+            kind: 'label',
+            props: { label: 'hello' },
+        } as WidgetEntity<LabelProps>;
+
+        expect(resource.readinessKey?.(widget)).toBe('label:hello');
     });
 });

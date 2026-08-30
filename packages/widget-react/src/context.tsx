@@ -9,7 +9,14 @@ import {
     useSyncExternalStore,
 } from 'react';
 import type { ReactNode } from 'react';
-import type { WidgetEngine, WidgetEngineSnapshot, WidgetId } from '@webtools/widget-core';
+import { createSignalHub } from '@webtools/widget-core';
+import type {
+    ComponentRuntimeSignalMap,
+    SignalHub,
+    WidgetEngine,
+    WidgetEngineSnapshot,
+    WidgetId,
+} from '@webtools/widget-core';
 
 import type { WidgetViewCatalog } from './catalog';
 
@@ -32,6 +39,7 @@ export interface WidgetRuntimeController {
 export interface WidgetRuntimeContextValue extends WidgetRuntimeSnapshot {
     readonly engine: WidgetEngine;
     readonly views: WidgetViewCatalog;
+    readonly signals: SignalHub<ComponentRuntimeSignalMap>;
     readonly editable: boolean;
     selectWidget(widgetId: WidgetId | null): void;
     requestSettings(widgetId: WidgetId): void;
@@ -43,6 +51,8 @@ const WidgetRuntimeContext = createContext<WidgetRuntimeContextValue | null>(nul
 export interface WidgetRuntimeProviderProps {
     readonly engine: WidgetEngine;
     readonly views: WidgetViewCatalog;
+    /** Supply one stable application hub to connect widgets with other components. */
+    readonly signals?: SignalHub<ComponentRuntimeSignalMap>;
     readonly editable?: boolean;
     readonly children: ReactNode;
 }
@@ -115,8 +125,18 @@ export function createWidgetRuntime(
     });
 }
 
-export function WidgetRuntimeProvider({ engine, views, editable = true, children }: WidgetRuntimeProviderProps) {
+export function WidgetRuntimeProvider({
+    engine,
+    views,
+    signals,
+    editable = true,
+    children,
+}: WidgetRuntimeProviderProps) {
     const runtime = useMemo(() => createWidgetRuntime(engine, views), [engine, views]);
+    const runtimeSignals = useMemo(
+        () => signals ?? createSignalHub<ComponentRuntimeSignalMap>(),
+        [signals],
+    );
     const runtimeSnapshot = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot, runtime.getSnapshot);
     const engineSnapshot = useSyncExternalStore(engine.subscribe, engine.getSnapshot, engine.getSnapshot);
 
@@ -150,13 +170,24 @@ export function WidgetRuntimeProvider({ engine, views, editable = true, children
     const value = useMemo<WidgetRuntimeContextValue>(() => ({
         engine,
         views,
+        signals: runtimeSignals,
         editable,
         selectedWidgetId,
         settingsWidgetId,
         selectWidget,
         requestSettings,
         closeSettings,
-    }), [closeSettings, editable, engine, requestSettings, selectedWidgetId, settingsWidgetId, views, selectWidget]);
+    }), [
+        closeSettings,
+        editable,
+        engine,
+        requestSettings,
+        runtimeSignals,
+        selectedWidgetId,
+        settingsWidgetId,
+        views,
+        selectWidget,
+    ]);
 
     return <WidgetRuntimeContext.Provider value={value}>{children}</WidgetRuntimeContext.Provider>;
 }
@@ -165,6 +196,11 @@ export function useWidgetRuntime(): WidgetRuntimeContextValue {
     const runtime = useContext(WidgetRuntimeContext);
     if (!runtime) throw new Error('useWidgetRuntime must be used inside WidgetRuntimeProvider');
     return runtime;
+}
+
+/** Returns the shared component signal hub for this widget session. */
+export function useWidgetSignals(): SignalHub<ComponentRuntimeSignalMap> {
+    return useWidgetRuntime().signals;
 }
 
 export function useWidgetSnapshot(): WidgetEngineSnapshot {

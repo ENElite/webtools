@@ -1,7 +1,13 @@
-import { StrictMode } from 'react';
+import { StrictMode, useLayoutEffect } from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createWidgetCatalog, createWidgetEngine } from '@webtools/widget-core';
+import {
+    createSignalHub,
+    createWidgetCatalog,
+    createWidgetEngine,
+    widgetComponentId,
+} from '@webtools/widget-core';
+import type { ComponentLoadSource, ComponentRuntimeSignalMap } from '@webtools/widget-core';
 import Moveable from 'react-moveable';
 import type { OnDrag, OnDragEnd, OnDragStart } from 'react-moveable';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -67,6 +73,7 @@ function installCanvasGeometry(width = 1_000, height = 800): void {
 }
 
 afterEach(() => {
+    vi.useRealTimers();
     if (mountedRoot) {
         act(() => mountedRoot?.unmount());
         mountedRoot = null;
@@ -76,6 +83,192 @@ afterEach(() => {
 });
 
 describe('WidgetCanvas', () => {
+    it('publishes scoped load attempts for synchronous and later-added widgets', () => {
+        const engine = createWidgetEngine({ catalog: definitions });
+        engine.dispatch({ type: 'widget.add', widget: { id: 'clock-1', kind: 'clock' } });
+        const signals = createSignalHub<ComponentRuntimeSignalMap>();
+        const starts: ComponentLoadSource[] = [];
+        const completes: ComponentLoadSource[] = [];
+        signals.connect('component.load.start', ({ source }) => starts.push(source));
+        signals.connect('component.load.complete', ({ source }) => completes.push(source));
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+
+        act(() => {
+            mountedRoot?.render(
+                <StrictMode>
+                    <WidgetRuntimeProvider engine={engine} views={views} signals={signals}>
+                        <WidgetCanvas />
+                    </WidgetRuntimeProvider>
+                </StrictMode>,
+            );
+        });
+
+        expect(host.querySelectorAll('.wt-widget-frame')).toHaveLength(1);
+        expect(starts.at(-1)).toMatchObject({
+            componentId: widgetComponentId('clock-1'),
+            resourceKey: '@widget/sync:clock',
+        });
+        expect(completes.at(-1)?.attemptId).toBe(starts.at(-1)?.attemptId);
+
+        act(() => engine.dispatch({
+            type: 'widget.add',
+            widget: { id: 'clock-2', kind: 'clock' },
+        }));
+        expect(starts.some(({ componentId }) => componentId === widgetComponentId('clock-2'))).toBe(true);
+        expect(completes.some(({ componentId }) => componentId === widgetComponentId('clock-2'))).toBe(true);
+    });
+
+    it('buffers cached readiness and progress before the passive load attempt starts', () => {
+        const resourceDefinitions = createWidgetCatalog([{
+            kind: 'resource',
+            label: 'Resource',
+            propsSchema: z.object({ src: z.string() }),
+            defaultProps: { src: 'cached.png' },
+        }]);
+        let receivedSignals: ReturnType<typeof createSignalHub<ComponentRuntimeSignalMap>> | null = null;
+        const resourceViews = createWidgetViewCatalog([defineWidgetView<{ src: string }>({
+            kind: 'resource',
+            readinessKey: (widget) => widget.props.src,
+            View: ({ widget, signals: viewSignals, onProgress, onReady }) => {
+                receivedSignals = viewSignals;
+                useLayoutEffect(() => {
+                    onProgress(1, 1);
+                    onReady();
+                }, [onProgress, onReady]);
+                return <span>{widget.props.src}</span>;
+            },
+        })]);
+        const engine = createWidgetEngine({ catalog: resourceDefinitions });
+        engine.dispatch({ type: 'widget.add', widget: { id: 'resource-1', kind: 'resource' } });
+        const signals = createSignalHub<ComponentRuntimeSignalMap>();
+        const sequence: string[] = [];
+        signals.connect('component.load.start', ({ source }) => sequence.push(`start:${source.resourceKey}`));
+        signals.connect('component.load.progress', ({ loaded, total }) => sequence.push(`progress:${loaded}/${total}`));
+        signals.connect('component.load.complete', ({ source }) => sequence.push(`complete:${source.resourceKey}`));
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+
+        act(() => {
+            mountedRoot?.render(
+                <StrictMode>
+                    <WidgetRuntimeProvider engine={engine} views={resourceViews} signals={signals}>
+                        <WidgetCanvas />
+                    </WidgetRuntimeProvider>
+                </StrictMode>,
+            );
+        });
+
+        expect(sequence.filter((event) => event === 'start:cached.png').length).toBeGreaterThanOrEqual(2);
+        expect(sequence.at(-2)).toBe('progress:1/1');
+        expect(sequence.at(-1)).toBe('complete:cached.png');
+        expect(receivedSignals).toBe(signals);
+    });
+
+    it('ignores old resource callbacks, including when a resource key returns later', () => {
+        const resourceDefinitions = createWidgetCatalog([{
+            kind: 'resource',
+            label: 'Resource',
+            propsSchema: z.object({ src: z.string() }),
+            defaultProps: { src: 'first.png' },
+        }]);
+        const reports: Array<{
+            readonly src: string;
+            readonly ready: () => void;
+            readonly error: (error?: unknown) => void;
+        }> = [];
+        const resourceViews = createWidgetViewCatalog([defineWidgetView<{ src: string }>({
+            kind: 'resource',
+            readinessKey: (widget) => widget.props.src,
+            View: ({ widget, onReady, onError }) => {
+                reports.push({ src: widget.props.src, ready: onReady, error: onError });
+                return <span data-resource={widget.props.src}>{widget.props.src}</span>;
+            },
+        })]);
+        const engine = createWidgetEngine({ catalog: resourceDefinitions });
+        engine.dispatch({ type: 'widget.add', widget: { id: 'resource-1', kind: 'resource' } });
+        const signals = createSignalHub<ComponentRuntimeSignalMap>();
+        const completions: ComponentLoadSource[] = [];
+        const errors: ComponentLoadSource[] = [];
+        signals.connect('component.load.complete', ({ source }) => completions.push(source));
+        signals.connect('component.load.error', ({ source }) => errors.push(source));
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+        act(() => mountedRoot?.render(
+            <WidgetRuntimeProvider engine={engine} views={resourceViews} signals={signals}>
+                <WidgetCanvas />
+            </WidgetRuntimeProvider>,
+        ));
+        const staleFirst = reports.at(-1)?.ready;
+
+        act(() => engine.dispatch({
+            type: 'widget.update',
+            widgetId: 'resource-1',
+            changes: { props: { src: 'second.png' } },
+        }));
+        const second = reports.at(-1);
+        act(() => staleFirst?.());
+        expect(completions).toHaveLength(0);
+
+        act(() => engine.dispatch({
+            type: 'widget.update',
+            widgetId: 'resource-1',
+            changes: { props: { src: 'first.png' } },
+        }));
+        const currentFirst = reports.at(-1)?.ready;
+        act(() => staleFirst?.());
+        expect(completions).toHaveLength(0);
+
+        act(() => currentFirst?.());
+        expect(completions).toHaveLength(1);
+        expect(completions[0]?.resourceKey).toBe('first.png');
+        act(() => second?.error(new Error('stale second')));
+        expect(errors).toHaveLength(0);
+    });
+
+    it('suppresses StrictMode cleanup errors but reports a real pending unmount', async () => {
+        const resourceDefinitions = createWidgetCatalog([{
+            kind: 'resource',
+            label: 'Resource',
+            propsSchema: z.object({ src: z.string() }),
+            defaultProps: { src: 'silent.html' },
+        }]);
+        const resourceViews = createWidgetViewCatalog([defineWidgetView<{ src: string }>({
+            kind: 'resource',
+            readinessKey: (widget) => widget.props.src,
+            View: () => <iframe title='silent resource' />,
+        })]);
+        const engine = createWidgetEngine({ catalog: resourceDefinitions });
+        engine.dispatch({ type: 'widget.add', widget: { id: 'resource-1', kind: 'resource' } });
+        const signals = createSignalHub<ComponentRuntimeSignalMap>();
+        const starts: ComponentLoadSource[] = [];
+        const errors: ComponentLoadSource[] = [];
+        signals.connect('component.load.start', ({ source }) => starts.push(source));
+        signals.connect('component.load.error', ({ source }) => errors.push(source));
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+
+        await act(async () => {
+            mountedRoot?.render(
+                <StrictMode>
+                    <WidgetRuntimeProvider engine={engine} views={resourceViews} signals={signals}>
+                        <WidgetCanvas />
+                    </WidgetRuntimeProvider>
+                </StrictMode>,
+            );
+            await Promise.resolve();
+        });
+        expect(starts.length).toBeGreaterThanOrEqual(2);
+        expect(errors).toHaveLength(0);
+
+        await act(async () => {
+            engine.dispatch({ type: 'widget.remove', widgetId: 'resource-1' });
+            await Promise.resolve();
+        });
+        expect(errors).toHaveLength(1);
+        expect(errors[0]?.attemptId).toBe(starts.at(-1)?.attemptId);
+    });
+
     it('plays the persisted entry animation when a widget frame first mounts', () => {
         const engine = createWidgetEngine({ catalog: definitions });
         engine.dispatch({
