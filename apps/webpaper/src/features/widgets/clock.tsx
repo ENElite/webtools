@@ -7,6 +7,8 @@ import type { WidgetInspectorDefinition } from '@webtools/widget-studio';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
 
+import { AnimatedClockText } from './clock-animation';
+
 export const clockWidgetPropsSchema = z.object({
     locale: z.string().min(1),
     timeZone: z.string(),
@@ -85,7 +87,7 @@ export const clockWidgetView = defineWidgetView<ClockWidgetProps>({
     View: ClockWidgetView,
 });
 
-function ClockWidgetView({ widget }: WidgetViewProps<ClockWidgetProps>) {
+export function ClockWidgetView({ widget }: WidgetViewProps<ClockWidgetProps>) {
     const [now, setNow] = useState(() => new Date());
     useEffect(() => {
         const interval = globalThis.setInterval(() => setNow(new Date()), 1_000);
@@ -111,8 +113,8 @@ function ClockWidgetView({ widget }: WidgetViewProps<ClockWidgetProps>) {
                 width: '100%',
             }}
         >
-            <span style={{ fontSize: widget.props.timeSize, fontVariantNumeric: 'tabular-nums' }}>
-                {formatted.time}
+            <span style={{ fontSize: widget.props.timeSize }}>
+                <AnimatedClockText text={formatted.time} />
             </span>
             {formatted.date ? <span style={{ fontSize: widget.props.dateSize }}>{formatted.date}</span> : null}
         </time>
