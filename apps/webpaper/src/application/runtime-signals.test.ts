@@ -2,7 +2,7 @@ import {
     createComponentLoadPort,
     widgetComponentId,
 } from '@webtools/widget-core';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
     BACKGROUND_COMPONENT_ID,
@@ -11,6 +11,8 @@ import {
     STARTUP_BARRIER_COMPONENT_ID,
     TIME_SOURCE_COMPONENT_ID,
 } from './runtime-signals';
+
+afterEach(() => vi.useRealTimers());
 
 describe('WebPaper runtime signals', () => {
     it('freezes background and initial widgets into one retained startup barrier', async () => {
@@ -40,7 +42,6 @@ describe('WebPaper runtime signals', () => {
         });
 
         stop();
-        vi.useRealTimers();
     });
 
     it('publishes one shared timebase through a typed slot', () => {

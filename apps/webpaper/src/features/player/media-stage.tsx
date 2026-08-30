@@ -1,8 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import {
+    createComponentLoadPort,
+    type ComponentLoadAttempt,
+    type ComponentLoadBarrier,
+    type ComponentRuntimeSignalMap,
+    type SignalHub,
+} from '@webtools/widget-core';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { MediaItem } from '../../domain';
+import { BACKGROUND_COMPONENT_ID, STANDBY_COMPONENT_ID } from '../../application';
 import type { MediaPlayerLoadStatus } from './media-player-controller';
 import type { MediaPlayerSettings } from './player-settings';
 
@@ -24,9 +32,7 @@ const STICKER_TILE_COUNT = 36;
 
 export interface MediaStageProps {
     readonly item: MediaItem | null;
-    readonly widgetsReady?: boolean;
-    readonly status?: MediaPlayerLoadStatus;
-    readonly error?: Error | null;
+    readonly signals: SignalHub<ComponentRuntimeSignalMap>;
     readonly settings: Pick<
         MediaPlayerSettings,
         'objectFit' | 'videoMuted' | 'videoControls' | 'videoAdvanceOnEnded'
@@ -37,57 +43,65 @@ export interface MediaStageProps {
 
 export function MediaStage({
     item,
-    widgetsReady = true,
-    status = 'idle',
-    error = null,
+    signals,
     settings,
     onMediaError,
     onVideoEnded,
 }: MediaStageProps) {
     const [readyMediaKey, setReadyMediaKey] = useState<string | null>(null);
-    const [standbyPhase, setStandbyPhase] = useState<StandbyPhase>('waiting');
     const mediaKey = item ? `${item.sourceId}:${item.kind}:${item.id}:${item.url}` : null;
     const mediaReady = mediaKey !== null && readyMediaKey === mediaKey;
+    const resourceKey = mediaKey ?? 'awaiting-media';
+    const loadPort = useMemo(() => createComponentLoadPort({
+        hub: signals,
+        componentId: BACKGROUND_COMPONENT_ID,
+    }), [signals]);
+    const activeAttemptRef = useRef<{
+        readonly resourceKey: string;
+        readonly attempt: ComponentLoadAttempt;
+    } | null>(null);
+    const pendingTerminalRef = useRef<{
+        readonly resourceKey: string;
+        readonly error?: unknown;
+    } | null>(null);
+
+    useEffect(() => {
+        const attempt = loadPort.start(resourceKey);
+        activeAttemptRef.current = { resourceKey, attempt };
+        const pending = pendingTerminalRef.current;
+        if (pending?.resourceKey === resourceKey) {
+            pendingTerminalRef.current = null;
+            if ('error' in pending) attempt.error(pending.error);
+            else attempt.complete();
+        }
+
+        return () => {
+            if (activeAttemptRef.current?.attempt === attempt) activeAttemptRef.current = null;
+            attempt.dispose();
+        };
+    }, [loadPort, resourceKey]);
 
     const handleMediaReady = useCallback(() => {
         if (!mediaKey) return;
         setReadyMediaKey(mediaKey);
+        const active = activeAttemptRef.current;
+        if (active?.resourceKey === mediaKey) active.attempt.complete();
+        else pendingTerminalRef.current = { resourceKey: mediaKey };
     }, [mediaKey]);
 
-    useEffect(() => {
-        if (standbyPhase !== 'waiting' || !mediaReady || !widgetsReady) return;
-        setStandbyPhase('celebrating');
-    }, [mediaReady, standbyPhase, widgetsReady]);
-
-    useEffect(() => {
-        if (standbyPhase !== 'celebrating') return;
-        const timer = window.setTimeout(() => setStandbyPhase('complete'), CELEBRATION_DURATION_MS);
-        return () => window.clearTimeout(timer);
-    }, [standbyPhase]);
-
-    const showStandby = standbyPhase !== 'complete';
-    const visibleStandbyPhase: Exclude<StandbyPhase, 'complete'> = standbyPhase === 'celebrating'
-        ? 'celebrating'
-        : 'waiting';
-    const statusText = status === 'error'
-        ? (error?.message ?? '媒体加载失败')
-        : standbyPhase === 'celebrating'
-            ? '信号接通，开播啦！'
-            : !widgetsReady
-                ? '正在加载桌面组件…'
-                : '正在加载壁纸…';
+    const handleMediaError = useCallback(() => {
+        if (mediaKey) {
+            const error = new Error(`背景媒体加载失败：${mediaKey}`);
+            const active = activeAttemptRef.current;
+            if (active?.resourceKey === mediaKey) active.attempt.error(error);
+            else pendingTerminalRef.current = { resourceKey: mediaKey, error };
+        }
+        onMediaError();
+    }, [mediaKey, onMediaError]);
 
     if (!item) {
         return (
-            <section className='wp-media-stage' data-media-kind='empty'>
-                {showStandby ? (
-                    <MediaStageStandbyOverlay
-                        phase={visibleStandbyPhase}
-                        status={status}
-                        message={statusText}
-                    />
-                ) : null}
-            </section>
+            <section className='wp-media-stage' data-media-kind='empty' />
         );
     }
 
@@ -117,7 +131,7 @@ export function MediaStage({
                     style={{ objectFit: settings.objectFit }}
                     referrerPolicy='no-referrer'
                     onLoad={handleMediaReady}
-                    onError={onMediaError}
+                    onError={handleMediaError}
                 />
             ) : (
                 <video
@@ -133,18 +147,82 @@ export function MediaStage({
                     playsInline
                     preload='auto'
                     onLoadedData={handleMediaReady}
-                    onError={onMediaError}
+                    onError={handleMediaError}
                     onEnded={settings.videoAdvanceOnEnded ? onVideoEnded : undefined}
                 />
             )}
-            {showStandby ? (
-                <MediaStageStandbyOverlay
-                    phase={visibleStandbyPhase}
-                    status={status}
-                    message={statusText}
-                />
-            ) : null}
         </section>
+    );
+}
+
+export function StartupStandby({
+    signals,
+    barrier,
+    status = 'idle',
+    error = null,
+}: {
+    readonly signals: SignalHub<ComponentRuntimeSignalMap>;
+    readonly barrier: ComponentLoadBarrier;
+    readonly status?: MediaPlayerLoadStatus;
+    readonly error?: Error | null;
+}) {
+    const snapshot = useSyncExternalStore(
+        barrier.subscribe,
+        barrier.getSnapshot,
+        barrier.getSnapshot,
+    );
+    const [phase, setPhase] = useState<StandbyPhase>('waiting');
+    const loadPort = useMemo(() => createComponentLoadPort({
+        hub: signals,
+        componentId: STANDBY_COMPONENT_ID,
+    }), [signals]);
+    const attemptRef = useRef<ComponentLoadAttempt | null>(null);
+
+    useEffect(() => {
+        const attempt = loadPort.start(barrier.resourceKey);
+        attemptRef.current = attempt;
+        return () => {
+            if (attemptRef.current === attempt) attemptRef.current = null;
+            attempt.dispose();
+        };
+    }, [barrier.resourceKey, loadPort]);
+
+    useEffect(() => {
+        attemptRef.current?.progress(snapshot.settled, snapshot.total);
+        if (snapshot.status === 'complete' && phase === 'waiting') setPhase('celebrating');
+    }, [phase, snapshot]);
+
+    useEffect(() => {
+        if (phase !== 'celebrating') return;
+        const timer = window.setTimeout(() => {
+            attemptRef.current?.complete(snapshot.failedIds);
+            setPhase('complete');
+        }, CELEBRATION_DURATION_MS);
+        return () => window.clearTimeout(timer);
+    }, [phase, snapshot.failedIds]);
+
+    if (phase === 'complete') return null;
+
+    const message = status === 'error'
+        ? (error?.message ?? '媒体加载失败')
+        : phase === 'celebrating'
+            ? snapshot.failedIds.length > 0
+                ? '部分组件未完成，先开播啦！'
+                : '信号接通，开播啦！'
+            : snapshot.status === 'idle'
+                ? '正在接通信号…'
+                : `正在加载壁纸和组件… ${snapshot.settled}/${snapshot.total}`;
+
+    const progress = snapshot.total > 0
+        ? Math.round((snapshot.settled / snapshot.total) * 100)
+        : undefined;
+    return (
+        <MediaStageStandbyOverlay
+            phase={phase}
+            status={status}
+            message={message}
+            {...(progress === undefined ? {} : { progress })}
+        />
     );
 }
 
@@ -152,12 +230,15 @@ export function MediaStageStandbyOverlay({
     phase,
     status,
     message,
+    progress,
 }: {
     readonly phase: Exclude<StandbyPhase, 'complete'>;
     readonly status: MediaPlayerLoadStatus;
     readonly message: string;
+    readonly progress?: number;
 }) {
     const error = status === 'error';
+    const displayedProgress = phase === 'celebrating' ? 100 : progress;
     return (
         <section className='wp-stage-status' aria-live='polite' data-phase={phase} data-status={status}>
             <div className='wp-sticker-wall' aria-hidden='true'>
@@ -192,9 +273,14 @@ export function MediaStageStandbyOverlay({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuetext={error ? '壁纸加载失败' : phase === 'celebrating' ? '加载完成' : '正在加载'}
-                    {...(phase === 'celebrating' ? { 'aria-valuenow': 100 } : {})}
+                    {...(displayedProgress === undefined ? {} : { 'aria-valuenow': displayedProgress })}
                 >
-                    <span className='wp-stage-progress__bar' />
+                    <span
+                        className='wp-stage-progress__bar'
+                        {...(displayedProgress === undefined
+                            ? {}
+                            : { style: { animation: 'none', transform: 'none', width: `${displayedProgress}%` } })}
+                    />
                 </div>
             </div>
         </section>

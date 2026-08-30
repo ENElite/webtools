@@ -21,14 +21,16 @@ import {
     WidgetDevtools,
     WidgetStudioPanel,
 } from '@webtools/widget-studio';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
     DEFAULT_APP_SETTINGS,
+    createWebpaperRuntimeSignals,
     loadAppSettings,
     loadWidgetDocument,
     saveAppSettings,
     saveWidgetDocument,
+    signalRuntimeTime,
     type AppSettings,
 } from '../src/application';
 import { sanitizeKonachanUserTags, type MediaItem } from '../src/domain';
@@ -39,6 +41,7 @@ import {
     MediaStage,
     MediaStageStandbyOverlay,
     PlaybackControls,
+    StartupStandby,
     useMediaPlayer,
     type MediaPlayerInitialPage,
 } from '../src/features/player';
@@ -79,6 +82,9 @@ function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: Med
     const [historySearch, setHistorySearch] = useState('');
     const [fullscreen, setFullscreen] = useState(false);
     const [{ engine, persistenceWarning }] = useState(() => createEngine(widgetCatalogs.definitions));
+    const [runtimeSignals] = useState(() => createWebpaperRuntimeSignals(
+        engine.getSnapshot().document.widgets.map((widget) => widget.id),
+    ));
     const player = useMediaPlayer({
         catalog: mediaCatalog,
         prefetchThreshold: 2,
@@ -88,6 +94,18 @@ function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: Med
     useEffect(() => {
         void player.controller.switchSource(activeSelection);
     }, [activeSelection, player.controller]);
+
+    useLayoutEffect(
+        () => runtimeSignals.startupBarrier.start(),
+        [runtimeSignals.startupBarrier],
+    );
+
+    useEffect(() => {
+        const publishTime = () => signalRuntimeTime(runtimeSignals.hub);
+        publishTime();
+        const interval = globalThis.setInterval(publishTime, 1_000);
+        return () => globalThis.clearInterval(interval);
+    }, [runtimeSignals.hub]);
 
     useEffect(() => saveAppSettings(localStorage, settings), [settings]);
 
@@ -222,20 +240,26 @@ function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: Med
         <WidgetRuntimeProvider
             engine={engine}
             views={widgetCatalogs.views}
+            signals={runtimeSignals.hub}
             editable={settings.widgetsEditable}
         >
             <ContextMenu items={contextMenuItems} aria-label='WebPaper 快捷菜单'>
                 <main className='wp-shell'>
                     <MediaStage
                         item={player.currentMedia}
-                        status={player.status}
-                        error={player.error}
+                        signals={runtimeSignals.hub}
                         settings={settings.player}
                         onMediaError={() => void player.controller.handleMediaError()}
                         onVideoEnded={() => void player.controller.next()}
                     />
 
                     <WidgetCanvas className='wp-widget-layer' />
+                    <StartupStandby
+                        signals={runtimeSignals.hub}
+                        barrier={runtimeSignals.startupBarrier}
+                        status={player.status}
+                        error={player.error}
+                    />
 
                     <header
                         className='wp-toolbar'
