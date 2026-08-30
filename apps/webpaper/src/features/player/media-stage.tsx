@@ -19,6 +19,7 @@ const STICKER_TILE_COUNT = 64;
 
 export interface MediaStageProps {
     readonly item: MediaItem | null;
+    readonly widgetsReady?: boolean;
     readonly status?: MediaPlayerLoadStatus;
     readonly error?: Error | null;
     readonly settings: Pick<
@@ -31,6 +32,7 @@ export interface MediaStageProps {
 
 export function MediaStage({
     item,
+    widgetsReady = true,
     status = 'idle',
     error = null,
     settings,
@@ -48,10 +50,9 @@ export function MediaStage({
     }, [mediaKey]);
 
     useEffect(() => {
-        // Reaching an effect means the client bundle has hydrated and the page is interactive.
-        // Wallpaper and widget resources continue loading behind the non-blocking farewell.
+        if (standbyPhase !== 'waiting' || !mediaReady || !widgetsReady) return;
         setStandbyPhase('celebrating');
-    }, []);
+    }, [mediaReady, standbyPhase, widgetsReady]);
 
     useEffect(() => {
         if (standbyPhase !== 'celebrating') return;
@@ -67,7 +68,9 @@ export function MediaStage({
         ? (error?.message ?? '媒体加载失败')
         : standbyPhase === 'celebrating'
             ? '信号接通，开播啦！'
-            : '正在加载页面…';
+            : !widgetsReady
+                ? '正在加载桌面组件…'
+                : '正在加载壁纸…';
 
     if (!item) {
         return (
@@ -102,7 +105,7 @@ export function MediaStage({
 
             {item.kind === 'image' ? (
                 <img
-                    key={item.id}
+                    key={mediaKey}
                     src={item.url}
                     alt={`media-${item.id}`}
                     className='wp-media-content'
@@ -113,7 +116,7 @@ export function MediaStage({
                 />
             ) : (
                 <video
-                    key={item.id}
+                    key={mediaKey}
                     src={item.url}
                     poster={item.posterUrl}
                     aria-label={`media-${item.id}`}
