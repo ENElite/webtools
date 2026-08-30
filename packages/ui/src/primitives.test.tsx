@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { Alert, Badge, Button, Card, ContextMenu, Field, NumberInput, Select, Switch, TextInput } from './index';
+import { Alert, Badge, Button, Card, ColorPicker, ContextMenu, Field, NumberInput, Select, Switch, TextInput } from './index';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ??= class ResizeObserver {
@@ -43,6 +43,7 @@ function dispatchPointer(
         cancelable: true,
         clientX: init.clientX ?? 0,
         clientY: init.clientY ?? 0,
+        buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
     });
     Object.defineProperty(event, 'pointerType', { value: init.pointerType });
     element?.dispatchEvent(event);
@@ -332,5 +333,55 @@ describe('Mochi primitives', () => {
         expect(input?.parentElement).toBe(numberRoot);
         expect(controls?.parentElement).toBe(numberRoot);
         expect(controls?.querySelectorAll('.wt-number-input__stepper')).toHaveLength(2);
+    });
+
+    it('renders a filled ColorPicker area and centers both kinds of thumbs', async () => {
+        const host = render(<ColorPicker aria-label='背景颜色' defaultValue='#ff6699' />);
+        await act(async () => {
+            host.querySelector<HTMLButtonElement>('.wt-color-picker__trigger')?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        const content = document.body.querySelector<HTMLElement>('.wt-color-picker__content[data-state="open"]');
+        const areaBackground = content?.querySelector<HTMLElement>('.wt-color-picker__area-background');
+        const areaThumb = content?.querySelector<HTMLElement>('.wt-color-picker__area-thumb');
+        const channelThumbs = content?.querySelectorAll<HTMLElement>('.wt-color-picker__channel-thumb');
+        const alphaTrack = content?.querySelector<HTMLElement>('.wt-color-picker__channel-track--alpha');
+
+        expect(areaBackground?.style.position).toBe('absolute');
+        expect(areaBackground?.getAttribute('data-part')).toBe('area-background');
+        expect(areaThumb?.style.transform).toBe('translate(-50%, -50%)');
+        expect(channelThumbs).toHaveLength(2);
+        expect([...channelThumbs ?? []].every((thumb) => thumb.style.top === '50%')).toBe(true);
+        expect(alphaTrack?.querySelector('.wt-color-picker__alpha-grid')).not.toBeNull();
+        expect(alphaTrack?.querySelector('.wt-color-picker__channel-gradient[data-part="channel-slider-track"]')).not.toBeNull();
+
+        const styles = readUiStyles();
+        const areaBackgroundRule = styles.match(
+            /\.wt-color-picker__area-background\s*\{(?<body>[^}]+)\}/,
+        )?.groups?.['body'];
+        const thumbRule = styles.match(/\.wt-color-picker__channel-thumb\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        expect(areaBackgroundRule).toContain('inset: 0');
+        expect(thumbRule).toContain('transform: translate(-50%, -50%)');
+    });
+
+    it('isolates ColorPicker drag starts from React ancestors behind its portal', async () => {
+        const onPointerDown = vi.fn();
+        const host = render(
+            <div onPointerDown={onPointerDown}>
+                <ColorPicker aria-label='背景颜色' />
+            </div>,
+        );
+        await act(async () => {
+            host.querySelector<HTMLButtonElement>('.wt-color-picker__trigger')?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        await act(async () => {
+            const hue = document.body.querySelector('.wt-color-picker__channel[data-channel="hue"]');
+            dispatchPointer(hue, 'pointerdown', { pointerType: 'mouse', clientX: 20, clientY: 5 });
+        });
+
+        expect(onPointerDown).not.toHaveBeenCalled();
     });
 });

@@ -181,9 +181,15 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
             <ArkColorPicker.HiddenInput />
             <Portal>
                 <ArkColorPicker.Positioner className='wt-positioner'>
-                    <ArkColorPicker.Content className='wt-color-picker__content'>
+                    <ArkColorPicker.Content
+                        className='wt-color-picker__content'
+                        onPointerDown={(event) => event.stopPropagation()}
+                    >
                         <ArkColorPicker.Area className='wt-color-picker__area'>
-                            <ArkColorPicker.AreaBackground className='wt-color-picker__area-background' />
+                            <ArkColorPicker.AreaBackground
+                                className='wt-color-picker__area-background'
+                                style={{ position: 'absolute' }}
+                            />
                             <ArkColorPicker.AreaThumb className='wt-color-picker__area-thumb' />
                         </ArkColorPicker.Area>
                         <ArkColorPicker.ChannelSlider channel='hue' className='wt-color-picker__channel'>
@@ -191,9 +197,10 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
                             <ArkColorPicker.ChannelSliderThumb className='wt-color-picker__channel-thumb' />
                         </ArkColorPicker.ChannelSlider>
                         <ArkColorPicker.ChannelSlider channel='alpha' className='wt-color-picker__channel'>
-                            <ArkColorPicker.TransparencyGrid className='wt-color-picker__channel-track'>
-                                <ArkColorPicker.ChannelSliderTrack />
-                            </ArkColorPicker.TransparencyGrid>
+                            <div className='wt-color-picker__channel-track wt-color-picker__channel-track--alpha'>
+                                <ArkColorPicker.TransparencyGrid className='wt-color-picker__alpha-grid' />
+                                <ArkColorPicker.ChannelSliderTrack className='wt-color-picker__channel-gradient' />
+                            </div>
                             <ArkColorPicker.ChannelSliderThumb className='wt-color-picker__channel-thumb' />
                         </ArkColorPicker.ChannelSlider>
                         <div className='wt-color-picker__inputs'>
