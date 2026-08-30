@@ -17,10 +17,7 @@ body {
 }
 
 body {
-    background:
-        radial-gradient(circle at 12% 8%, rgb(255 146 193 / 16%), transparent 28rem),
-        radial-gradient(circle at 88% 14%, rgb(124 209 255 / 14%), transparent 30rem),
-        #090b1a;
+    background: #090b1a;
 }
 
 button,
@@ -38,9 +35,7 @@ textarea { font: inherit; }
 .wp-boot {
     display: grid;
     place-items: center;
-    background:
-        radial-gradient(circle, rgb(255 175 210 / 18%), transparent 18rem),
-        #090b1a;
+    background: #11152f;
     font-weight: 700;
     letter-spacing: .02em;
 }
@@ -80,7 +75,6 @@ textarea { font: inherit; }
     height: 100%;
     object-position: center;
     opacity: 0;
-    filter: drop-shadow(0 24px 54px rgb(0 0 0 / 32%));
     transition: opacity 520ms ease;
 }
 
@@ -90,9 +84,7 @@ textarea { font: inherit; }
 
 .wp-media-scrim {
     pointer-events: none;
-    background:
-        linear-gradient(180deg, rgb(6 8 22 / 16%), transparent 28%, rgb(6 8 22 / 20%)),
-        radial-gradient(circle at center, transparent 52%, rgb(6 8 22 / 20%));
+    background: rgb(6 8 22 / 10%);
 }
 
 .wp-stage-status {
@@ -462,18 +454,13 @@ textarea { font: inherit; }
     padding: 8px 10px;
     border: 2px solid rgb(255 196 220 / 88%);
     border-radius: 26px 26px 19px 26px;
-    background:
-        radial-gradient(circle at 13% 0, rgb(255 255 255 / 95%) 0 18px, transparent 19px),
-        rgb(255 246 251 / 90%);
+    background: #fff6fb;
     color: #563c53;
-    box-shadow: 0 5px 0 rgb(142 66 104 / 24%), 0 18px 50px rgb(0 0 0 / 28%);
-    backdrop-filter: blur(24px) saturate(1.18);
     transform: translateX(-50%);
     transform-origin: 50% 100%;
     transition:
         transform 420ms cubic-bezier(.34, 1.56, .64, 1),
-        opacity 240ms ease,
-        filter 240ms ease;
+        opacity 240ms ease;
 }
 
 .wp-toolbar::after {
@@ -489,14 +476,12 @@ textarea { font: inherit; }
     background: #fff8fc;
     border: 2px solid #ffc4dc;
     border-radius: 50% 48% 46% 50%;
-    box-shadow: 0 3px 0 rgb(142 66 104 / 18%);
     font-size: 13px;
     pointer-events: none;
 }
 
 .wp-toolbar[data-hidden] {
     opacity: .18;
-    filter: saturate(.7);
     pointer-events: none;
     transform: translate(-50%, calc(100% + 10px)) scale(.96);
 }
