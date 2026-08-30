@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createWidgetCatalog, createWidgetEngine } from '@webtools/widget-core';
 import Moveable from 'react-moveable';
+import type { OnDrag, OnDragEnd, OnDragStart } from 'react-moveable';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
@@ -25,11 +26,53 @@ const views = createWidgetViewCatalog([defineWidgetView({
 })]);
 
 let mountedRoot: ReturnType<typeof createRoot> | null = null;
+let mountedHost: HTMLElement | null = null;
+
+function createRect(left: number, top: number, width: number, height: number): DOMRect {
+    return {
+        x: left,
+        y: top,
+        left,
+        top,
+        width,
+        height,
+        right: left + width,
+        bottom: top + height,
+        toJSON: () => ({}),
+    };
+}
+
+function installCanvasGeometry(width = 1_000, height = 800): void {
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains('wt-widget-canvas')) return createRect(0, 0, width, height);
+        if (!this.classList.contains('wt-widget-frame')) return original.call(this);
+
+        const toPixels = (value: string, total: number) => value.endsWith('%')
+            ? (Number.parseFloat(value) / 100) * total
+            : Number.parseFloat(value) || 0;
+        const translate = this.style.transform.match(
+            /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/,
+        );
+        const translateX = translate ? Number.parseFloat(translate[1] ?? '0') : 0;
+        const translateY = translate ? Number.parseFloat(translate[2] ?? '0') : 0;
+
+        return createRect(
+            toPixels(this.style.left, width) + translateX,
+            toPixels(this.style.top, height) + translateY,
+            toPixels(this.style.width, width),
+            toPixels(this.style.height, height),
+        );
+    });
+}
 
 afterEach(() => {
-    if (!mountedRoot) return;
-    act(() => mountedRoot?.unmount());
-    mountedRoot = null;
+    if (mountedRoot) {
+        act(() => mountedRoot?.unmount());
+        mountedRoot = null;
+    }
+    mountedHost?.remove();
+    mountedHost = null;
 });
 
 describe('WidgetCanvas', () => {
@@ -159,6 +202,107 @@ describe('WidgetCanvas', () => {
         act(() => window.dispatchEvent(new Event('resize')));
 
         expect(updateRect).toHaveBeenCalled();
+    });
+
+    it('measures the moved frame in the same drag frame and keeps that position on drag end', () => {
+        installCanvasGeometry();
+        const engine = createWidgetEngine({ catalog: definitions });
+        engine.dispatch({ type: 'widget.add', widget: { kind: 'clock' } });
+        const widget = engine.getSnapshot().document.widgets[0];
+        expect(widget).toBeDefined();
+        if (!widget) return;
+
+        const runtimeRef: { current: WidgetRuntimeContextValue | null } = { current: null };
+        const host = document.createElement('div');
+        let frame: HTMLElement | null = null;
+        const capturedMoveable: { current: Moveable | null } = { current: null };
+        const measuredPositions: Array<{ left: number; top: number; type: '' | 'End' }> = [];
+        const originalUpdateRect = Moveable.prototype.updateRect;
+        vi.spyOn(Moveable.prototype, 'updateRect').mockImplementation(function (this: Moveable,
+            type?: 'Start' | '' | 'End',
+            isTarget?: boolean,
+            isSetState?: boolean,
+        ) {
+            capturedMoveable.current = this;
+            return originalUpdateRect.call(this, type, isTarget, isSetState);
+        });
+        document.body.append(host);
+        mountedHost = host;
+        mountedRoot = createRoot(host);
+        act(() => {
+            mountedRoot?.render(
+                <WidgetRuntimeProvider engine={engine} views={views}>
+                    <WidgetCanvas />
+                    <RuntimeProbe capture={(runtime) => { runtimeRef.current = runtime; }} />
+                </WidgetRuntimeProvider>,
+            );
+        });
+        act(() => runtimeRef.current?.selectWidget(widget.id));
+
+        frame = host.querySelector<HTMLElement>('.wt-widget-frame');
+        const controlBox = host.querySelector<HTMLElement>('.moveable-control-box');
+        expect(frame).not.toBeNull();
+        expect(controlBox).not.toBeNull();
+        expect(capturedMoveable.current).not.toBeNull();
+        if (!frame || !controlBox || !capturedMoveable.current) return;
+        const moveableInstance = capturedMoveable.current;
+        const moveableManager = moveableInstance.getManager();
+        expect(moveableManager.props.target).toBe(frame);
+        expect(moveableManager.props['draggable']).toBe(true);
+        const sync = moveableManager.props.flushSync;
+        expect(sync).toBeTypeOf('function');
+        if (!sync) return;
+        const syncControlRect = (type: '' | 'End') => sync(() => {
+            const rect = frame?.getBoundingClientRect();
+            if (rect) measuredPositions.push({ left: rect.left, top: rect.top, type });
+            // jsdom cannot calculate Moveable's CSS matrix, but this is the real
+            // control-box measurement/update path used in the browser.
+            moveableManager.updateRect(type, true, false);
+            moveableManager.forceUpdate();
+        });
+
+        const initialRect = frame.getBoundingClientRect();
+        measuredPositions.length = 0;
+        act(() => {
+            moveableManager.props['onDragStart']?.({
+                target: frame,
+                set: vi.fn(),
+            } as unknown as OnDragStart);
+            moveableManager.props['onDrag']?.({
+                target: frame,
+                beforeTranslate: [100, 50],
+            } as unknown as OnDrag);
+            // This is the callback order used by Moveable after invoking onDrag.
+            syncControlRect('');
+        });
+
+        const previewRect = frame.getBoundingClientRect();
+        expect(previewRect.left).toBeCloseTo(initialRect.left + 100);
+        expect(previewRect.top).toBeCloseTo(initialRect.top + 50);
+        expect(measuredPositions.at(-1)).toMatchObject({
+            left: previewRect.left,
+            top: previewRect.top,
+            type: '',
+        });
+        expect(engine.getSnapshot().document.widgets[0]?.layout.x).toBe(widget.layout.x);
+
+        act(() => {
+            moveableManager.props['onDragEnd']?.({ target: frame } as unknown as OnDragEnd);
+            // Moveable measures once more after the consumer's end callback.
+            syncControlRect('End');
+        });
+
+        const persisted = engine.getSnapshot().document.widgets[0];
+        const finalRect = frame.getBoundingClientRect();
+        expect(persisted?.layout.x).not.toBe(widget.layout.x);
+        expect(finalRect.left).toBeCloseTo(previewRect.left);
+        expect(finalRect.top).toBeCloseTo(previewRect.top);
+        expect(measuredPositions.at(-1)).toMatchObject({
+            left: previewRect.left,
+            top: previewRect.top,
+            type: 'End',
+        });
+        expect(frame.style.transform).toBe('rotate(0deg)');
     });
 
     it('restores custom able actions and opens settings from right click', () => {

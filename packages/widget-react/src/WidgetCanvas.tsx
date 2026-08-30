@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { flushSync } from 'react-dom';
 import Moveable from 'react-moveable';
 import type { WidgetEntity } from '@webtools/widget-core';
 
@@ -188,23 +189,28 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
         if (!interaction) return;
         interactionRef.current = null;
 
-        // Remove imperative preview values before the external store publishes.
-        // This also restores the target when an interaction ends without moving.
-        interaction.target.style.width = `${interaction.widget.layout.w}%`;
-        interaction.target.style.height = `${interaction.widget.layout.h}%`;
-        applyMoveableTransform(interaction.target, `rotate(${interaction.widget.layout.rotation}deg)`);
-        if (!interaction.pending) return;
-
-        runtime.engine.dispatch({
-            type: 'widget.layout',
-            widgetId: interaction.widget.id,
-            changes: pixelsToLayout(
+        const nextLayout = interaction.pending
+            ? pixelsToLayout(
                 interaction.pending,
                 interaction.containerWidth,
                 interaction.containerHeight,
                 interaction.widget.layout,
-            ),
-        });
+            )
+            : interaction.widget.layout;
+
+        // Normalize the imperative preview to the final declarative values before
+        // Moveable performs its drag-end measurement. flushSync then commits the
+        // external-store update in the same event, leaving no frame at the old box.
+        interaction.target.style.width = `${nextLayout.w}%`;
+        interaction.target.style.height = `${nextLayout.h}%`;
+        applyMoveableTransform(interaction.target, `rotate(${nextLayout.rotation}deg)`);
+        if (!interaction.pending) return;
+
+        flushSync(() => runtime.engine.dispatch({
+            type: 'widget.layout',
+            widgetId: interaction.widget.id,
+            changes: nextLayout,
+        }));
     }, [runtime.engine]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
@@ -342,6 +348,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                 <Moveable
                     ref={moveableRef}
                     target={selectedElement}
+                    flushSync={flushSync}
                     draggable={!selected.locked}
                     resizable={!selected.locked}
                     rotatable={!selected.locked}
