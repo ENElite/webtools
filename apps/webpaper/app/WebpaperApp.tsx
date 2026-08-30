@@ -54,7 +54,7 @@ export function WebpaperApp() {
                 <MediaStageStandbyOverlay
                     phase='waiting'
                     status='idle'
-                    message='正在准备壁纸…'
+                    message='正在加载页面…'
                 />
             </main>
         );

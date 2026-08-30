@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { MediaItem } from '../../domain';
 import type { MediaPlayerLoadStatus } from './media-player-controller';
@@ -14,16 +14,8 @@ const STICKER_KINDS = [
     'ice-cream',
     'star',
     'flower',
-    'candy',
-    'heart',
-    'cloud',
-    'ice-cream',
-    'flower',
-    'star',
-    'candy',
-    'heart',
 ] as const;
-const STICKER_TILE_COUNT = 9;
+const STICKER_TILE_COUNT = 64;
 
 export interface MediaStageProps {
     readonly item: MediaItem | null;
@@ -47,17 +39,19 @@ export function MediaStage({
 }: MediaStageProps) {
     const [readyMediaKey, setReadyMediaKey] = useState<string | null>(null);
     const [standbyPhase, setStandbyPhase] = useState<StandbyPhase>('waiting');
-    const celebratedRef = useRef(false);
     const mediaKey = item ? `${item.sourceId}:${item.kind}:${item.id}:${item.url}` : null;
     const mediaReady = mediaKey !== null && readyMediaKey === mediaKey;
 
     const handleMediaReady = useCallback(() => {
         if (!mediaKey) return;
         setReadyMediaKey(mediaKey);
-        if (celebratedRef.current) return;
-        celebratedRef.current = true;
-        setStandbyPhase('celebrating');
     }, [mediaKey]);
+
+    useEffect(() => {
+        // Reaching an effect means the client bundle has hydrated and the page is interactive.
+        // Wallpaper and widget resources continue loading behind the non-blocking farewell.
+        setStandbyPhase('celebrating');
+    }, []);
 
     useEffect(() => {
         if (standbyPhase !== 'celebrating') return;
@@ -73,9 +67,21 @@ export function MediaStage({
         ? (error?.message ?? '媒体加载失败')
         : standbyPhase === 'celebrating'
             ? '信号接通，开播啦！'
-            : '正在准备壁纸…';
+            : '正在加载页面…';
 
-    if (!item) return <MediaStageStandbyOverlay phase='waiting' status={status} message={statusText} />;
+    if (!item) {
+        return (
+            <section className='wp-media-stage' data-media-kind='empty'>
+                {showStandby ? (
+                    <MediaStageStandbyOverlay
+                        phase={visibleStandbyPhase}
+                        status={status}
+                        message={statusText}
+                    />
+                ) : null}
+            </section>
+        );
+    }
 
     const backgroundUrl = item.kind === 'image'
         ? (item.previewUrl ?? item.url)
@@ -151,7 +157,13 @@ export function MediaStageStandbyOverlay({
                     {Array.from({ length: STICKER_TILE_COUNT }, (_, tileIndex) => (
                         <div className='wp-sticker-tile' data-sticker-tile key={tileIndex}>
                             {STICKER_KINDS.map((kind, stickerIndex) => (
-                                <i data-sticker={kind} key={`${kind}-${stickerIndex}`}><span /></i>
+                                <i
+                                    data-grid-cell={stickerIndex}
+                                    data-sticker={kind}
+                                    key={`${kind}-${stickerIndex}`}
+                                >
+                                    <span />
+                                </i>
                             ))}
                         </div>
                     ))}

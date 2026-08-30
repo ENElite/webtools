@@ -12,12 +12,16 @@ import { DEFAULT_MEDIA_PLAYER_SETTINGS } from './player-settings';
 describe('MediaStage', () => {
     it('renders a repeated CSS sticker standby overlay without image assets', () => {
         const markup = renderToStaticMarkup(
-            <MediaStageStandbyOverlay phase='waiting' status='loading' message='正在准备壁纸…' />,
+            <MediaStageStandbyOverlay phase='waiting' status='loading' message='正在加载页面…' />,
         );
 
-        expect(markup.match(/data-sticker-tile="true"/g)).toHaveLength(9);
+        expect(markup.match(/data-sticker-tile="true"/g)).toHaveLength(64);
+        expect(markup.match(/data-grid-cell=/g)).toHaveLength(256);
         expect(markup).toContain('data-sticker="heart"');
         expect(markup).toContain('data-sticker="ice-cream"');
+        expect(markup).toContain('data-sticker="star"');
+        expect(markup).toContain('data-sticker="flower"');
+        expect(markup).not.toContain('data-sticker="candy"');
         expect(markup).toContain('role="progressbar"');
         expect(markup).not.toContain('<img');
         expect(markup).not.toContain('<svg');
@@ -71,7 +75,7 @@ describe('MediaStage', () => {
         expect(markup).toContain('poster="/poster.jpg"');
     });
 
-    it('celebrates after the first wallpaper loads, then never blocks later wallpaper changes', () => {
+    it('leaves standby after hydration without waiting for the first wallpaper', () => {
         vi.useFakeTimers();
         const host = document.createElement('div');
         const root = createRoot(host);
@@ -95,21 +99,21 @@ describe('MediaStage', () => {
                 );
             });
 
-            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('waiting');
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
             expect(host.querySelector('.wp-sticker-wall img')).toBeNull();
+            expect(host.querySelector('.wp-media-stage')?.hasAttribute('data-media-ready')).toBe(false);
+            expect(host.querySelector('.wp-stage-progress')?.getAttribute('aria-valuenow')).toBe('100');
+
+            act(() => vi.advanceTimersByTime(1_400));
+
+            expect(host.querySelector('.wp-stage-status')).toBeNull();
             expect(host.querySelector('.wp-media-stage')?.hasAttribute('data-media-ready')).toBe(false);
 
             act(() => {
                 host.querySelector<HTMLImageElement>('.wp-media-content')?.dispatchEvent(new Event('load'));
             });
 
-            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
-            expect(host.querySelector('.wp-stage-progress')?.getAttribute('aria-valuenow')).toBe('100');
             expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-ready')).toBe('true');
-
-            act(() => vi.advanceTimersByTime(1_400));
-
-            expect(host.querySelector('.wp-stage-status')).toBeNull();
 
             const videoItem: VideoMediaItem = {
                 id: 'next-video',
@@ -137,6 +141,34 @@ describe('MediaStage', () => {
 
             expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-ready')).toBe('true');
             expect(host.querySelector('.wp-stage-status')).toBeNull();
+        } finally {
+            act(() => root.unmount());
+            vi.useRealTimers();
+        }
+    });
+
+    it('also removes standby when the media catalog has not returned an item yet', () => {
+        vi.useFakeTimers();
+        const host = document.createElement('div');
+        const root = createRoot(host);
+
+        try {
+            act(() => {
+                root.render(
+                    <MediaStage
+                        item={null}
+                        status='loading'
+                        settings={DEFAULT_MEDIA_PLAYER_SETTINGS}
+                        onMediaError={vi.fn()}
+                        onVideoEnded={vi.fn()}
+                    />,
+                );
+            });
+
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
+            act(() => vi.advanceTimersByTime(1_400));
+            expect(host.querySelector('.wp-stage-status')).toBeNull();
+            expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-kind')).toBe('empty');
         } finally {
             act(() => root.unmount());
             vi.useRealTimers();
