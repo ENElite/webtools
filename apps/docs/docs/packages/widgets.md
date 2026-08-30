@@ -4,7 +4,7 @@
 
 ## `@webtools/widget-core`
 
-纯 TypeScript 内核，提供 Widget 文档 Schema、catalog 定义、事务引擎与撤销/重做。它不依赖 React，不访问 DOM，也不包含具体应用的小组件。
+纯 TypeScript 内核，提供 Widget 文档 Schema、catalog 定义、事务引擎、撤销/重做，以及类型化 signal hub、组件加载端口和 barrier。它不依赖 React，不访问 DOM，也不包含具体应用的小组件。
 
 ## `@webtools/widget-react`
 
@@ -14,6 +14,7 @@ React Canvas 运行时，负责：
 - 布局的像素/相对值换算；
 - 选择、拖拽、缩放与错误隔离；
 - 通过显式 catalog 绑定 Widget view。
+- 将应用 signal hub 传给 view，并把同步或异步 view 的加载回调转换为组件生命周期信号。
 
 ## `@webtools/widget-studio`
 
