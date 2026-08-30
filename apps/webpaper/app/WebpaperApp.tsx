@@ -35,6 +35,7 @@ import { createWebPaperMediaCatalog, type MediaSourceSelection } from '../src/fe
 import {
     MediaPlayerSettingsForm,
     MediaStage,
+    MediaStageWaitingRoom,
     PlaybackControls,
     useMediaPlayer,
 } from '../src/features/player';
@@ -44,7 +45,17 @@ export function WebpaperApp() {
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
-    if (!mounted) return <main className='wp-boot'>正在启动 WebPaper…</main>;
+    if (!mounted) {
+        return (
+            <main className='wp-boot'>
+                <MediaStageWaitingRoom
+                    phase='waiting'
+                    status='idle'
+                    message='正在布置直播间…'
+                />
+            </main>
+        );
+    }
     return <WebpaperSession />;
 }
 
@@ -347,6 +358,14 @@ function SettingsPanel({
             {persistenceWarning ? <Alert tone='warning'>{persistenceWarning}</Alert> : null}
 
             <section className='wp-settings-section'>
+                <h3>播放</h3>
+                <MediaPlayerSettingsForm
+                    value={settings.player}
+                    onChange={(player) => onChange({ player })}
+                />
+            </section>
+
+            <section className='wp-settings-section'>
                 <h3>媒体源</h3>
                 <Field label='来源'>
                     <Select
@@ -373,14 +392,6 @@ function SettingsPanel({
                 </Field>
                 <SourceFields settings={settings} onChange={onChange} />
                 <Button type='button' fullWidth onClick={onApplySource}>应用媒体源</Button>
-            </section>
-
-            <section className='wp-settings-section'>
-                <h3>播放</h3>
-                <MediaPlayerSettingsForm
-                    value={settings.player}
-                    onChange={(player) => onChange({ player })}
-                />
             </section>
 
             <section className='wp-settings-section'>

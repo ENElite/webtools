@@ -59,31 +59,33 @@ export function HistoryDrawer({
                     <small>浏览过的壁纸会安静地待在这里</small>
                 </div>
             ) : (
-                <ul className='wp-history-grid'>
-                    {visibleItems.map(({ item, historyIndex }) => (
-                        <li key={`${item.sourceId}:${item.id}:${historyIndex}`}>
-                            <button
-                                type='button'
-                                onClick={() => onSelect(item, historyIndex)}
-                                className='wp-history-card'
-                                aria-label={`查看 ${item.sourceId} ${item.id}`}
-                            >
-                                {thumbnailUrl(item) ? (
-                                    <img
-                                        src={thumbnailUrl(item)}
-                                        alt=''
-                                        referrerPolicy='no-referrer'
-                                    />
-                                ) : (
-                                    <span className='wp-history-video'>▶ 视频</span>
-                                )}
-                                <span className='wp-history-meta'>
-                                    {item.sourceId} · {item.kind} · {item.id}
-                                </span>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
+                <div className='wp-history-grid-viewport'>
+                    <ul className='wp-history-grid'>
+                        {visibleItems.map(({ item, historyIndex }) => (
+                            <li key={`${item.sourceId}:${item.id}:${historyIndex}`}>
+                                <button
+                                    type='button'
+                                    onClick={() => onSelect(item, historyIndex)}
+                                    className='wp-history-card'
+                                    aria-label={`查看 ${item.sourceId} ${item.id}`}
+                                >
+                                    {thumbnailUrl(item) ? (
+                                        <img
+                                            src={thumbnailUrl(item)}
+                                            alt=''
+                                            referrerPolicy='no-referrer'
+                                        />
+                                    ) : (
+                                        <span className='wp-history-video'>▶ 视频</span>
+                                    )}
+                                    <span className='wp-history-meta'>
+                                        {item.sourceId} · {item.kind} · {item.id}
+                                    </span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             )}
         </Drawer>
     );

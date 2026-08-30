@@ -1,3 +1,7 @@
+/** @vitest-environment jsdom */
+
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -52,5 +56,76 @@ describe('MediaStage', () => {
         expect(markup).toContain('<video');
         expect(markup).toContain('src="/video.mp4"');
         expect(markup).toContain('poster="/poster.jpg"');
+    });
+
+    it('celebrates only after the first media actually loads, then fades the waiting room away', () => {
+        vi.useFakeTimers();
+        const host = document.createElement('div');
+        const root = createRoot(host);
+        const item: ImageMediaItem = {
+            id: 'ready-image',
+            sourceId: 'json',
+            kind: 'image',
+            url: '/ready-image.jpg',
+            raw: null,
+        };
+
+        try {
+            act(() => {
+                root.render(
+                    <MediaStage
+                        item={item}
+                        settings={DEFAULT_MEDIA_PLAYER_SETTINGS}
+                        onMediaError={vi.fn()}
+                        onVideoEnded={vi.fn()}
+                    />,
+                );
+            });
+
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('waiting');
+            expect(host.querySelector('.wp-waiting-room img')).toBeNull();
+            expect(host.querySelector('.wp-media-stage')?.hasAttribute('data-media-ready')).toBe(false);
+
+            act(() => {
+                host.querySelector<HTMLImageElement>('.wp-media-content')?.dispatchEvent(new Event('load'));
+            });
+
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
+            expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-ready')).toBe('true');
+
+            act(() => vi.advanceTimersByTime(1_400));
+
+            expect(host.querySelector('.wp-stage-status')).toBeNull();
+
+            const videoItem: VideoMediaItem = {
+                id: 'next-video',
+                sourceId: 'json',
+                kind: 'video',
+                url: '/next-video.mp4',
+                raw: null,
+            };
+            act(() => {
+                root.render(
+                    <MediaStage
+                        item={videoItem}
+                        settings={DEFAULT_MEDIA_PLAYER_SETTINGS}
+                        onMediaError={vi.fn()}
+                        onVideoEnded={vi.fn()}
+                    />,
+                );
+            });
+
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('waiting');
+            act(() => {
+                host.querySelector<HTMLVideoElement>('.wp-media-content')
+                    ?.dispatchEvent(new Event('loadeddata'));
+            });
+
+            expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-ready')).toBe('true');
+            expect(host.querySelector('.wp-stage-status')).toBeNull();
+        } finally {
+            act(() => root.unmount());
+            vi.useRealTimers();
+        }
     });
 });
