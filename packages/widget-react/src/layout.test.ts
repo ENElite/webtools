@@ -34,6 +34,12 @@ describe('layoutToStyle', () => {
         });
     });
 
+    it('keeps the legacy allow-overflow setting semantics', () => {
+        expect(layoutToStyle(base, { overflow: true }).overflow).toBe('visible');
+        expect(layoutToStyle(base, { overflow: false }).overflow).toBe('hidden');
+        expect(layoutToStyle(base, {}).overflow).toBe('hidden');
+    });
+
     it('builds CSS transitions only for selected style outputs', () => {
         expect(animationToTransitionStyle({
             easing: 'ease-in-out',

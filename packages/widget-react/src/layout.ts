@@ -157,7 +157,7 @@ export function layoutToStyle(layout: WidgetLayout, style: WidgetStyle): CSSProp
         boxShadow: style.shadowRadius
             ? `0 0 ${style.shadowRadius}px ${style.shadowColor ?? 'rgba(0,0,0,.5)'}`
             : undefined,
-        overflow: style.overflow ? 'hidden' : 'visible',
+        overflow: style.overflow === true ? 'visible' : 'hidden',
         backdropFilter: style.backgroundEffect === 'blur' ? 'blur(12px)' : undefined,
     };
 }
