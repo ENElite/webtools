@@ -34,7 +34,6 @@
 
 .moveable-control-box .moveable-line {
     background: #ff8fbd !important;
-    box-shadow: 0 0 0 1px rgb(62 27 49 / 40%);
 }
 
 .moveable-control-box .moveable-control {
@@ -44,7 +43,6 @@
     margin-left: -5.5px !important;
     border: 2px solid #fff8fc !important;
     background: #ff8fbd !important;
-    box-shadow: 0 2px 7px rgb(35 16 29 / 44%);
 }
 
 .moveable-control-box .moveable-rotation-control {
@@ -56,11 +54,10 @@
     z-index: 2;
     box-sizing: border-box;
     color: #4d3549;
-    background: rgb(255 250 253 / 96%);
-    border: 2px solid #ffc2dc;
-    box-shadow: 0 4px 0 rgb(126 54 91 / 20%), 0 10px 24px rgb(25 12 22 / 28%);
+    background: #fffafd;
+    border: 1px solid #f2aeca;
     font-family: ui-rounded, 'SF Pro Rounded', 'PingFang SC', system-ui, sans-serif;
-    backdrop-filter: blur(16px);
+    pointer-events: auto !important;
 }
 
 .wt-widget-able--actions {
@@ -84,25 +81,27 @@
     outline: none;
     cursor: pointer;
     font: 800 14px/1 inherit;
-    transition: color 120ms ease, background 120ms ease, transform 120ms cubic-bezier(.34, 1.56, .64, 1);
+    pointer-events: auto !important;
+    transition: color 120ms ease, background 120ms ease;
 }
 
-.wt-widget-able__button:hover,
-.wt-widget-able__button:focus-visible {
+.wt-widget-able__button:hover {
     color: #c7437e;
     background: #ffe0ed;
-    transform: translateY(-2px) rotate(-3deg);
 }
 
-.wt-widget-able__button[data-action='remove']:hover,
-.wt-widget-able__button[data-action='remove']:focus-visible {
+.wt-widget-able__button:focus-visible {
+    outline: 2px solid #dd5d94;
+    outline-offset: 1px;
+}
+
+.wt-widget-able__button[data-action='remove']:hover {
     color: #c52d51;
     background: #ffe1e7;
 }
 
 .wt-widget-able__button[data-action='settings'] {
-    color: #fff;
-    background: linear-gradient(145deg, #ff9fc8, #ee6ca7);
+    color: #c7437e;
 }
 
 .wt-widget-able--dimension,
@@ -119,7 +118,7 @@
 
 .wt-widget-able--order {
     color: #395d69;
-    background: rgb(230 249 255 / 96%);
+    background: #e6f9ff;
     border-color: #a8e9fb;
 }
 

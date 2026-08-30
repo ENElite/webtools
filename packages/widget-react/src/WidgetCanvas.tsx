@@ -21,6 +21,14 @@ import { Widgetable } from './ables/Widgetable';
 import type { WidgetableAction } from './ables/Widgetable';
 
 const SNAP_THRESHOLD = 8;
+const SNAP_DIRECTIONS = Object.freeze({
+    left: true,
+    top: true,
+    right: true,
+    bottom: true,
+    center: true,
+    middle: true,
+});
 
 interface InteractionSnapshot {
     readonly widget: WidgetEntity;
@@ -317,6 +325,12 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                     snappable
                     snapGap
                     snapThreshold={SNAP_THRESHOLD}
+                    snapContainer={containerRef.current}
+                    snapDirections={SNAP_DIRECTIONS}
+                    elementSnapDirections={SNAP_DIRECTIONS}
+                    verticalGuidelines={['50%']}
+                    horizontalGuidelines={['50%']}
+                    snapRotationDegrees={[0, 45, 90, 135, 180, 225, 270, 315]}
                     elementGuidelines={widgets
                         .filter((widget) => widget.id !== selected.id)
                         .map((widget) => elementRefs.current.get(widget.id))

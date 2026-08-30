@@ -120,7 +120,11 @@ describe('WidgetCanvas', () => {
         expect(host.querySelector('.wt-widget-able--dimension')).not.toBeNull();
         expect(host.querySelector('.wt-widget-able--order')?.textContent).toContain('第 1 层');
         const moveUp = host.querySelector<HTMLButtonElement>('[data-action="move-up"]');
-        act(() => moveUp?.click());
+        expect(moveUp).not.toBeNull();
+        if (!moveUp) return;
+        const blur = vi.spyOn(moveUp, 'blur');
+        act(() => moveUp.click());
+        expect(blur).toHaveBeenCalledOnce();
         expect(engine.getSnapshot().document.widgets.find((widget) => widget.id === first.id)?.layout.order).toBe(2);
 
         const secondFrame = host.querySelector<HTMLElement>(`[data-widget-id="${second.id}"]`);

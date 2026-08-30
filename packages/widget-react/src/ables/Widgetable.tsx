@@ -76,6 +76,7 @@ export const Widgetable: Able<WidgetableProps> = {
                     onClick: (event: MouseEvent) => {
                         event.preventDefault();
                         event.stopPropagation();
+                        (event.currentTarget as HTMLButtonElement).blur();
                         actionHandler?.(action);
                     },
                 },
