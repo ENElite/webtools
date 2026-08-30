@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { Alert, Badge, Button, Card, ColorPicker, ContextMenu, Field, NumberInput, Select, Switch, TextInput } from './index';
+import { Alert, Badge, Button, Card, ColorPicker, ContextMenu, Field, NumberInput, Select, Slider, Switch, TextInput } from './index';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ??= class ResizeObserver {
@@ -14,14 +14,19 @@ import { Alert, Badge, Button, Card, ColorPicker, ContextMenu, Field, NumberInpu
 };
 
 let root: ReturnType<typeof createRoot> | null = null;
+let renderHost: HTMLDivElement | null = null;
 
 afterEach(() => {
     act(() => root?.unmount());
     root = null;
+    renderHost?.remove();
+    renderHost = null;
 });
 
 function render(node: React.ReactNode) {
     const host = document.createElement('div');
+    document.body.append(host);
+    renderHost = host;
     root = createRoot(host);
     act(() => root?.render(node));
     return host;
@@ -34,7 +39,7 @@ function readUiStyles() {
 }
 
 function dispatchPointer(
-    element: Element | null | undefined,
+    element: EventTarget | null | undefined,
     type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
     init: { pointerType: 'mouse' | 'touch'; clientX?: number; clientY?: number },
 ) {
@@ -383,5 +388,46 @@ describe('Mochi primitives', () => {
         });
 
         expect(onPointerDown).not.toHaveBeenCalled();
+    });
+
+    it('updates Slider values on every pointer move without animating Ark position transforms', async () => {
+        const onValueChange = vi.fn();
+        const host = render(
+            <Slider aria-label='透明度' defaultValue={0} min={0} max={100} onValueChange={onValueChange} />,
+        );
+        const sliderRoot = host.querySelector<HTMLElement>('.wt-slider');
+        const control = host.querySelector<HTMLElement>('.wt-slider__control');
+        vi.spyOn(control as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+            x: 0,
+            y: 0,
+            left: 0,
+            top: 0,
+            right: 100,
+            bottom: 24,
+            width: 100,
+            height: 24,
+            toJSON: () => ({}),
+        });
+
+        await act(async () => {
+            dispatchPointer(control, 'pointerdown', { pointerType: 'mouse', clientX: 10, clientY: 12 });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+        await act(async () => {
+            dispatchPointer(document, 'pointermove', { pointerType: 'mouse', clientX: 80, clientY: 12 });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+
+        expect(onValueChange).toHaveBeenLastCalledWith(80);
+        expect(sliderRoot?.style.getPropertyValue('--slider-thumb-offset-0')).toContain('80%');
+
+        const styles = readUiStyles();
+        const thumbRule = styles.match(/\.wt-slider__thumb\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        const activeRule = styles.match(
+            /\.wt-slider__thumb:hover,\s*\.wt-slider__thumb\[data-dragging\]\s*\{(?<body>[^}]+)\}/,
+        )?.groups?.['body'];
+        expect(thumbRule).not.toContain('transition: transform');
+        expect(activeRule).not.toContain('transform:');
+        expect(activeRule).toContain('scale: 1.15');
     });
 });

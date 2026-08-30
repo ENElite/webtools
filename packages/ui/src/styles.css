@@ -785,12 +785,15 @@
     border: 3px solid var(--wt-color-accent);
     border-radius: 50% 45% 50% 45%;
     outline: none;
-    transition: transform var(--wt-duration-fast) var(--wt-ease-bounce);
+    will-change: transform;
+    transition:
+        scale var(--wt-duration-fast) var(--wt-ease-bounce),
+        border-color var(--wt-duration-fast) var(--wt-ease-standard);
 }
 
 .wt-slider__thumb:hover,
 .wt-slider__thumb[data-dragging] {
-    transform: scale(1.15) rotate(8deg);
+    scale: 1.15;
 }
 
 .wt-color-picker {
