@@ -28,7 +28,7 @@ function AnimatedClockGlyph({ character }: { readonly character: string }) {
             { opacity: 1, transform: 'translateY(0) scale(1)' },
         ], {
             duration: 320,
-            easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)',
+            easing: 'ease-in-out',
         });
 
         return () => animationRef.current?.cancel();

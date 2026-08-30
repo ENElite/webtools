@@ -36,7 +36,10 @@ describe('AnimatedClockText', () => {
 
         act(() => root.render(<AnimatedClockText text='12:34:57' />));
         expect(animate).toHaveBeenCalledOnce();
-        expect(animate.mock.calls[0]?.[1]).toMatchObject({ duration: 320 });
+        expect(animate.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
+            duration: 320,
+            easing: 'ease-in-out',
+        }));
         expect(container.querySelector('[data-clock-text="12:34:57"]')).not.toBeNull();
 
         act(() => root.unmount());
