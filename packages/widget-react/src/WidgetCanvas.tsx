@@ -10,6 +10,7 @@ import { WidgetErrorBoundary } from './ErrorBoundary';
 import {
     applyMoveableTransform,
     animationToTransitionStyle,
+    entryAnimationToStyle,
     layoutToPixels,
     layoutToStyle,
     pixelsToLayout,
@@ -314,6 +315,7 @@ export function WidgetCanvas({ className, style, idleAfterMs = 4_000, onWidgetCo
                         style={{
                             ...layoutToStyle(widget.layout, widget.style),
                             ...animationToTransitionStyle(widget.animation, prefersReducedMotion),
+                            ...entryAnimationToStyle(widget.animation.entry, prefersReducedMotion),
                         }}
                         onPointerDown={(event) => {
                             event.stopPropagation();

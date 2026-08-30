@@ -49,9 +49,22 @@ export const WIDGET_ANIMATABLE_STYLE_PROPERTIES = [
 
 export type WidgetAnimatedStyleProperty = typeof WIDGET_ANIMATABLE_STYLE_PROPERTIES[number];
 export type WidgetAnimationEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
+export type WidgetEntryAnimationEffect = 'none' | 'fade' | 'slide' | 'scale';
+export type WidgetAnimationDirection = 'up' | 'down' | 'left' | 'right';
+
+/** One-shot animation played when a widget frame first enters the canvas. */
+export interface WidgetEntryAnimationSettings {
+    readonly effect: WidgetEntryAnimationEffect;
+    readonly direction: WidgetAnimationDirection;
+    /** Animation duration in seconds. */
+    readonly duration: number;
+    /** Animation delay in seconds. */
+    readonly delay: number;
+    readonly easing: WidgetAnimationEasing;
+}
 
 /** CSS transitions applied to selected, animatable outputs of {@link WidgetStyle}. */
-export interface WidgetAnimationSettings {
+export interface WidgetStyleTransitionSettings {
     readonly easing: WidgetAnimationEasing;
     /** Transition duration in seconds. */
     readonly duration: number;
@@ -60,11 +73,32 @@ export interface WidgetAnimationSettings {
     readonly animatedProperties: readonly WidgetAnimatedStyleProperty[];
 }
 
+export interface WidgetAnimationSettings extends WidgetStyleTransitionSettings {
+    readonly entry: WidgetEntryAnimationSettings;
+}
+
+export interface WidgetAnimationUpdate {
+    readonly easing?: WidgetAnimationEasing;
+    readonly duration?: number;
+    readonly delay?: number;
+    readonly animatedProperties?: readonly WidgetAnimatedStyleProperty[];
+    readonly entry?: Partial<WidgetEntryAnimationSettings>;
+}
+
+export const DEFAULT_WIDGET_ENTRY_ANIMATION: WidgetEntryAnimationSettings = Object.freeze({
+    effect: 'none',
+    direction: 'up',
+    duration: 0.45,
+    delay: 0,
+    easing: 'ease-out',
+});
+
 export const DEFAULT_WIDGET_ANIMATION: WidgetAnimationSettings = Object.freeze({
     easing: 'ease-out',
     duration: 0.3,
     delay: 0,
     animatedProperties: Object.freeze([]),
+    entry: DEFAULT_WIDGET_ENTRY_ANIMATION,
 });
 
 export interface WidgetEntity<TProps extends JsonObject = JsonObject> {
@@ -104,7 +138,7 @@ export interface WidgetDraft {
     readonly label?: string;
     readonly props?: JsonObject;
     readonly style?: WidgetStyle;
-    readonly animation?: Partial<WidgetAnimationSettings>;
+    readonly animation?: WidgetAnimationUpdate;
     readonly layout?: Partial<Omit<WidgetLayout, 'order'>>;
     readonly locked?: boolean;
     readonly autoHide?: boolean;
@@ -116,7 +150,7 @@ export interface WidgetUpdate {
     readonly props?: JsonObject;
     readonly style?: WidgetStyle;
     /** Animation settings are shallow-merged and normalized by the engine schema. */
-    readonly animation?: Partial<WidgetAnimationSettings>;
+    readonly animation?: WidgetAnimationUpdate;
     readonly locked?: boolean;
     readonly autoHide?: boolean;
 }

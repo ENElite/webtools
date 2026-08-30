@@ -33,6 +33,41 @@ afterEach(() => {
 });
 
 describe('WidgetCanvas', () => {
+    it('plays the persisted entry animation when a widget frame first mounts', () => {
+        const engine = createWidgetEngine({ catalog: definitions });
+        engine.dispatch({
+            type: 'widget.add',
+            widget: {
+                kind: 'clock',
+                animation: {
+                    entry: {
+                        effect: 'scale',
+                        direction: 'up',
+                        duration: 0.55,
+                        delay: 0.1,
+                        easing: 'ease-in-out',
+                    },
+                },
+            },
+        });
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+        act(() => {
+            mountedRoot?.render(
+                <WidgetRuntimeProvider engine={engine} views={views}>
+                    <WidgetCanvas />
+                </WidgetRuntimeProvider>,
+            );
+        });
+
+        const frame = host.querySelector<HTMLElement>('.wt-widget-frame');
+        expect(frame?.style.animationName).toBe('wt-widget-entry-scale');
+        expect(frame?.style.animationDuration).toBe('0.55s');
+        expect(frame?.style.animationDelay).toBe('0.1s');
+        expect(frame?.style.animationTimingFunction).toBe('ease-in-out');
+        expect(frame?.style.transform).toBe('rotate(0deg)');
+    });
+
     it('applies selected style transitions to the widget frame', () => {
         const engine = createWidgetEngine({ catalog: definitions });
         engine.dispatch({

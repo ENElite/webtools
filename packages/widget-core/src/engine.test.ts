@@ -68,6 +68,13 @@ describe('widget engine operations', () => {
                     duration: 0.3,
                     delay: 0,
                     animatedProperties: [],
+                    entry: {
+                        effect: 'none',
+                        direction: 'up',
+                        duration: 0.45,
+                        delay: 0,
+                        easing: 'ease-out',
+                    },
                 },
                 locked: false,
                 autoHide: false,
@@ -188,6 +195,13 @@ describe('widget engine operations', () => {
                     duration: 0.75,
                     delay: 0.1,
                     animatedProperties: ['opacity', 'backgroundColor'],
+                    entry: {
+                        effect: 'slide',
+                        direction: 'left',
+                        duration: 0.6,
+                        delay: 0.2,
+                        easing: 'ease-in-out',
+                    },
                 },
             },
         });
@@ -197,6 +211,13 @@ describe('widget engine operations', () => {
             duration: 0.75,
             delay: 0.1,
             animatedProperties: ['opacity', 'backgroundColor'],
+            entry: {
+                effect: 'slide',
+                direction: 'left',
+                duration: 0.6,
+                delay: 0.2,
+                easing: 'ease-in-out',
+            },
         });
         expect(result.events[0]).toEqual(expect.objectContaining({
             type: 'widget.updated',
@@ -207,6 +228,13 @@ describe('widget engine operations', () => {
             duration: 0.3,
             delay: 0,
             animatedProperties: [],
+            entry: {
+                effect: 'none',
+                direction: 'up',
+                duration: 0.45,
+                delay: 0,
+                easing: 'ease-out',
+            },
         });
         expect(engine.redo()?.document.widgets[0]?.animation).toEqual(
             result.document.widgets[0]?.animation,
@@ -359,6 +387,13 @@ describe('persistent document validation', () => {
                 duration: 0.3,
                 delay: 0,
                 animatedProperties: [],
+                entry: {
+                    effect: 'none',
+                    direction: 'up',
+                    duration: 0.45,
+                    delay: 0,
+                    easing: 'ease-out',
+                },
             },
             layout: {
                 anchorX: 'left',
@@ -392,6 +427,36 @@ describe('persistent document validation', () => {
             duration: 0.3,
             delay: 0,
             animatedProperties: [],
+            entry: {
+                effect: 'none',
+                direction: 'up',
+                duration: 0.45,
+                delay: 0,
+                easing: 'ease-out',
+            },
+        });
+    });
+
+    it('adds entry defaults to documents that already contain transition settings', () => {
+        const widget = validDocument.widgets[0];
+        expect(widget).toBeDefined();
+        if (!widget) return;
+        const { entry: _entry, ...legacyAnimation } = widget.animation;
+
+        const parsed = parseWidgetDocument({
+            ...validDocument,
+            widgets: [{ ...widget, animation: legacyAnimation }],
+        }, catalog);
+
+        expect(parsed.widgets[0]?.animation).toEqual({
+            ...legacyAnimation,
+            entry: {
+                effect: 'none',
+                direction: 'up',
+                duration: 0.45,
+                delay: 0,
+                easing: 'ease-out',
+            },
         });
     });
 

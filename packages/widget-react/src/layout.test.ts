@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { animationToTransitionStyle, layoutToPixels, layoutToStyle, pixelsToLayout } from './layout';
+import {
+    animationToTransitionStyle,
+    entryAnimationToStyle,
+    layoutToPixels,
+    layoutToStyle,
+    pixelsToLayout,
+} from './layout';
 
 const base = {
     anchorX: 'left' as const,
@@ -63,6 +69,37 @@ describe('layoutToStyle', () => {
             delay: 0,
             animatedProperties: ['opacity'],
         }, true)).toEqual({ transition: 'none' });
+    });
+
+    it('builds a one-shot directional entry animation without replacing layout rotation', () => {
+        expect(entryAnimationToStyle({
+            effect: 'slide',
+            direction: 'left',
+            duration: 0.7,
+            delay: 0.15,
+            easing: 'ease-out',
+        })).toEqual({
+            animationName: 'wt-widget-entry-slide-left',
+            animationDuration: '0.7s',
+            animationDelay: '0.15s',
+            animationTimingFunction: 'ease-out',
+            animationFillMode: 'backwards',
+            animationIterationCount: 1,
+        });
+        expect(entryAnimationToStyle({
+            effect: 'none',
+            direction: 'up',
+            duration: 0.45,
+            delay: 0,
+            easing: 'ease-out',
+        })).toEqual({});
+        expect(entryAnimationToStyle({
+            effect: 'fade',
+            direction: 'up',
+            duration: 0.45,
+            delay: 0,
+            easing: 'ease-out',
+        }, true)).toEqual({ animation: 'none' });
     });
 
     it.each([

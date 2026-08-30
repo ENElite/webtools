@@ -252,7 +252,13 @@ function applyOperation(
                 : catalog.validateProps(previous.kind, { ...previous.props, ...changes.props });
             const animation = changes.animation === undefined
                 ? previous.animation
-                : { ...previous.animation, ...changes.animation };
+                : {
+                    ...previous.animation,
+                    ...changes.animation,
+                    entry: changes.animation.entry === undefined
+                        ? previous.animation.entry
+                        : { ...previous.animation.entry, ...changes.animation.entry },
+                };
             const next = validateEntity({
                 ...previous,
                 ...(changes.label === undefined ? {} : { label: changes.label }),

@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react';
 import type {
     WidgetAnimatedStyleProperty,
-    WidgetAnimationSettings,
+    WidgetEntryAnimationSettings,
     WidgetLayout,
     WidgetStyle,
+    WidgetStyleTransitionSettings,
 } from '@webtools/widget-core';
 
 const ANIMATED_PROPERTY_CSS_NAMES: Readonly<Record<WidgetAnimatedStyleProperty, string>> = Object.freeze({
@@ -15,6 +16,13 @@ const ANIMATED_PROPERTY_CSS_NAMES: Readonly<Record<WidgetAnimatedStyleProperty, 
     boxShadow: 'box-shadow',
     backdropFilter: 'backdrop-filter',
     backgroundImage: 'background-image',
+});
+
+const ENTRY_SLIDE_ANIMATION_NAMES = Object.freeze({
+    up: 'wt-widget-entry-slide-up',
+    down: 'wt-widget-entry-slide-down',
+    left: 'wt-widget-entry-slide-left',
+    right: 'wt-widget-entry-slide-right',
 });
 
 export interface PixelWidgetLayout {
@@ -163,7 +171,7 @@ export function layoutToStyle(layout: WidgetLayout, style: WidgetStyle): CSSProp
 }
 
 export function animationToTransitionStyle(
-    animation: WidgetAnimationSettings,
+    animation: WidgetStyleTransitionSettings,
     prefersReducedMotion = false,
 ): CSSProperties {
     if (prefersReducedMotion) return { transition: 'none' };
@@ -177,6 +185,29 @@ export function animationToTransitionStyle(
     transitions.push(...properties.map((property) =>
         `${property} ${animation.duration}s ${animation.easing} ${animation.delay}s`));
     return { transition: transitions.join(', ') };
+}
+
+export function entryAnimationToStyle(
+    entry: WidgetEntryAnimationSettings,
+    prefersReducedMotion = false,
+): CSSProperties {
+    if (prefersReducedMotion) return { animation: 'none' };
+    const animationName = entry.effect === 'fade'
+        ? 'wt-widget-entry-fade'
+        : entry.effect === 'scale'
+            ? 'wt-widget-entry-scale'
+            : entry.effect === 'slide'
+                ? ENTRY_SLIDE_ANIMATION_NAMES[entry.direction]
+                : null;
+    if (!animationName) return {};
+    return {
+        animationName,
+        animationDuration: `${entry.duration}s`,
+        animationDelay: `${entry.delay}s`,
+        animationTimingFunction: entry.easing,
+        animationFillMode: 'backwards',
+        animationIterationCount: 1,
+    };
 }
 
 export function applyMoveableTransform(target: HTMLElement | SVGElement, transform: string): void {

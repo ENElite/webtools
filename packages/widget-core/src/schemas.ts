@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import {
     DEFAULT_WIDGET_ANIMATION,
+    DEFAULT_WIDGET_ENTRY_ANIMATION,
     WIDGET_ANIMATABLE_STYLE_PROPERTIES,
 } from './types';
 import type { JsonValue } from './types';
@@ -54,9 +55,22 @@ export const widgetAnimationSchema = z.object({
             message: 'Animated properties must be unique',
         })
         .default([...DEFAULT_WIDGET_ANIMATION.animatedProperties]),
+    entry: z.object({
+        effect: z.enum(['none', 'fade', 'slide', 'scale'])
+            .default(DEFAULT_WIDGET_ENTRY_ANIMATION.effect),
+        direction: z.enum(['up', 'down', 'left', 'right'])
+            .default(DEFAULT_WIDGET_ENTRY_ANIMATION.direction),
+        duration: z.number().finite().nonnegative()
+            .default(DEFAULT_WIDGET_ENTRY_ANIMATION.duration),
+        delay: z.number().finite().nonnegative()
+            .default(DEFAULT_WIDGET_ENTRY_ANIMATION.delay),
+        easing: z.enum(['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'])
+            .default(DEFAULT_WIDGET_ENTRY_ANIMATION.easing),
+    }).strict().default({ ...DEFAULT_WIDGET_ENTRY_ANIMATION }),
 }).strict().default({
     ...DEFAULT_WIDGET_ANIMATION,
     animatedProperties: [...DEFAULT_WIDGET_ANIMATION.animatedProperties],
+    entry: { ...DEFAULT_WIDGET_ENTRY_ANIMATION },
 });
 
 export const widgetEntitySchema = z.object({
