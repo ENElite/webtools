@@ -87,12 +87,12 @@ export const clockWidgetView = defineWidgetView<ClockWidgetProps>({
     View: ClockWidgetView,
 });
 
-export function ClockWidgetView({ widget }: WidgetViewProps<ClockWidgetProps>) {
+export function ClockWidgetView({ widget, signals }: WidgetViewProps<ClockWidgetProps>) {
     const [now, setNow] = useState(() => new Date());
-    useEffect(() => {
-        const interval = globalThis.setInterval(() => setNow(new Date()), 1_000);
-        return () => globalThis.clearInterval(interval);
-    }, []);
+    useEffect(() => signals.connect(
+        'component.time.tick',
+        ({ now: timestamp }) => setNow(new Date(timestamp)),
+    ), [signals]);
     const formatted = formatClock(now, widget.props);
 
     return (
