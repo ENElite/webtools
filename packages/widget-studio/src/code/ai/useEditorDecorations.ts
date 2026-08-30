@@ -35,7 +35,6 @@ function createAcceptRejectWidget(
         background: rgba(30, 30, 40, 0.92);
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 11px;
         z-index: 10;

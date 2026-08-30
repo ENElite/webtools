@@ -1,8 +1,8 @@
 'use client';
 
 import { EmptyState } from '@webtools/ui';
-import { widgetLayoutSchema, widgetStyleSchema } from '@webtools/widget-core';
-import type { JsonObject, WidgetEntity } from '@webtools/widget-core';
+import { widgetAnimationSchema, widgetLayoutSchema, widgetStyleSchema } from '@webtools/widget-core';
+import type { JsonObject, JsonValue, WidgetEntity, WidgetOperation } from '@webtools/widget-core';
 import { useWidgetRuntime, useWidgetSnapshot } from '@webtools/widget-react';
 
 import { readPath, writePath } from './path';
@@ -15,6 +15,7 @@ interface EditableWidgetRecord extends JsonObject {
     readonly autoHide: boolean;
     readonly props: JsonObject;
     readonly style: JsonObject;
+    readonly animation: JsonObject;
     readonly layout: JsonObject;
 }
 
@@ -27,8 +28,58 @@ function toEditableRecord(widget: WidgetEntity): EditableWidgetRecord {
         style: Object.fromEntries(
             Object.entries(widget.style).filter((entry) => entry[1] !== undefined),
         ) as JsonObject,
+        animation: {
+            easing: widget.animation.easing,
+            duration: widget.animation.duration,
+            delay: widget.animation.delay,
+            animatedProperties: [...widget.animation.animatedProperties],
+        },
         layout: { ...widget.layout },
     };
+}
+
+export function createWidgetInspectorOperation(
+    widget: WidgetEntity,
+    path: string,
+    next: JsonValue | undefined,
+): WidgetOperation | null {
+    const value = toEditableRecord(widget);
+    if (readPath(value, path) === next) return null;
+    if (path.startsWith('layout.')) {
+        const changed = writePath(value.layout, path.slice('layout.'.length), next);
+        const parsed = widgetLayoutSchema.safeParse(changed);
+        if (!parsed.success) return null;
+        const { order: _order, ...layout } = parsed.data;
+        return { type: 'widget.layout', widgetId: widget.id, changes: layout };
+    }
+    if (path.startsWith('props.')) {
+        const changed = writePath(value.props, path.slice('props.'.length), next);
+        return { type: 'widget.update', widgetId: widget.id, changes: { props: changed } };
+    }
+    if (path.startsWith('style.')) {
+        const changed = writePath(value.style, path.slice('style.'.length), next);
+        const parsed = widgetStyleSchema.safeParse(changed);
+        return parsed.success
+            ? { type: 'widget.update', widgetId: widget.id, changes: { style: parsed.data } }
+            : null;
+    }
+    if (path.startsWith('animation.')) {
+        const changed = writePath(value.animation, path.slice('animation.'.length), next);
+        const parsed = widgetAnimationSchema.safeParse(changed);
+        return parsed.success
+            ? { type: 'widget.update', widgetId: widget.id, changes: { animation: parsed.data } }
+            : null;
+    }
+    if (path === 'label' && typeof next === 'string') {
+        return { type: 'widget.update', widgetId: widget.id, changes: { label: next } };
+    }
+    if (path === 'locked' && typeof next === 'boolean') {
+        return { type: 'widget.update', widgetId: widget.id, changes: { locked: next } };
+    }
+    if (path === 'autoHide' && typeof next === 'boolean') {
+        return { type: 'widget.update', widgetId: widget.id, changes: { autoHide: next } };
+    }
+    return null;
 }
 
 export interface WidgetInspectorProps {
@@ -60,47 +111,8 @@ export function WidgetInspector({ schemas, controls, widgetId }: WidgetInspector
             schema={schemas.get(widget.kind).schema}
             controls={controls}
             onChange={(path, next) => {
-                if (path.startsWith('layout.')) {
-                    const changed = writePath(value.layout, path.slice('layout.'.length), next);
-                    const parsed = widgetLayoutSchema.safeParse(changed);
-                    if (!parsed.success) return;
-                    const { order: _order, ...layout } = parsed.data;
-                    runtime.engine.dispatch({
-                        type: 'widget.layout',
-                        widgetId: widget.id,
-                        changes: layout,
-                    });
-                    return;
-                }
-                if (path.startsWith('props.')) {
-                    const changed = writePath(value.props, path.slice('props.'.length), next);
-                    runtime.engine.dispatch({
-                        type: 'widget.update',
-                        widgetId: widget.id,
-                        changes: { props: changed },
-                    });
-                    return;
-                }
-                if (path.startsWith('style.')) {
-                    const changed = writePath(value.style, path.slice('style.'.length), next);
-                    const parsed = widgetStyleSchema.safeParse(changed);
-                    if (!parsed.success) return;
-                    runtime.engine.dispatch({
-                        type: 'widget.update',
-                        widgetId: widget.id,
-                        changes: { style: parsed.data },
-                    });
-                    return;
-                }
-                const current = readPath(value, path);
-                if (current === next) return;
-                if (path === 'label' && typeof next === 'string') {
-                    runtime.engine.dispatch({ type: 'widget.update', widgetId: widget.id, changes: { label: next } });
-                } else if (path === 'locked' && typeof next === 'boolean') {
-                    runtime.engine.dispatch({ type: 'widget.update', widgetId: widget.id, changes: { locked: next } });
-                } else if (path === 'autoHide' && typeof next === 'boolean') {
-                    runtime.engine.dispatch({ type: 'widget.update', widgetId: widget.id, changes: { autoHide: next } });
-                }
+                const operation = createWidgetInspectorOperation(widget, path, next);
+                if (operation) runtime.engine.dispatch(operation);
             }}
         />
     );
