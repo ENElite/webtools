@@ -61,6 +61,9 @@ export interface PluginDefinition<TProps extends JsonObject = JsonObject> {
     readonly label: string;
     readonly propsSchema: z.ZodType<TProps>;
     readonly defaultProps: TProps | (() => TProps);
+    /** Plugin-owned starting geometry, merged over the engine defaults when a widget is added. */
+    readonly defaultLayout?: Partial<Omit<WidgetLayout, 'order'>>
+        | (() => Partial<Omit<WidgetLayout, 'order'>>);
 }
 
 export interface WidgetDraft {

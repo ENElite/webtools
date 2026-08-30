@@ -1,4 +1,4 @@
-import type { JsonObject, PluginDefinition, WidgetCatalog, WidgetKind } from './types';
+import type { JsonObject, PluginDefinition, WidgetCatalog, WidgetKind, WidgetLayout } from './types';
 
 export function defineWidgetPlugin<TProps extends JsonObject>(
     definition: PluginDefinition<TProps>,
@@ -24,6 +24,9 @@ export function createWidgetCatalog(
             // Always return a fresh schema-owned value. Callers never receive the
             // catalog's canonical default object by reference.
             defaultProps: () => definition.propsSchema.parse(parsedDefaults),
+            ...(definition.defaultLayout === undefined
+                ? {}
+                : { defaultLayout: () => resolveDefaultLayout(definition) }),
         });
         registrations.set(definition.kind, registration);
     }
@@ -59,4 +62,14 @@ function resolveDefaults(definition: PluginDefinition): JsonObject {
     return typeof definition.defaultProps === 'function'
         ? definition.defaultProps()
         : definition.defaultProps;
+}
+
+export function resolveDefaultLayout(
+    definition: PluginDefinition,
+): Partial<Omit<WidgetLayout, 'order'>> {
+    if (definition.defaultLayout === undefined) return {};
+    const layout = typeof definition.defaultLayout === 'function'
+        ? definition.defaultLayout()
+        : definition.defaultLayout;
+    return { ...layout };
 }

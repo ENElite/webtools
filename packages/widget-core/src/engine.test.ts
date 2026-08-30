@@ -86,6 +86,46 @@ describe('widget engine operations', () => {
         expect(listener).toHaveBeenCalledOnce();
     });
 
+    it('merges plugin layout defaults before draft overrides', () => {
+        const positionedCatalog = createWidgetCatalog([
+            defineWidgetPlugin({
+                ...textPlugin,
+                kind: 'positioned-text',
+                defaultLayout: {
+                    anchorX: 'right',
+                    anchorY: 'bottom',
+                    x: -5,
+                    y: -5,
+                    w: 12,
+                    h: 24,
+                    adapt: 'fixed',
+                },
+            }),
+        ]);
+        const engine = createWidgetEngine({
+            catalog: positionedCatalog,
+            idGenerator: (scope) => scope === 'document' ? 'document-layout' : 'widget-layout',
+            clock: () => 1_000,
+        });
+
+        engine.dispatch({
+            type: 'widget.add',
+            widget: { kind: 'positioned-text', layout: { w: 18 } },
+        });
+
+        expect(engine.getSnapshot().document.widgets[0]?.layout).toMatchObject({
+            anchorX: 'right',
+            anchorY: 'bottom',
+            x: -5,
+            y: -5,
+            w: 18,
+            h: 24,
+            rotation: 0,
+            adapt: 'fixed',
+            order: 1,
+        });
+    });
+
     it('removes and restores a widget at its original position', () => {
         const engine = createTestEngine();
         addText(engine, 'a');

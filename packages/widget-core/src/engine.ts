@@ -1,4 +1,5 @@
 import { widgetEntitySchema } from './schemas';
+import { resolveDefaultLayout } from './catalog';
 import { createEmptyWidgetDocument, parseWidgetDocument } from './document';
 import { isWidgetTransaction } from './transaction';
 import type {
@@ -375,7 +376,12 @@ function createEntity(
         label: draft.label ?? plugin.label,
         props: catalog.createProps(draft.kind, draft.props),
         style: draft.style ?? {},
-        layout: { ...DEFAULT_WIDGET_LAYOUT, ...draft.layout, order: 1 },
+        layout: {
+            ...DEFAULT_WIDGET_LAYOUT,
+            ...resolveDefaultLayout(plugin),
+            ...draft.layout,
+            order: 1,
+        },
         locked: draft.locked ?? false,
         autoHide: draft.autoHide ?? false,
     }, catalog);
