@@ -10,8 +10,15 @@ import {
     Tabs as ArkTabs,
     Tooltip as ArkTooltip,
 } from '@ark-ui/react';
-import { forwardRef, useId } from 'react';
-import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from 'react';
+import { Fragment, cloneElement, forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react';
+import type {
+    ComponentProps,
+    HTMLAttributes,
+    MouseEventHandler,
+    PointerEventHandler,
+    ReactElement,
+    ReactNode,
+} from 'react';
 
 import { cx } from './utils';
 
@@ -24,38 +31,209 @@ export interface ContextMenuItem {
     tone?: 'default' | 'danger';
     separatorBefore?: boolean;
     onSelect?: () => void;
+    /** Child items are rendered as a real Ark UI submenu. */
+    items?: ReadonlyArray<ContextMenuItem>;
 }
 
 export interface ContextMenuProps {
     children: ReactElement;
     items: ReadonlyArray<ContextMenuItem>;
     'aria-label'?: string;
+    /** Delay before a stationary touch opens the menu. */
+    longPressDelay?: number;
+    /** Pointer movement in CSS pixels allowed while waiting for a long press. */
+    longPressMoveTolerance?: number;
+    onOpenChange?: (open: boolean) => void;
 }
 
-/** A pointer-positioned menu for app surfaces. Items own their action so callers stay type-safe. */
-export function ContextMenu({ children, items, 'aria-label': ariaLabel = '快捷菜单' }: ContextMenuProps) {
+interface ContextMenuTriggerProps {
+    onClick?: MouseEventHandler<HTMLElement>;
+    onContextMenu?: MouseEventHandler<HTMLElement>;
+    onPointerCancel?: PointerEventHandler<HTMLElement>;
+    onPointerDown?: PointerEventHandler<HTMLElement>;
+    onPointerMove?: PointerEventHandler<HTMLElement>;
+    onPointerUp?: PointerEventHandler<HTMLElement>;
+    style?: React.CSSProperties;
+}
+
+function menuAriaLabel(item: ContextMenuItem) {
+    return typeof item.label === 'string' ? `${item.label} 子菜单` : `${item.value} 子菜单`;
+}
+
+function MenuItemContent({ item, submenu = false }: { item: ContextMenuItem; submenu?: boolean }) {
     return (
-        <ArkMenu.Root lazyMount unmountOnExit positioning={{ gutter: 6 }}>
-            <ArkMenu.ContextTrigger asChild>{children}</ArkMenu.ContextTrigger>
+        <>
+            {item.icon ? <span className='wt-menu__icon' aria-hidden='true'>{item.icon}</span> : null}
+            <ArkMenu.ItemText className='wt-menu__label'>{item.label}</ArkMenu.ItemText>
+            <span className='wt-menu__meta'>
+                {item.shortcut ? <span className='wt-menu__shortcut'>{item.shortcut}</span> : null}
+                {submenu ? <span className='wt-menu__submenu-indicator' aria-hidden='true'>›</span> : null}
+            </span>
+        </>
+    );
+}
+
+function NestedContextMenu({ item, onAction }: { item: ContextMenuItem; onAction: (item: ContextMenuItem) => void }) {
+    const childItems = item.items ?? [];
+    return (
+        <ArkMenu.Root
+            lazyMount
+            unmountOnExit
+            aria-label={menuAriaLabel(item)}
+            positioning={{ placement: 'right-start', gutter: 4 }}
+        >
+            <ArkMenu.TriggerItem className='wt-menu__item wt-menu__item--submenu' data-tone={item.tone ?? 'default'}>
+                <MenuItemContent item={item} submenu />
+            </ArkMenu.TriggerItem>
+            <Portal>
+                <ArkMenu.Positioner className='wt-positioner wt-menu__positioner wt-menu__positioner--submenu'>
+                    <ArkMenu.Content className='wt-menu' aria-label={menuAriaLabel(item)}>
+                        <ContextMenuItems items={childItems} onAction={onAction} />
+                    </ArkMenu.Content>
+                </ArkMenu.Positioner>
+            </Portal>
+        </ArkMenu.Root>
+    );
+}
+
+function ContextMenuItems({
+    items,
+    onAction,
+}: {
+    items: ReadonlyArray<ContextMenuItem>;
+    onAction: (item: ContextMenuItem) => void;
+}) {
+    return items.map((item) => (
+        <Fragment key={item.value}>
+            {item.separatorBefore ? <ArkMenu.Separator className='wt-menu__separator' /> : null}
+            {item.items?.length && !item.disabled ? (
+                <NestedContextMenu item={item} onAction={onAction} />
+            ) : (
+                <ArkMenu.Item
+                    value={item.value}
+                    disabled={item.disabled}
+                    className='wt-menu__item'
+                    data-tone={item.tone ?? 'default'}
+                    onClick={item.disabled ? undefined : () => onAction(item)}
+                >
+                    <MenuItemContent item={item} submenu={Boolean(item.items?.length)} />
+                </ArkMenu.Item>
+            )}
+        </Fragment>
+    ));
+}
+
+/** A pointer-positioned menu with desktop context-click, tolerant touch long-press, and nested items. */
+export function ContextMenu({
+    children,
+    items,
+    'aria-label': ariaLabel = '快捷菜单',
+    longPressDelay = 550,
+    longPressMoveTolerance = 10,
+    onOpenChange,
+}: ContextMenuProps) {
+    const [open, setOpen] = useState(false);
+    const [anchorPoint, setAnchorPoint] = useState<{ x: number; y: number } | null>(null);
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const suppressClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+    const suppressNextClickRef = useRef(false);
+    const openRef = useRef(false);
+    const child = children as ReactElement<ContextMenuTriggerProps>;
+
+    const clearLongPress = useCallback(() => {
+        if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+        touchStartRef.current = null;
+    }, []);
+
+    const updateOpen = useCallback((nextOpen: boolean) => {
+        if (openRef.current === nextOpen) return;
+        openRef.current = nextOpen;
+        setOpen(nextOpen);
+        onOpenChange?.(nextOpen);
+    }, [onOpenChange]);
+
+    const runAction = useCallback((item: ContextMenuItem) => {
+        item.onSelect?.();
+        updateOpen(false);
+    }, [updateOpen]);
+
+    useEffect(() => () => {
+        clearLongPress();
+        if (suppressClickTimerRef.current !== null) clearTimeout(suppressClickTimerRef.current);
+    }, [clearLongPress]);
+
+    const trigger = cloneElement(child, {
+        onPointerDown: (event) => {
+            child.props.onPointerDown?.(event);
+            if (event.defaultPrevented || event.pointerType !== 'touch') return;
+            clearLongPress();
+            const point = { x: event.clientX, y: event.clientY };
+            touchStartRef.current = point;
+            longPressTimerRef.current = setTimeout(() => {
+                longPressTimerRef.current = null;
+                setAnchorPoint(point);
+                suppressNextClickRef.current = true;
+                updateOpen(true);
+                if (suppressClickTimerRef.current !== null) clearTimeout(suppressClickTimerRef.current);
+                suppressClickTimerRef.current = setTimeout(() => {
+                    suppressNextClickRef.current = false;
+                    suppressClickTimerRef.current = null;
+                }, 800);
+            }, Math.max(0, longPressDelay));
+        },
+        onPointerMove: (event) => {
+            child.props.onPointerMove?.(event);
+            const start = touchStartRef.current;
+            if (!start || event.pointerType !== 'touch') return;
+            if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > longPressMoveTolerance) {
+                clearLongPress();
+            }
+        },
+        onPointerUp: (event) => {
+            child.props.onPointerUp?.(event);
+            clearLongPress();
+        },
+        onPointerCancel: (event) => {
+            child.props.onPointerCancel?.(event);
+            clearLongPress();
+        },
+        onClick: (event) => {
+            if (suppressNextClickRef.current) {
+                suppressNextClickRef.current = false;
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            child.props.onClick?.(event);
+        },
+        onContextMenu: (event) => {
+            child.props.onContextMenu?.(event);
+            if (event.defaultPrevented) return;
+            event.preventDefault();
+            clearLongPress();
+            setAnchorPoint({ x: event.clientX, y: event.clientY });
+            updateOpen(true);
+        },
+        style: { WebkitTouchCallout: 'none', ...child.props.style },
+    });
+
+    return (
+        <ArkMenu.Root
+            open={open}
+            anchorPoint={anchorPoint}
+            onOpenChange={(details) => updateOpen(details.open)}
+            lazyMount
+            unmountOnExit
+            aria-label={ariaLabel}
+            positioning={{ gutter: 6 }}
+        >
+            {trigger}
             <Portal>
                 <ArkMenu.Positioner className='wt-positioner wt-menu__positioner'>
                     <ArkMenu.Content className='wt-menu' aria-label={ariaLabel}>
-                        {items.map((item) => (
-                            <div key={item.value} role='presentation'>
-                                {item.separatorBefore ? <ArkMenu.Separator className='wt-menu__separator' /> : null}
-                                <ArkMenu.Item
-                                    value={item.value}
-                                    disabled={item.disabled}
-                                    className='wt-menu__item'
-                                    data-tone={item.tone ?? 'default'}
-                                    onSelect={item.onSelect}
-                                >
-                                    {item.icon ? <span className='wt-menu__icon' aria-hidden='true'>{item.icon}</span> : null}
-                                    <ArkMenu.ItemText className='wt-menu__label'>{item.label}</ArkMenu.ItemText>
-                                    {item.shortcut ? <span className='wt-menu__shortcut'>{item.shortcut}</span> : null}
-                                </ArkMenu.Item>
-                            </div>
-                        ))}
+                        <ContextMenuItems items={items} onAction={runAction} />
                     </ArkMenu.Content>
                 </ArkMenu.Positioner>
             </Portal>
