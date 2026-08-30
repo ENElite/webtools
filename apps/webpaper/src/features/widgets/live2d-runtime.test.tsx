@@ -29,6 +29,14 @@ function createInstance(load: (listeners: Map<string, Listener>) => Promise<void
     };
 }
 
+function createLifecycleCallbacks() {
+    return {
+        onError: vi.fn(),
+        onProgress: vi.fn(),
+        onReady: vi.fn(),
+    };
+}
+
 async function flush() {
     await act(async () => {
         await Promise.resolve();
@@ -77,9 +85,11 @@ describe('Live2dWidgetRuntime', () => {
     });
 
     it('loads a model, reports progress and destroys the runtime on unmount', async () => {
+        const lifecycle = createLifecycleCallbacks();
         const instance = createInstance(async (listeners) => {
             listeners.get('loadstart')?.(2 as never);
             listeners.get('loadprogress')?.(1 as never, 2 as never, 'texture.png' as never);
+            listeners.get('loaded')?.();
             listeners.get('loaded')?.();
         });
         runtime.init.mockReturnValue(instance);
@@ -96,6 +106,7 @@ describe('Live2dWidgetRuntime', () => {
                     motionGroup='TapBody'
                     motionIndex={1}
                     motionPriority={3}
+                    {...lifecycle}
                 />,
             );
         });
@@ -108,6 +119,11 @@ describe('Live2dWidgetRuntime', () => {
         });
         expect(container.querySelector('[data-live2d-state="loaded"]')).not.toBeNull();
         expect(container.querySelector('canvas')?.style.pointerEvents).toBe('none');
+        expect(lifecycle.onProgress).toHaveBeenCalledWith(0, 2);
+        expect(lifecycle.onProgress).toHaveBeenCalledWith(1, 2);
+        expect(lifecycle.onProgress).toHaveBeenLastCalledWith(2, 2);
+        expect(lifecycle.onReady).toHaveBeenCalledOnce();
+        expect(lifecycle.onError).not.toHaveBeenCalled();
 
         act(() => root.unmount());
         expect(instance.destroy).toHaveBeenCalledOnce();
@@ -115,6 +131,7 @@ describe('Live2dWidgetRuntime', () => {
     });
 
     it('turns runtime failures into a visible error instead of a silent canvas', async () => {
+        const lifecycle = createLifecycleCallbacks();
         const instance = createInstance(async () => {
             throw new Error('network unavailable');
         });
@@ -132,6 +149,7 @@ describe('Live2dWidgetRuntime', () => {
                     motionGroup=''
                     motionIndex={-1}
                     motionPriority={2}
+                    {...lifecycle}
                 />,
             );
         });
@@ -139,9 +157,13 @@ describe('Live2dWidgetRuntime', () => {
 
         expect(container.querySelector('[role="alert"]')?.textContent).toContain('network unavailable');
         expect(instance.destroy).toHaveBeenCalledOnce();
+        expect(lifecycle.onReady).not.toHaveBeenCalled();
+        expect(lifecycle.onError).toHaveBeenCalledOnce();
+        expect(lifecycle.onError.mock.calls[0]?.[0]).toEqual(new Error('network unavailable'));
     });
 
     it('plays the configured model motion when the loaded canvas is clicked', async () => {
+        const lifecycle = createLifecycleCallbacks();
         const instance = createInstance(async (listeners) => {
             listeners.get('loaded')?.();
         });
@@ -159,6 +181,7 @@ describe('Live2dWidgetRuntime', () => {
                     motionGroup='TapBody'
                     motionIndex={1}
                     motionPriority={3}
+                    {...lifecycle}
                 />,
             );
         });

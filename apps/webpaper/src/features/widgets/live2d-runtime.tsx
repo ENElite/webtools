@@ -17,6 +17,9 @@ export type Live2dRuntimeProps = {
     readonly motionGroup: string;
     readonly motionIndex: number;
     readonly motionPriority: number;
+    readonly onReady: () => void;
+    readonly onError: (error?: unknown) => void;
+    readonly onProgress: (loaded: number, total: number) => void;
 };
 
 type LoadingState = {
@@ -126,6 +129,9 @@ export function Live2dWidgetRuntime({
     motionGroup,
     motionIndex,
     motionPriority,
+    onReady,
+    onError,
+    onProgress,
 }: Live2dRuntimeProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -148,19 +154,38 @@ export function Live2dWidgetRuntime({
         // a neutral initial value avoids reloading the model when precision changes.
         precisionCanvasRef.current ??= installPrecisionCanvas(canvas, 100);
 
+        let cancelled = false;
+        let terminal = false;
+        let instance: L2D | null = null;
+        let latestLoaded = 0;
+        let latestTotal = 0;
+        const complete = () => {
+            if (cancelled || terminal) return;
+            terminal = true;
+            const total = latestTotal > 0 ? latestTotal : 1;
+            onProgress(total, total);
+            onReady();
+        };
+        const fail = (error: unknown) => {
+            if (cancelled || terminal) return;
+            terminal = true;
+            onError(error);
+        };
+
         if (!modelPath.trim()) {
+            const error = new Error('请先在设置中选择或填写 Live2D 模型地址。');
             setState({
                 status: 'error',
                 loaded: 0,
                 total: 0,
-                message: '请先在设置中选择或填写 Live2D 模型地址。',
+                message: error.message,
             });
+            fail(error);
             return;
         }
 
-        let cancelled = false;
-        let instance: L2D | null = null;
         setState({ status: 'loading', loaded: 0, total: 0 });
+        onProgress(0, 0);
 
         // l2d@2.1.1 publishes a stale root `main`; use its real ESM entry.
         void import('l2d/dist/index.js').then(async ({ init }) => {
@@ -172,20 +197,34 @@ export function Live2dWidgetRuntime({
 
             let loaded = false;
             instance.on('loadstart', (total) => {
-                if (!cancelled) setState({ status: 'loading', loaded: 0, total });
+                if (cancelled || terminal) return;
+                latestLoaded = 0;
+                latestTotal = total;
+                setState({ status: 'loading', loaded: 0, total });
+                onProgress(0, total);
             });
             instance.on('loadprogress', (nextLoaded, total, file) => {
-                if (!cancelled) setState({
+                if (cancelled || terminal) return;
+                latestLoaded = nextLoaded;
+                latestTotal = total;
+                setState({
                     status: 'loading',
                     loaded: nextLoaded,
                     total,
                     file,
                 });
+                onProgress(nextLoaded, total);
             });
             instance.on('loaded', () => {
+                if (cancelled || terminal) return;
                 loaded = true;
                 instance?.setScale(scaleRef.current);
-                if (!cancelled) setState({ status: 'loaded', loaded: 1, total: 1 });
+                setState({
+                    status: 'loaded',
+                    loaded: latestTotal > 0 ? latestTotal : Math.max(latestLoaded, 1),
+                    total: latestTotal > 0 ? latestTotal : 1,
+                });
+                complete();
             });
 
             await instance.load({ path: modelPath, scale: scaleRef.current, logLevel: 'warn' });
@@ -193,7 +232,7 @@ export function Live2dWidgetRuntime({
             // Requiring the loaded event turns that silent failure into UI feedback.
             if (!loaded) throw new Error('模型资源未能完成加载，请检查地址、CORS 与模型文件。');
         }).catch((error: unknown) => {
-            if (cancelled) return;
+            if (cancelled || terminal) return;
             live2dInstanceRegistry.release(instance);
             if (instanceRef.current === instance) instanceRef.current = null;
             setState({
@@ -202,6 +241,7 @@ export function Live2dWidgetRuntime({
                 total: 0,
                 message: messageFrom(error),
             });
+            fail(error);
         });
 
         return () => {
@@ -209,7 +249,7 @@ export function Live2dWidgetRuntime({
             live2dInstanceRegistry.release(instance);
             if (instanceRef.current === instance) instanceRef.current = null;
         };
-    }, [modelPath]);
+    }, [modelPath, onError, onProgress, onReady]);
 
     useEffect(() => {
         instanceRef.current?.setScale(scale);

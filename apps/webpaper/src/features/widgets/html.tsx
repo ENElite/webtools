@@ -30,12 +30,20 @@ export const htmlWidgetDefinition = defineWidgetPlugin({
 
 export const htmlWidgetView = defineWidgetView<HtmlWidgetProps>({
     kind: 'html',
-    View: ({ widget }) => (
+    readinessKey: ({ props }) => `html:${props.html}`,
+    View: ({ widget, onError, onProgress, onReady }) => (
         <iframe
+            ref={(frame) => {
+                if (frame) frame.onerror = () => onError(new Error('HTML 预览加载失败。'));
+            }}
             srcDoc={widget.props.html}
             title={widget.props.title}
             sandbox=''
             referrerPolicy='no-referrer'
+            onLoad={() => {
+                onProgress(1, 1);
+                onReady();
+            }}
             style={{ border: 0, display: 'block', height: '100%', width: '100%' }}
         />
     ),

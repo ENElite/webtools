@@ -28,12 +28,18 @@ export const imageWidgetDefinition = defineWidgetPlugin({
 
 export const imageWidgetView = defineWidgetView<ImageWidgetProps>({
     kind: 'image',
-    View: ({ widget }) => (
+    readinessKey: ({ props }) => `image:${props.src}`,
+    View: ({ widget, onError, onProgress, onReady }) => (
         <img
             src={widget.props.src}
             alt={widget.props.alt}
             draggable={false}
             referrerPolicy='no-referrer'
+            onError={() => onError(new Error(`图片加载失败：${widget.props.src}`))}
+            onLoad={() => {
+                onProgress(1, 1);
+                onReady();
+            }}
             style={{
                 display: 'block',
                 height: '100%',

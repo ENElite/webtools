@@ -34,6 +34,12 @@ export const live2dWidgetPropsSchema = z.object({
 
 export type Live2dWidgetProps = z.infer<typeof live2dWidgetPropsSchema>;
 
+export function resolveLive2dModelPath(props: Live2dWidgetProps): string {
+    return props.source === 'url'
+        ? (props.modelUrl || props.modelPath)
+        : props.modelPath;
+}
+
 export const live2dWidgetDefinition = defineWidgetPlugin({
     kind: 'live2d',
     label: 'Live2D',
@@ -64,10 +70,9 @@ export const live2dWidgetDefinition = defineWidgetPlugin({
 
 export const live2dWidgetView = defineWidgetView<Live2dWidgetProps>({
     kind: 'live2d',
-    View: ({ widget }) => {
-        const configuredModel = widget.props.source === 'url'
-            ? (widget.props.modelUrl || widget.props.modelPath)
-            : widget.props.modelPath;
+    readinessKey: ({ props }) => `live2d:${resolveLive2dModelPath(props)}`,
+    View: ({ widget, onError, onProgress, onReady }) => {
+        const configuredModel = resolveLive2dModelPath(widget.props);
         return (
             <Live2dWidgetRuntime
                 modelPath={configuredModel}
@@ -79,6 +84,9 @@ export const live2dWidgetView = defineWidgetView<Live2dWidgetProps>({
                 motionGroup={widget.props.motionGroup}
                 motionIndex={widget.props.motionIndex}
                 motionPriority={widget.props.motionPriority}
+                onError={onError}
+                onProgress={onProgress}
+                onReady={onReady}
             />
         );
     },

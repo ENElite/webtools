@@ -32,7 +32,8 @@ export const videoWidgetDefinition = defineWidgetPlugin({
 
 export const videoWidgetView = defineWidgetView<VideoWidgetProps>({
     kind: 'video',
-    View: ({ widget }) => (
+    readinessKey: ({ props }) => `video:${props.src}`,
+    View: ({ widget, onError, onProgress: reportProgress, onReady }) => (
         <video
             src={widget.props.src}
             poster={widget.props.poster || undefined}
@@ -42,6 +43,21 @@ export const videoWidgetView = defineWidgetView<VideoWidgetProps>({
             controls={widget.props.controls}
             playsInline
             preload='metadata'
+            onError={() => onError(new Error(`视频加载失败：${widget.props.src}`))}
+            onLoadedData={() => {
+                reportProgress(1, 1);
+                onReady();
+            }}
+            onProgress={(event) => {
+                const video = event.currentTarget;
+                const total = Number.isFinite(video.duration) && video.duration > 0
+                    ? video.duration
+                    : 1;
+                const loaded = video.buffered.length > 0
+                    ? Math.min(video.buffered.end(video.buffered.length - 1), total)
+                    : 0;
+                reportProgress(loaded, total);
+            }}
             style={{
                 display: 'block',
                 height: '100%',

@@ -29,14 +29,24 @@ export const iframeWidgetDefinition = defineWidgetPlugin({
 
 export const iframeWidgetView = defineWidgetView<IframeWidgetProps>({
     kind: 'iframe',
-    View: ({ widget }) => (
+    readinessKey: ({ props }) => `iframe:${props.url}`,
+    View: ({ widget, onError, onProgress, onReady }) => (
         <iframe
+            ref={(frame) => {
+                if (frame) {
+                    frame.onerror = () => onError(new Error(`网页加载失败：${widget.props.url}`));
+                }
+            }}
             src={widget.props.url}
             title={widget.props.title}
             sandbox='allow-forms allow-popups allow-presentation allow-scripts'
             allow={widget.props.allow}
             referrerPolicy='no-referrer'
-            loading='lazy'
+            loading='eager'
+            onLoad={() => {
+                onProgress(1, 1);
+                onReady();
+            }}
             style={{ border: 0, display: 'block', height: '100%', width: '100%' }}
         />
     ),
