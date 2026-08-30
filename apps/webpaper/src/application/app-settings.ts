@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+import {
+    findKonachanRating,
+    KONACHAN_RATINGS,
+    sanitizeKonachanUserTags,
+} from '../domain';
+
 export const APP_SETTINGS_STORAGE_KEY = 'webpaper.settings.v2';
 
 const playerSettingsSchema = z.object({
@@ -20,6 +26,7 @@ export const appSettingsSchema = z.object({
     }),
     konachan: z.object({
         tags: z.string(),
+        rating: z.enum(KONACHAN_RATINGS),
         quality: z.enum(['file_url', 'jpeg_url', 'sample_url', 'preview_url']),
     }),
     jsonContent: z.string(),
@@ -38,7 +45,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
         categoryId: '',
     },
     konachan: {
-        tags: 'rating:safe',
+        tags: '',
+        rating: 'safe',
         quality: 'jpeg_url',
     },
     jsonContent: JSON.stringify([
@@ -62,8 +70,8 @@ export function loadAppSettings(storage: Pick<Storage, 'getItem'>): AppSettings 
     const serialized = storage.getItem(APP_SETTINGS_STORAGE_KEY);
     if (serialized === null) return structuredClone(DEFAULT_APP_SETTINGS);
     try {
-        const parsed = appSettingsSchema.safeParse(JSON.parse(serialized));
-        return parsed.success ? parsed.data : structuredClone(DEFAULT_APP_SETTINGS);
+        const parsed = appSettingsSchema.safeParse(migratePersistedSettings(JSON.parse(serialized)));
+        return parsed.success ? normalizeAppSettings(parsed.data) : structuredClone(DEFAULT_APP_SETTINGS);
     } catch {
         return structuredClone(DEFAULT_APP_SETTINGS);
     }
@@ -73,5 +81,39 @@ export function saveAppSettings(
     storage: Pick<Storage, 'setItem'>,
     settings: AppSettings,
 ): void {
-    storage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(appSettingsSchema.parse(settings)));
+    storage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(
+        normalizeAppSettings(appSettingsSchema.parse(settings)),
+    ));
+}
+
+function normalizeAppSettings(settings: AppSettings): AppSettings {
+    return {
+        ...settings,
+        konachan: {
+            ...settings.konachan,
+            tags: sanitizeKonachanUserTags(settings.konachan.tags),
+        },
+    };
+}
+
+function migratePersistedSettings(input: unknown): unknown {
+    if (!isRecord(input) || !isRecord(input['konachan'])) return input;
+    const konachan = input['konachan'];
+    const tags = typeof konachan['tags'] === 'string' ? konachan['tags'] : '';
+    const storedRating = typeof konachan['rating'] === 'string'
+        && KONACHAN_RATINGS.some((rating) => rating === konachan['rating'])
+        ? konachan['rating']
+        : undefined;
+    return {
+        ...input,
+        konachan: {
+            ...konachan,
+            tags: sanitizeKonachanUserTags(tags),
+            rating: storedRating ?? findKonachanRating(tags) ?? 'safe',
+        },
+    };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

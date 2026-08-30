@@ -28,14 +28,18 @@ describe('Konachan media source', () => {
             sourceId: 'konachan',
             page: 3,
             pageSize: 2,
-            params: { tags: 'rating:safe cat & girl', quality: 'jpeg_url' },
+            params: {
+                tags: 'rating:explicit cat cat & girl rating:safe',
+                rating: 'questionable',
+                quality: 'jpeg_url',
+            },
         });
 
         const requestedUrl = new URL(String(fetchMock.mock.calls[0]?.[0]), 'https://webpaper.test');
         expect(requestedUrl.pathname).toBe('/api/konachan');
         expect(requestedUrl.searchParams.get('page')).toBe('3');
         expect(requestedUrl.searchParams.get('limit')).toBe('2');
-        expect(requestedUrl.searchParams.get('tags')).toBe('rating:safe cat & girl');
+        expect(requestedUrl.searchParams.get('tags')).toBe('cat & girl rating:questionable');
         expect(page.hasMore).toBe(true);
         expect(page.items[0]).toMatchObject({
             id: 'konachan:1',

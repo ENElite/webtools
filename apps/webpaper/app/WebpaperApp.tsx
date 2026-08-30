@@ -31,7 +31,7 @@ import {
     saveWidgetDocument,
     type AppSettings,
 } from '../src/application';
-import type { MediaItem } from '../src/domain';
+import { sanitizeKonachanUserTags, type MediaItem } from '../src/domain';
 import { HistoryDrawer } from '../src/features/history';
 import { createWebPaperMediaCatalog, type MediaSourceSelection } from '../src/features/media';
 import {
@@ -42,6 +42,7 @@ import {
     useMediaPlayer,
 } from '../src/features/player';
 import { createBuiltInWidgetCatalogs } from '../src/features/widgets';
+import { toSelection } from './source-selection';
 
 export function WebpaperApp() {
     const [mounted, setMounted] = useState(false);
@@ -538,11 +539,41 @@ function SourceFields({
     }
     if (settings.source === 'konachan') {
         return (
-            <Field label='标签' description='多个标签使用空格分隔'>
-                <TextInput value={settings.konachan.tags} onChange={(event) => onChange({
-                    konachan: { ...settings.konachan, tags: event.currentTarget.value },
-                })} />
-            </Field>
+            <>
+                <Field label='年龄分级'>
+                    <Select
+                        options={[
+                            { value: 'safe', label: '全年龄（Safe）' },
+                            { value: 'questionable', label: '敏感内容（Questionable）' },
+                            { value: 'explicit', label: '成人内容（Explicit）' },
+                        ]}
+                        value={settings.konachan.rating}
+                        onValueChange={(rating) => {
+                            if (!rating) return;
+                            onChange({
+                                konachan: {
+                                    ...settings.konachan,
+                                    rating: rating as AppSettings['konachan']['rating'],
+                                },
+                            });
+                        }}
+                    />
+                </Field>
+                <Field label='标签' description='多个标签使用空格分隔；rating:* 将由年龄分级自动管理'>
+                    <TextInput
+                        value={settings.konachan.tags}
+                        onChange={(event) => onChange({
+                            konachan: { ...settings.konachan, tags: event.currentTarget.value },
+                        })}
+                        onBlur={(event) => onChange({
+                            konachan: {
+                                ...settings.konachan,
+                                tags: sanitizeKonachanUserTags(event.currentTarget.value),
+                            },
+                        })}
+                    />
+                </Field>
+            </>
         );
     }
     return (
@@ -588,29 +619,6 @@ function createEngine(catalog: ReturnType<typeof createBuiltInWidgetCatalogs>['d
         persistenceWarning: persisted.kind === 'invalid'
             ? '旧版小组件数据与 v2 架构不兼容，已使用默认布局。'
             : null,
-    };
-}
-
-function toSelection(settings: AppSettings): MediaSourceSelection {
-    if (settings.source === 'bird-paper') {
-        const params = settings.bird.mode === 'search' && settings.bird.query.trim()
-            ? { mode: 'search' as const, query: settings.bird.query.trim() }
-            : settings.bird.mode === 'category' && settings.bird.categoryId.trim()
-                ? { mode: 'category' as const, categoryId: settings.bird.categoryId.trim() }
-                : { mode: 'latest' as const };
-        return { sourceId: 'bird-paper', pageSize: settings.pageSize, params };
-    }
-    if (settings.source === 'konachan') {
-        return {
-            sourceId: 'konachan',
-            pageSize: settings.pageSize,
-            params: { tags: settings.konachan.tags, quality: settings.konachan.quality },
-        };
-    }
-    return {
-        sourceId: 'json',
-        pageSize: settings.pageSize,
-        params: { content: settings.jsonContent },
     };
 }
 

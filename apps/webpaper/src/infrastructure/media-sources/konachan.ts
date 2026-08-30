@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 import {
     assertMediaQuery,
+    buildKonachanTags,
+    KONACHAN_RATINGS,
     MediaSourceError,
+    type KonachanRating,
     type ImageMediaItem,
     type MediaPage,
     type MediaSource,
@@ -23,6 +26,7 @@ export type KonachanQuality = (typeof KONACHAN_QUALITY_KEYS)[number];
 
 export interface KonachanQueryParams {
     readonly tags?: string;
+    readonly rating?: KonachanRating;
     readonly quality?: KonachanQuality;
 }
 
@@ -33,6 +37,7 @@ export interface CreateKonachanSourceOptions {
 
 const KonachanParamsSchema = z.object({
     tags: z.string().trim().optional(),
+    rating: z.enum(KONACHAN_RATINGS).optional(),
     quality: z.enum(KONACHAN_QUALITY_KEYS).optional(),
 });
 
@@ -79,7 +84,7 @@ export function createKonachanSource(
             const url = buildSameOriginUrl(KONACHAN_SOURCE_ID, endpoint, {
                 page: query.page,
                 limit: pageSize,
-                tags: params.tags || undefined,
+                tags: buildKonachanTags(params.tags ?? '', params.rating ?? 'safe'),
             });
             const payload = await fetchJson({
                 sourceId: KONACHAN_SOURCE_ID,
