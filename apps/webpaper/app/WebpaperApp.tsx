@@ -250,6 +250,7 @@ function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: Med
                         signals={runtimeSignals.hub}
                         status={player.status}
                         error={player.error}
+                        imagePreloaded={player.currentImagePreloaded}
                         settings={settings.player}
                         onMediaError={() => void player.controller.handleMediaError()}
                         onVideoEnded={() => void player.controller.next()}

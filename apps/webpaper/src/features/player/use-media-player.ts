@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 
-import { selectCurrentMedia, type MediaItem } from '../../domain';
+import { selectCurrentMedia, selectNextMedia, type MediaItem } from '../../domain';
+import {
+    browserImagePreloadCache,
+    type ImagePreloadCache,
+} from './image-preload-cache';
 import {
     createMediaPlayerController,
     type CreateMediaPlayerControllerOptions,
@@ -12,7 +16,12 @@ import {
 
 export interface UseMediaPlayerResult extends MediaPlayerState {
     readonly currentMedia: MediaItem | null;
+    readonly currentImagePreloaded: boolean;
     readonly controller: MediaPlayerController;
+}
+
+export interface UseMediaPlayerOptions extends CreateMediaPlayerControllerOptions {
+    readonly imagePreloadCache?: ImagePreloadCache;
 }
 
 /**
@@ -20,7 +29,7 @@ export interface UseMediaPlayerResult extends MediaPlayerState {
  * lives in this effect and never becomes application/domain state.
  */
 export function useMediaPlayer(
-    options: CreateMediaPlayerControllerOptions,
+    options: UseMediaPlayerOptions,
 ): UseMediaPlayerResult {
     const controller = useMemo(
         () => createMediaPlayerController(options),
@@ -32,6 +41,10 @@ export function useMediaPlayer(
         controller.getSnapshot,
     );
     const lifecycle = useRef<ControllerLifecycle | null>(null);
+    const imagePreloadCache = options.imagePreloadCache ?? browserImagePreloadCache;
+    const currentMedia = selectCurrentMedia(state.session);
+    const nextMedia = selectNextMedia(state.session);
+    const nextImageUrl = nextMedia?.kind === 'image' ? nextMedia.url : null;
 
     useEffect(() => {
         const generation = (lifecycle.current?.generation ?? 0) + 1;
@@ -55,9 +68,16 @@ export function useMediaPlayer(
         return () => globalThis.clearInterval(intervalId);
     }, [controller, state.session.autoplay]);
 
+    useEffect(() => {
+        if (!nextImageUrl) return;
+        void imagePreloadCache.preload(nextImageUrl);
+    }, [imagePreloadCache, nextImageUrl]);
+
     return {
         ...state,
-        currentMedia: selectCurrentMedia(state.session),
+        currentMedia,
+        currentImagePreloaded: currentMedia?.kind === 'image'
+            && imagePreloadCache.isReady(currentMedia.url),
         controller,
     };
 }

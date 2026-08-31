@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MediaSourceCatalog } from '../../application';
 import type { ImageMediaItem, MediaPage, MediaSource } from '../../domain';
 import type { JsonMediaQueryParams } from '../../infrastructure';
+import type { ImagePreloadCache } from './image-preload-cache';
 import { useMediaPlayer } from './use-media-player';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -77,6 +78,38 @@ describe('useMediaPlayer', () => {
         request.resolve(page([]));
         await request.promise;
     });
+
+    it('preloads the next image and exposes it as immediately displayable after navigation', async () => {
+        const ready = new Set<string>();
+        const imagePreloadCache: ImagePreloadCache = {
+            preload: vi.fn(async (url) => {
+                ready.add(url);
+                return true;
+            }),
+            isReady: (url) => ready.has(url),
+            getStatus: (url) => ready.has(url) ? 'ready' : null,
+            clear: () => ready.clear(),
+        };
+        const source: MediaSource<JsonMediaQueryParams, ImageMediaItem> = {
+            id: 'json',
+            fetchPage: async () => page([image('first'), image('second')]),
+        };
+        const catalog = new MediaSourceCatalog([source]);
+        const host = document.createElement('div');
+        mountedRoot = createRoot(host);
+
+        await act(async () => {
+            mountedRoot?.render(
+                <ImageCacheProbe catalog={catalog} imagePreloadCache={imagePreloadCache} />,
+            );
+            await Promise.resolve();
+        });
+
+        expect(imagePreloadCache.preload).toHaveBeenCalledWith('/second.jpg');
+        expect(host.querySelector('output')?.textContent).toBe('first:false');
+        await act(async () => host.querySelector('button')?.click());
+        expect(host.querySelector('output')?.textContent).toBe('second:true');
+    });
 });
 
 function PlayerProbe({ catalog }: { readonly catalog: MediaSourceCatalog }) {
@@ -87,6 +120,27 @@ function PlayerProbe({ catalog }: { readonly catalog: MediaSourceCatalog }) {
     }, [player.controller]);
 
     return <output>{player.status}:{player.currentMedia?.id ?? 'none'}</output>;
+}
+
+function ImageCacheProbe({
+    catalog,
+    imagePreloadCache,
+}: {
+    readonly catalog: MediaSourceCatalog;
+    readonly imagePreloadCache: ImagePreloadCache;
+}) {
+    const player = useMediaPlayer({ catalog, imagePreloadCache });
+
+    useEffect(() => {
+        void player.controller.switchSource(TEST_SELECTION);
+    }, [player.controller]);
+
+    return (
+        <>
+            <output>{player.currentMedia?.id ?? 'none'}:{String(player.currentImagePreloaded)}</output>
+            <button type='button' onClick={() => void player.controller.next()}>Next</button>
+        </>
+    );
 }
 
 const TEST_SELECTION = {

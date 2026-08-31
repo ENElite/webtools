@@ -1,11 +1,11 @@
 import { WebpaperApp } from './WebpaperApp';
-import { preloadFirstMediaImage } from './preload-first-media';
+import { preloadInitialMediaImages } from './preload-initial-media';
 import { prefetchDefaultKonachanPage } from './server-konachan-prefetch';
 
 export const revalidate = 60;
 
 export default async function Page() {
     const initialMediaPage = await prefetchDefaultKonachanPage();
-    preloadFirstMediaImage(initialMediaPage);
+    preloadInitialMediaImages(initialMediaPage);
     return <WebpaperApp {...(initialMediaPage ? { initialMediaPage } : {})} />;
 }

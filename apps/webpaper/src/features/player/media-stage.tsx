@@ -38,6 +38,7 @@ export interface MediaStageProps {
     readonly signals: SignalHub<ComponentRuntimeSignalMap>;
     readonly status?: MediaPlayerLoadStatus;
     readonly error?: Error | null;
+    readonly imagePreloaded?: boolean;
     readonly settings: Pick<
         MediaPlayerSettings,
         'objectFit' | 'videoMuted' | 'videoControls' | 'videoAdvanceOnEnded'
@@ -51,13 +52,15 @@ export function MediaStage({
     signals,
     status = 'idle',
     error = null,
+    imagePreloaded = false,
     settings,
     onMediaError,
     onVideoEnded,
 }: MediaStageProps) {
     const [readyMediaKey, setReadyMediaKey] = useState<string | null>(null);
     const mediaKey = item ? `${item.sourceId}:${item.kind}:${item.id}:${item.url}` : null;
-    const mediaReady = mediaKey !== null && readyMediaKey === mediaKey;
+    const cachedImageReady = imagePreloaded && item?.kind === 'image';
+    const mediaReady = mediaKey !== null && (readyMediaKey === mediaKey || cachedImageReady);
     const resourceKey = mediaKey ?? 'awaiting-media';
     const renderRef = useRef<{ readonly resourceKey: string; readonly generation: number } | null>(null);
     if (!renderRef.current || renderRef.current.resourceKey !== resourceKey) {
@@ -106,6 +109,10 @@ export function MediaStage({
         const active = activeAttemptRef.current;
         if (active?.generation === generation) active.attempt.complete();
     }, [generation, mediaKey]);
+
+    useEffect(() => {
+        if (cachedImageReady) handleMediaReady();
+    }, [cachedImageReady, handleMediaReady]);
 
     const reportMediaError = useCallback((failure: unknown) => {
         if (renderRef.current?.generation !== generation) return;

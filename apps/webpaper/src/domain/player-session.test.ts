@@ -5,6 +5,7 @@ import {
     createPlayerSession,
     reducePlayerSession,
     selectCurrentMedia,
+    selectNextMedia,
 } from './player-session';
 
 function image(id: string): ImageMediaItem {
@@ -30,6 +31,8 @@ describe('player session state machine', () => {
         expect(stillLast).toBe(last);
         expect(last.history.map((item) => item.id)).toEqual(['a', 'b', 'c']);
         expect(selectCurrentMedia(last)?.id).toBe('c');
+        expect(selectNextMedia(initial)?.id).toBe('b');
+        expect(selectNextMedia(last)).toBeNull();
     });
 
     it('has an explicit history mode with circular history navigation', () => {
@@ -41,6 +44,7 @@ describe('player session state machine', () => {
 
         expect(session.mode).toEqual({ kind: 'history', cursor: 0 });
         expect(selectCurrentMedia(session)?.id).toBe('a');
+        expect(selectNextMedia(session)?.id).toBe('b');
 
         session = reducePlayerSession(session, { type: 'history.left' });
         expect(selectCurrentMedia(session)?.id).toBe('c');

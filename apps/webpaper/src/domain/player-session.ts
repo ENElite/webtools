@@ -47,6 +47,17 @@ export function selectCurrentMedia(session: PlayerSession): MediaItem | null {
     return session.cursor === null ? null : session.items[session.cursor] ?? null;
 }
 
+/** Returns the media reached by the next forward navigation, without mutating history. */
+export function selectNextMedia(session: PlayerSession): MediaItem | null {
+    if (session.mode.kind === 'history') {
+        if (session.history.length < 2) return null;
+        const cursor = wrapCursor(session.mode.cursor + 1, session.history.length);
+        return session.history[cursor] ?? null;
+    }
+    if (session.cursor === null) return null;
+    return session.items[session.cursor + 1] ?? null;
+}
+
 export function reducePlayerSession(
     session: PlayerSession,
     event: PlayerSessionEvent,

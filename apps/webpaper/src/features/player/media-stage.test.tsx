@@ -91,6 +91,50 @@ describe('MediaStage', () => {
         expect(markup).toContain('poster="/poster.jpg"');
     });
 
+    it('displays and settles a preloaded image without waiting for another load event', async () => {
+        const host = document.createElement('div');
+        const root = createRoot(host);
+        const runtime = createWebpaperRuntimeSignals([]);
+        const stopBarrier = runtime.startupBarrier.start();
+        const item: ImageMediaItem = {
+            id: 'cached-image',
+            sourceId: 'json',
+            kind: 'image',
+            url: '/cached-image.jpg',
+            raw: null,
+        };
+
+        try {
+            act(() => {
+                root.render(
+                    <>
+                        <MediaStage
+                            item={item}
+                            signals={runtime.hub}
+                            imagePreloaded
+                            settings={DEFAULT_MEDIA_PLAYER_SETTINGS}
+                            onMediaError={vi.fn()}
+                            onVideoEnded={vi.fn()}
+                        />
+                        <StartupStandby runtime={runtime} />
+                    </>,
+                );
+            });
+            await act(async () => Promise.resolve());
+
+            expect(host.querySelector('.wp-media-stage')?.getAttribute('data-media-ready')).toBe('true');
+            expect(runtime.startupBarrier.getSnapshot()).toMatchObject({
+                status: 'complete',
+                pending: 0,
+                failedIds: [],
+            });
+            expect(host.querySelector('.wp-stage-status')?.getAttribute('data-phase')).toBe('celebrating');
+        } finally {
+            act(() => root.unmount());
+            stopBarrier();
+        }
+    });
+
     it('waits for both the initial widgets and wallpaper before leaving standby', async () => {
         vi.useFakeTimers();
         const host = document.createElement('div');
