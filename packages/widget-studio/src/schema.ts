@@ -94,18 +94,13 @@ export const COMMON_WIDGET_INSPECTOR_SCHEMA: InspectorSchema = Object.freeze({
         { key: 'common-locked', label: '锁定', path: 'locked', control: 'boolean', page: 'basic', order: 200 },
         { key: 'common-auto-hide', label: '自动隐藏', path: 'autoHide', control: 'boolean', page: 'basic', order: 300 },
 
-        { key: 'common-x', label: 'X', path: 'layout.x', control: 'number', page: 'layout', order: 100, step: 0.1 },
-        { key: 'common-y', label: 'Y', path: 'layout.y', control: 'number', page: 'layout', order: 200, step: 0.1 },
-        { key: 'common-width', label: '宽度', path: 'layout.w', control: 'number', page: 'layout', order: 300, min: 0.1, step: 0.1 },
-        { key: 'common-height', label: '高度', path: 'layout.h', control: 'number', page: 'layout', order: 400, min: 0.1, step: 0.1 },
-        { key: 'common-rotation', label: '旋转', path: 'layout.rotation', control: 'number', page: 'layout', order: 500, step: 1 },
         {
             key: 'common-anchor-x',
             label: '水平锚点',
             path: 'layout.anchorX',
             control: 'enum',
             page: 'layout',
-            order: 600,
+            order: 100,
             options: [
                 { label: '左', value: 'left' },
                 { label: '中', value: 'center' },
@@ -118,7 +113,7 @@ export const COMMON_WIDGET_INSPECTOR_SCHEMA: InspectorSchema = Object.freeze({
             path: 'layout.anchorY',
             control: 'enum',
             page: 'layout',
-            order: 700,
+            order: 200,
             options: [
                 { label: '上', value: 'top' },
                 { label: '中', value: 'center' },
@@ -131,7 +126,7 @@ export const COMMON_WIDGET_INSPECTOR_SCHEMA: InspectorSchema = Object.freeze({
             path: 'layout.adapt',
             control: 'enum',
             page: 'layout',
-            order: 800,
+            order: 300,
             options: [
                 { label: '拉伸', value: 'stretch' },
                 { label: '固定', value: 'fixed' },

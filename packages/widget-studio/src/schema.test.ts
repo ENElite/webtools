@@ -28,11 +28,6 @@ describe('widget inspector catalog', () => {
             'label',
             'locked',
             'autoHide',
-            'layout.x',
-            'layout.y',
-            'layout.w',
-            'layout.h',
-            'layout.rotation',
             'layout.anchorX',
             'layout.anchorY',
             'layout.adapt',
@@ -60,13 +55,11 @@ describe('widget inspector catalog', () => {
         expect(schema.fields
             .filter((field) => field.page === 'layout')
             .map(({ label, path, control }) => ({ label, path, control })))
-            .toEqual(expect.arrayContaining([
-                { label: 'X', path: 'layout.x', control: 'number' },
-                { label: 'Y', path: 'layout.y', control: 'number' },
-                { label: '宽度', path: 'layout.w', control: 'number' },
-                { label: '高度', path: 'layout.h', control: 'number' },
-                { label: '旋转', path: 'layout.rotation', control: 'number' },
-            ]));
+            .toEqual([
+                { label: '水平锚点', path: 'layout.anchorX', control: 'enum' },
+                { label: '垂直锚点', path: 'layout.anchorY', control: 'enum' },
+                { label: '适配方式', path: 'layout.adapt', control: 'enum' },
+            ]);
     });
 
     it('lets a plugin override a common field without rendering it twice', () => {

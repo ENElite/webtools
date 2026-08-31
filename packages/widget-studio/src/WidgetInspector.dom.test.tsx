@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 describe('WidgetInspector layout page', () => {
-    it('shows current geometry values and dispatches an edit after switching to layout', async () => {
+    it('hides canvas geometry while keeping layout strategy controls', async () => {
         const engine = createWidgetEngine({ catalog });
         engine.dispatch({
             type: 'widget.add',
@@ -80,36 +80,19 @@ describe('WidgetInspector layout page', () => {
         });
         expect(layoutTab?.getAttribute('aria-selected')).toBe('true');
 
-        const expectedValues = [
-            ['X', '11'],
-            ['Y', '-7'],
-            ['宽度', '36'],
-            ['高度', '24'],
-            ['旋转', '15'],
-        ] as const;
-        for (const [label, currentValue] of expectedValues) {
+        for (const label of ['X', 'Y', '宽度', '高度', '旋转']) {
             const input = host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
-            expect(input, `${label} input`).not.toBeNull();
-            expect(input?.value).toBe(currentValue);
+            expect(input, `${label} input`).toBeNull();
         }
-
-        const xInput = host.querySelector<HTMLInputElement>('input[aria-label="X"]');
-        const increment = xInput?.closest('.wt-number-input')
-            ?.querySelector<HTMLButtonElement>('button[aria-label="Increase value"]');
-        expect(increment).not.toBeNull();
-        await act(async () => {
-            for (const type of ['pointerdown', 'pointerup']) {
-                const event = new MouseEvent(type, {
-                    bubbles: true,
-                    cancelable: true,
-                    button: 0,
-                });
-                Object.defineProperty(event, 'pointerType', { value: 'mouse' });
-                increment?.dispatchEvent(event);
-            }
-            await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(host.textContent).toContain('水平锚点');
+        expect(host.textContent).toContain('垂直锚点');
+        expect(host.textContent).toContain('适配方式');
+        expect(engine.getSnapshot().document.widgets[0]?.layout).toMatchObject({
+            x: 11,
+            y: -7,
+            w: 36,
+            h: 24,
+            rotation: 15,
         });
-
-        expect(engine.getSnapshot().document.widgets[0]?.layout.x).toBe(11.1);
     });
 });

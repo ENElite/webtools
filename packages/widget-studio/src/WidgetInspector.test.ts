@@ -59,7 +59,7 @@ describe('WidgetInspector operations', () => {
         )).toBeNull();
     });
 
-    it('edits every primary geometry field shown on the layout page', () => {
+    it('keeps validated geometry operations available to the canvas runtime', () => {
         const engine = createWidgetEngine({ catalog });
         engine.dispatch({ type: 'widget.add', widget: { kind: 'test-widget' } });
         const changes = [
