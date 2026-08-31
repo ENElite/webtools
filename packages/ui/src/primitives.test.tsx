@@ -397,6 +397,8 @@ describe('Mochi primitives', () => {
         );
         const sliderRoot = host.querySelector<HTMLElement>('.wt-slider');
         const control = host.querySelector<HTMLElement>('.wt-slider__control');
+        const valueText = host.querySelector<HTMLElement>('.wt-slider__value');
+        expect(valueText?.textContent).toBe('0');
         vi.spyOn(control as HTMLElement, 'getBoundingClientRect').mockReturnValue({
             x: 0,
             y: 0,
@@ -419,6 +421,7 @@ describe('Mochi primitives', () => {
         });
 
         expect(onValueChange).toHaveBeenLastCalledWith(80);
+        expect(valueText?.textContent).toBe('80');
         expect(sliderRoot?.style.getPropertyValue('--slider-thumb-offset-0')).toContain('80%');
 
         const styles = readUiStyles();

@@ -46,7 +46,7 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(function Slider(
         readOnly,
         name,
         label,
-        showValue = false,
+        showValue = true,
         'aria-label': ariaLabel,
         'aria-labelledby': ariaLabelledBy,
         'aria-describedby': ariaDescribedBy,

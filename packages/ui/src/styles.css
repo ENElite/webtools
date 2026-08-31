@@ -757,6 +757,19 @@
     font-size: 0.8125rem;
 }
 
+.wt-slider__value {
+    min-width: 3.5em;
+    padding: 2px 7px;
+    color: var(--wt-color-text);
+    background: var(--wt-color-surface-tinted);
+    border: 1px solid var(--wt-color-border);
+    border-radius: var(--wt-radius-sm);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+}
+
 .wt-slider__control {
     position: relative;
     display: flex;
