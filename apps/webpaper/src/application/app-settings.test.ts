@@ -49,4 +49,17 @@ describe('app settings', () => {
             quality: 'jpeg_url',
         });
     });
+
+    it.each(['questionableless', 'questionableplus'] as const)(
+        'accepts and persists the combined %s rating',
+        (rating) => {
+            const setItem = vi.fn();
+            saveAppSettings({ setItem }, {
+                ...DEFAULT_APP_SETTINGS,
+                konachan: { ...DEFAULT_APP_SETTINGS.konachan, rating },
+            });
+
+            expect(JSON.parse(String(setItem.mock.calls[0]?.[1])).konachan.rating).toBe(rating);
+        },
+    );
 });

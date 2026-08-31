@@ -1,9 +1,15 @@
-export const KONACHAN_RATINGS = ['safe', 'questionable', 'explicit'] as const;
+export const KONACHAN_RATINGS = [
+    'safe',
+    'questionableless',
+    'questionable',
+    'questionableplus',
+    'explicit',
+] as const;
 
 export type KonachanRating = (typeof KONACHAN_RATINGS)[number];
 
 const RATING_TAG = /^rating:[^\s]*$/i;
-const KNOWN_RATING_TAG = /^rating:(safe|questionable|explicit)$/i;
+const KNOWN_RATING_TAG = /^rating:(safe|questionableless|questionable|questionableplus|explicit)$/i;
 
 function tagSet(tags: string): Set<string> {
     return new Set(tags.split(/\s+/u).map((tag) => tag.trim()).filter(Boolean));

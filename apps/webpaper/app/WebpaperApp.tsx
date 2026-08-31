@@ -579,7 +579,9 @@ function SourceFields({
                     <Select
                         options={[
                             { value: 'safe', label: '全年龄（Safe）' },
+                            { value: 'questionableless', label: '全年龄及敏感（Safe & Questionable）' },
                             { value: 'questionable', label: '敏感内容（Questionable）' },
+                            { value: 'questionableplus', label: '敏感及成人（Questionable & Explicit）' },
                             { value: 'explicit', label: '成人内容（Explicit）' },
                         ]}
                         value={settings.konachan.rating}

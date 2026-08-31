@@ -11,15 +11,15 @@ describe('source selection', () => {
             konachan: {
                 ...DEFAULT_APP_SETTINGS.konachan,
                 tags: 'cat rating:safe cat landscape rating:explicit',
-                rating: 'questionable',
+                rating: 'questionableplus',
             },
         });
 
         expect(selection).toMatchObject({
             sourceId: 'konachan',
             params: {
-                tags: 'cat landscape rating:questionable',
-                rating: 'questionable',
+                tags: 'cat landscape rating:questionableplus',
+                rating: 'questionableplus',
             },
         });
     });
