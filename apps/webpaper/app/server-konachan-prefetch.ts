@@ -4,7 +4,7 @@ import { createKonachanSource, type FetchClient } from '../src/infrastructure';
 import type { MediaPlayerInitialPage } from '../src/features/player';
 import { toSelection } from './source-selection';
 
-const KONACHAN_UPSTREAM_ENDPOINT = 'https://konachan.net/post.json';
+const KONACHAN_UPSTREAM_ENDPOINT = 'https://konachan.com/post.json';
 const DEFAULT_TIMEOUT_MS = 8_000;
 
 export interface PrefetchDefaultKonachanOptions {

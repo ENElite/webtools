@@ -18,7 +18,7 @@ describe('default Konachan RSC prefetch', () => {
         const initialPage = await prefetchDefaultKonachanPage({ fetch: fetchMock, timeoutMs: 1_000 });
         const requestedUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
 
-        expect(requestedUrl.origin).toBe('https://konachan.net');
+        expect(requestedUrl.origin).toBe('https://konachan.com');
         expect(requestedUrl.searchParams.get('page')).toBe('1');
         expect(requestedUrl.searchParams.get('limit')).toBe('12');
         expect(requestedUrl.searchParams.get('tags')).toBe('rating:safe');
