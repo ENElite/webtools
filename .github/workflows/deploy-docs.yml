@@ -5,7 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'packages/webdocs/**'
+      - 'apps/docs/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - '.node-version'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -28,13 +33,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.8.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -50,7 +53,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/webdocs/.vitepress/dist
+          path: apps/docs/.vitepress/dist
 
   deploy:
     name: deploy-docs
