@@ -171,3 +171,33 @@ export default function MyToolPage() {
 ## License
 
 MIT
+
+## 印花集二维码
+
+入口：`/tools/stamp-qr`。默认短线亮色定位符、标准宽度、全部五种结构，暗色值 `100 / #646464`，可调范围 `40–255`。
+
+- 内容和所有样式参数均响应式更新，停止修改 450 毫秒后自动生成，首屏自动生成默认内容。
+- 新参数会终止旧 Worker，生成期间仍可修改参数；旧预览保留至新图生成，但仅最新结果提供下载。
+- `src/lib/stamp-qr.ts` 和 `stamp-solver.ts`：候选结构、分量拆分、HiGHS 精确整数规划、Canvas 绘制。
+- `src/workers/stamp-qr.worker.ts`：UTF-8/H 级编码、自适应版本，使用编码器选择的掩码直接生成 PNG，不进行解码验证或额外掩码尝试。
+- `scripts/prepare-stamp-qr.mjs`：开发与构建前复制本站使用的 HiGHS 引擎，运行时无需 CDN。
+- 每个格子唯一归属，先最小化结构总数，再按大 X、竖线、横线、小 x、点的顺序尽量覆盖。90 秒优化时限、120 秒总时限，超时可重试。
+
+测试（仓库根目录）：
+
+```bash
+pnpm exec vitest run --project webtools
+pnpm --filter @webtools/webtools typecheck
+pnpm --filter @webtools/webtools build
+```
+
+浏览器验收（托管静态 `out` 或启动开发服务，默认使用本机 Edge）：
+
+```bash
+python -m pip install playwright pillow
+python apps/webtools/scripts/test-stamp-qr.py --url http://localhost:3000 --output temp/stamp-qr-acceptance
+```
+
+脚本验收默认自动生成、配置组合、实时更新和防抖、任务替换、40 下限、移动端布局、错误输入及 PNG 下载。生成与验收均不依赖解码器。
+
+依赖来源与许可证：[node-qrcode / MIT](https://github.com/soldair/node-qrcode)、[highs-js / MIT](https://github.com/lovasoa/highs-js)。
