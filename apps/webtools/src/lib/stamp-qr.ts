@@ -4,17 +4,25 @@ export type { Solver } from './stamp-solver';
 export type FinderStyle = 'dark_all' | 'standard' | 'four_sides';
 export type XMode = 'all' | 'small' | 'only3';
 export type Kind = 'big_x' | 'vertical' | 'horizontal' | 'small_x' | 'dot';
+export type StampColors = [number, number, number, number];
+export const COLOR_LABELS = ['更暗色 · 点', '暗色 · 横线', '亮色 · 竖线', '更亮色 · 定位符 / X'];
+export const grayHex = (v: number) => `#${v.toString(16).padStart(2, '0').repeat(3)}`;
+export function moveColor(colors: StampColors, index: number, value: number): StampColors {
+    const next: StampColors = [...colors];
+    next[index] = Math.max(index === 0 ? 40 : colors[index - 1] + 1, Math.min(index === 3 ? 255 : colors[index + 1] - 1, Math.round(value)));
+    return next;
+}
 export interface StampOptions {
     text: string;
     finder: FinderStyle;
     finderWidth: 'standard' | 'dot';
     xMode: XMode;
-    brightness: number;
+    colors: StampColors;
     moduleSize: number;
 }
 export const DEFAULT_STAMP_OPTIONS: StampOptions = {
     text: '印花集：你好世界！', finder: 'four_sides', finderWidth: 'standard',
-    xMode: 'all', brightness: 100, moduleSize: 24,
+    xMode: 'all', colors: [60, 100, 190, 255], moduleSize: 24,
 };
 export const KINDS: Kind[] = ['big_x', 'vertical', 'horizontal', 'small_x', 'dot'];
 export const KIND_LABELS: Record<Kind, string> = {
@@ -31,7 +39,7 @@ export function validateOptions(o: StampOptions) {
     if (new TextEncoder().encode(o.text).length > 1273) throw new Error('内容超过 H 级二维码的 1273 字节容量，请缩短内容。');
     if (!['dark_all', 'standard', 'four_sides'].includes(o.finder)
         || !['standard', 'dot'].includes(o.finderWidth) || !['all', 'small', 'only3'].includes(o.xMode)) throw new Error('配置项无效。');
-    if (!Number.isInteger(o.brightness) || o.brightness < 40 || o.brightness > 255) throw new Error('暗色亮度须为 40–255 的整数。');
+    if (!Array.isArray(o.colors) || o.colors.length !== 4 || o.colors.some((v, i) => !Number.isInteger(v) || v < 40 || v > 255 || (i > 0 && v <= o.colors[i - 1]))) throw new Error('四种亮度须为 40–255 的整数，并严格从暗到亮递增。');
     if (!Number.isInteger(o.moduleSize) || o.moduleSize < 12 || o.moduleSize > 48) throw new Error('每格尺寸须为 12–48 的整数。');
 }
 
@@ -129,7 +137,7 @@ export function renderStamp(matrix: boolean[][], shapes: Shape[], o: StampOption
     const n = matrix.length, m = o.moduleSize, border = 4, pixels = (n + 8) * m;
     const canvas = new OffscreenCanvas(pixels, pixels), ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, pixels, pixels);
-    const dark = `rgb(${o.brightness},${o.brightness},${o.brightness})`;
+    const [darker, dark, bright, brighter] = o.colors.map(grayHex);
     const side = (m - 1) / Math.sqrt(2), inset = (m - side) / 2;
     const edge = (v: number) => Math.ceil(v - 0.5);
     function rect(r: number, c: number, h: number, w: number, pad: number, color: string) {
@@ -150,19 +158,19 @@ export function renderStamp(matrix: boolean[][], shapes: Shape[], o: StampOption
             for (const p of seq) { while (half.length >= 2 && cross(half.at(-2)!, half.at(-1)!, p) <= 0) half.pop(); half.push(p); }
             hull.push(...half.slice(0, -1));
         }
-        ctx.fillStyle = '#fff'; ctx.beginPath();
+        ctx.fillStyle = brighter; ctx.beginPath();
         hull.forEach(([x, y], i) => { if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
         ctx.closePath(); ctx.fill();
     }
     for (const s of shapes) {
         const { row: r, col: c, size } = s;
-        if (s.kind === 'dot') rect(r, c, 1, 1, inset, dark);
+        if (s.kind === 'dot') rect(r, c, 1, 1, inset, darker);
         else if (s.kind === 'horizontal') rect(r, c, 1, size, inset, dark);
-        else if (s.kind === 'vertical') { rect(r, c, size - 1, 1, inset, '#fff'); rect(r + size - 1, c, 1, 1, inset, '#fff'); }
-        else { strip(r, c, r + size - 1, c + size - 1); strip(r, c + size - 1, r + size - 1, c); }
+        else if (s.kind === 'vertical') { rect(r, c, size - 1, 1, inset, bright); rect(r + size - 1, c, 1, 1, inset, bright); }
+
     }
     const pad = o.finderWidth === 'standard' ? 0 : inset;
-    const color = o.finder === 'dark_all' ? dark : '#fff';
+    const color = brighter;
     for (const [r, c] of [[0, 0], [n - 7, 0], [0, n - 7]]) {
         // Draw connected bars, not separated finder modules. Inset applies to their outlines.
         if (o.finder === 'four_sides') {
@@ -173,6 +181,13 @@ export function renderStamp(matrix: boolean[][], shapes: Shape[], o: StampOption
             rect(r + 1, c + 1, 5, 5, -pad, '#000');
         }
         rect(r + 2, c + 2, 3, 3, pad, color);
+    }
+    // Paint X last, independently of the optimizer's candidate order.
+    for (const { row: r, col: c, size, kind } of shapes) {
+        if (kind === 'big_x' || kind === 'small_x') {
+            strip(r, c, r + size - 1, c + size - 1);
+            strip(r, c + size - 1, r + size - 1, c);
+        }
     }
     return canvas;
 }

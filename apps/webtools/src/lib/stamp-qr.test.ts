@@ -1,7 +1,7 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import loadHighs from 'highs';
 import { createStampSolver } from './stamp-solver';
-import { candidates, DEFAULT_STAMP_OPTIONS, finderCells, KINDS, planLayout, validateOptions, type Shape, type Solver } from './stamp-qr';
+import { renderStamp, moveColor, candidates, DEFAULT_STAMP_OPTIONS, finderCells, KINDS, planLayout, validateOptions, type Shape, type Solver } from './stamp-qr';
 
 let solver: Solver;
 beforeAll(async () => { solver = createStampSolver(await loadHighs()); });
@@ -30,7 +30,32 @@ function exhaustive(m: boolean[][]) {
 
 describe('stamp QR', () => {
     it('uses the requested defaults', () => {
-        expect(DEFAULT_STAMP_OPTIONS).toMatchObject({ brightness: 100, finder: 'four_sides', finderWidth: 'standard', xMode: 'all' });
+        expect(DEFAULT_STAMP_OPTIONS).toMatchObject({ colors: [60, 100, 190, 255], finder: 'four_sides', finderWidth: 'standard', xMode: 'all' });
+    });
+    it('clamps four handles without crossing or escaping bounds', () => {
+        const colors = DEFAULT_STAMP_OPTIONS.colors;
+        expect(moveColor(colors, 0, 0)).toEqual([40, 100, 190, 255]);
+        expect(moveColor(colors, 1, 255)).toEqual([60, 189, 190, 255]);
+        expect(moveColor(colors, 2, 0)).toEqual([60, 100, 101, 255]);
+        expect(moveColor(colors, 3, 400)).toEqual(colors);
+        expect(colors).toEqual([60, 100, 190, 255]);
+    });
+    it('paints separated structure colors and paints X last regardless of candidate order', () => {
+        const calls: { type: string; color: string }[] = [];
+        const ctx = { fillStyle: '', fillRect() { calls.push({ type: 'rect', color: this.fillStyle }); }, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() { calls.push({ type: 'x', color: this.fillStyle }); } };
+        vi.stubGlobal('OffscreenCanvas', class { getContext() { return ctx; } });
+        try {
+            const shapes: Shape[] = [
+                { kind: 'big_x', row: 8, col: 8, size: 3, cells: [], box: [] },
+                { kind: 'dot', row: 12, col: 8, size: 1, cells: [], box: [] },
+                { kind: 'horizontal', row: 13, col: 8, size: 2, cells: [], box: [] },
+                { kind: 'vertical', row: 14, col: 8, size: 3, cells: [], box: [] },
+            ];
+            renderStamp(Array.from({ length: 21 }, () => Array(21).fill(false)), shapes, DEFAULT_STAMP_OPTIONS);
+            expect(calls.slice(1, 5).map(c => c.color)).toEqual(['#3c3c3c', '#646464', '#bebebe', '#bebebe']);
+            expect(calls.slice(-2)).toEqual([{ type: 'x', color: '#ffffff' }, { type: 'x', color: '#ffffff' }]);
+            expect(calls.slice(5, -2).every(c => c.color === '#ffffff')).toBe(true);
+        } finally { vi.unstubAllGlobals(); }
     });
     it('reserves only three finders', () => { expect(finderCells(21).size).toBe(147); expect(finderCells(21).has(8 * 21 + 6)).toBe(false); });
     it('limits X sizes without removing line candidates', () => {
@@ -63,9 +88,11 @@ describe('stamp QR', () => {
         await expect(planLayout(matrix(['11', '11']), 'all', mock, undefined, new Set())).rejects.toThrow('证明');
     });
     it('validates empty, oversized UTF-8 and invalid numeric input', () => {
-        for (const patch of [{ text: '' }, { text: '印'.repeat(425) }, { brightness: 0 }, { brightness: 39 }, { brightness: 256 }, { brightness: 1.5 }, { moduleSize: 11 }])
+        for (const patch of [{ text: '' }, { text: '印'.repeat(425) }, { moduleSize: 11 }])
             expect(() => validateOptions({ ...DEFAULT_STAMP_OPTIONS, ...patch })).toThrow();
-        expect(() => validateOptions({ ...DEFAULT_STAMP_OPTIONS, brightness: 40 })).not.toThrow();
+        for (const colors of [[39, 100, 190, 255], [60, 60, 190, 255], [100, 60, 190, 255], [60, 100, 190, 256], [60.5, 100, 190, 255]])
+            expect(() => validateOptions({ ...DEFAULT_STAMP_OPTIONS, colors: colors as [number, number, number, number] })).toThrow();
+        expect(() => validateOptions({ ...DEFAULT_STAMP_OPTIONS, colors: [40, 41, 42, 43] })).not.toThrow();
         expect(() => validateOptions({ ...DEFAULT_STAMP_OPTIONS, text: '你好\u0000🙂\n' })).not.toThrow();
     });
 });
