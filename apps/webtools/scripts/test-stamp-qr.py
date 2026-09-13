@@ -35,7 +35,7 @@ def main():
         expect(sliders).to_have_count(4)
         def values():
             return [int(sliders.nth(i).get_attribute('aria-valuenow')) for i in range(4)]
-        assert values() == [60, 100, 190, 255]
+        assert values() == [64, 112, 238, 255]
         assert page.evaluate('new Set([...document.querySelectorAll("[role=slider]")].map(e=>e.parentElement)).size') == 1
         def current():
             return link.get_attribute('href') if link.count() else None
@@ -64,11 +64,11 @@ def main():
         sliders.nth(0).focus(); sliders.nth(0).press('Home'); sliders.nth(0).press('ArrowLeft')
         assert values()[0] == 40
         sliders.nth(1).focus(); sliders.nth(1).press('End')
-        assert values() == [40, 189, 190, 255]
+        assert values() == [40, 237, 238, 255]
         sliders.nth(2).focus(); sliders.nth(2).press('Home'); sliders.nth(2).press('ArrowLeft')
-        assert values()[2] == 190
+        assert values()[2] == 238
         sliders.nth(3).focus(); sliders.nth(3).press('Home')
-        assert values() == [40, 189, 190, 191]
+        assert values() == [40, 237, 238, 239]
         ready(previous); save('ordered-keyboard')
         # Actual pointer dragging on the shared track.
         previous = current()
@@ -79,7 +79,7 @@ def main():
         assert all(a < b for a,b in zip(values(), values()[1:]))
         ready(previous); save('pointer-drag')
         previous = current(); page.get_by_role('button', name='恢复默认').click(); ready(previous)
-        assert values() == [60, 100, 190, 255]
+        assert values() == [64, 112, 238, 255]
         # 150ms debounce: continuous typing starts just one task after the burst.
         text.fill(''); expect(link).to_have_count(0)
         before = page.evaluate('stampRuns.length')

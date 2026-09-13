@@ -30,15 +30,15 @@ function exhaustive(m: boolean[][]) {
 
 describe('stamp QR', () => {
     it('uses the requested defaults', () => {
-        expect(DEFAULT_STAMP_OPTIONS).toMatchObject({ colors: [60, 100, 190, 255], finder: 'four_sides', finderWidth: 'standard', xMode: 'all' });
+        expect(DEFAULT_STAMP_OPTIONS).toMatchObject({ colors: [64, 112, 238, 255], finder: 'four_sides', finderWidth: 'standard', xMode: 'all' });
     });
     it('clamps four handles without crossing or escaping bounds', () => {
         const colors = DEFAULT_STAMP_OPTIONS.colors;
-        expect(moveColor(colors, 0, 0)).toEqual([40, 100, 190, 255]);
-        expect(moveColor(colors, 1, 255)).toEqual([60, 189, 190, 255]);
-        expect(moveColor(colors, 2, 0)).toEqual([60, 100, 101, 255]);
+        expect(moveColor(colors, 0, 0)).toEqual([40, 112, 238, 255]);
+        expect(moveColor(colors, 1, 255)).toEqual([64, 237, 238, 255]);
+        expect(moveColor(colors, 2, 0)).toEqual([64, 112, 113, 255]);
         expect(moveColor(colors, 3, 400)).toEqual(colors);
-        expect(colors).toEqual([60, 100, 190, 255]);
+        expect(colors).toEqual([64, 112, 238, 255]);
     });
     it('paints separated structure colors and paints X last regardless of candidate order', () => {
         const calls: { type: string; color: string }[] = [];
@@ -52,7 +52,7 @@ describe('stamp QR', () => {
                 { kind: 'vertical', row: 14, col: 8, size: 3, cells: [], box: [] },
             ];
             renderStamp(Array.from({ length: 21 }, () => Array(21).fill(false)), shapes, DEFAULT_STAMP_OPTIONS);
-            expect(calls.slice(1, 5).map(c => c.color)).toEqual(['#3c3c3c', '#646464', '#bebebe', '#bebebe']);
+            expect(calls.slice(1, 5).map(c => c.color)).toEqual(['#404040', '#707070', '#eeeeee', '#eeeeee']);
             expect(calls.slice(-2)).toEqual([{ type: 'x', color: '#ffffff' }, { type: 'x', color: '#ffffff' }]);
             expect(calls.slice(5, -2).every(c => c.color === '#ffffff')).toBe(true);
         } finally { vi.unstubAllGlobals(); }

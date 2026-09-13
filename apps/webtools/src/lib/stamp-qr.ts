@@ -22,7 +22,7 @@ export interface StampOptions {
 }
 export const DEFAULT_STAMP_OPTIONS: StampOptions = {
     text: '印花集：你好世界！', finder: 'four_sides', finderWidth: 'standard',
-    xMode: 'all', colors: [60, 100, 190, 255], moduleSize: 24,
+    xMode: 'all', colors: [64, 112, 238, 255], moduleSize: 24,
 };
 export const KINDS: Kind[] = ['big_x', 'vertical', 'horizontal', 'small_x', 'dot'];
 export const KIND_LABELS: Record<Kind, string> = {
