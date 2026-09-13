@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "@webtools/ui/styles.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  body {
+    min-height: 100vh;
+    color: var(--wt-color-text);
+    font-family: var(--wt-font-sans);
+    background:
+      radial-gradient(circle at 12% 8%, rgb(255 226 237 / 72%), transparent 28rem),
+      radial-gradient(circle at 92% 18%, rgb(221 235 255 / 80%), transparent 30rem),
+      linear-gradient(150deg, #fffafd 0%, #f8f8ff 52%, #f4fbff 100%);
+  }
+}
+
+::selection {
+  color: #5b2447;
+  background: #ffd5e6;
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

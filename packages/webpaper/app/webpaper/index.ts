@@ -1,1 +1,0 @@
-export { Webpaper } from './Webpaper';

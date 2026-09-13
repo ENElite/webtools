@@ -1,2 +1,35 @@
 packages:
+  - 'apps/*'
   - 'packages/*'
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  sharp: true
+
+# New packages should reference these versions with `catalog:`. Existing
+# manifests can migrate incrementally without duplicating version policy.
+catalog:
+  '@ark-ui/react': 5.39.1
+  '@monaco-editor/react': 4.7.0
+  '@tailwindcss/postcss': 4.2.2
+  '@types/node': 24.13.3
+  '@types/react': 19.2.14
+  '@types/react-dom': 19.2.3
+  '@vitejs/plugin-react-swc': 4.3.0
+  next: 16.2.9
+  monaco-editor: 0.52.2
+  react: 19.2.6
+  react-dom: 19.2.6
+  react-moveable: 0.56.0
+  tailwindcss: 4.2.2
+  typescript: 5.9.3
+  vite: 6.4.2
+  vitest: 4.1.4
+  zod: 4.3.6
+
+# pnpm 10+ reads overrides from the workspace manifest rather than package.json.
+overrides:
+  next: 16.2.9
+  react: 19.2.6
+  react-dom: 19.2.6

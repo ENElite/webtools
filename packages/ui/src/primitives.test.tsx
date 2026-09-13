@@ -1,0 +1,436 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { Alert, Badge, Button, Card, ColorPicker, ContextMenu, Field, NumberInput, Select, Slider, Switch, TextInput } from './index';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver ??= class ResizeObserver {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+};
+
+let root: ReturnType<typeof createRoot> | null = null;
+let renderHost: HTMLDivElement | null = null;
+
+afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+    renderHost?.remove();
+    renderHost = null;
+});
+
+function render(node: React.ReactNode) {
+    const host = document.createElement('div');
+    document.body.append(host);
+    renderHost = host;
+    root = createRoot(host);
+    act(() => root?.render(node));
+    return host;
+}
+
+function readUiStyles() {
+    const packageStyles = resolve(process.cwd(), 'src/styles.css');
+    const workspaceStyles = resolve(process.cwd(), 'packages/ui/src/styles.css');
+    return readFileSync(existsSync(packageStyles) ? packageStyles : workspaceStyles, 'utf8');
+}
+
+function dispatchPointer(
+    element: EventTarget | null | undefined,
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    init: { pointerType: 'mouse' | 'touch'; clientX?: number; clientY?: number },
+) {
+    const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: init.clientX ?? 0,
+        clientY: init.clientY ?? 0,
+        buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
+    });
+    Object.defineProperty(event, 'pointerType', { value: init.pointerType });
+    element?.dispatchEvent(event);
+}
+
+describe('Mochi primitives', () => {
+    it('forwards native button behavior and Mochi variants', () => {
+        const onClick = vi.fn();
+        const host = render(
+            <Button variant='soft' size='sm' onClick={onClick}>
+                保存
+            </Button>,
+        );
+        const button = host.querySelector('button');
+
+        expect(button?.dataset['variant']).toBe('soft');
+        expect(button?.dataset['size']).toBe('sm');
+        button?.click();
+        expect(onClick).toHaveBeenCalledOnce();
+    });
+
+    it('keeps loading buttons disabled and accessible', () => {
+        const host = render(<Button loading>加载</Button>);
+        const button = host.querySelector('button');
+
+        expect(button?.disabled).toBe(true);
+        expect(button?.getAttribute('aria-busy')).toBe('true');
+    });
+
+    it('forwards DOM props for surfaces and inputs', () => {
+        const host = render(
+            <Card data-testid='surface'>
+                <Badge tone='accent'>新</Badge>
+                <Alert tone='warning' title='提醒'>
+                    请检查输入
+                </Alert>
+                <TextInput aria-label='名称' defaultValue='小鸟壁纸' />
+            </Card>,
+        );
+
+        expect(host.querySelector('[data-testid="surface"]')).not.toBeNull();
+        expect(host.querySelector('.wt-badge')?.getAttribute('data-tone')).toBe('accent');
+        expect(host.querySelector('[role="status"]')).not.toBeNull();
+        expect((host.querySelector('input') as HTMLInputElement).value).toBe('小鸟壁纸');
+    });
+
+    it('associates field labels with native and Ark controls', () => {
+        const host = render(
+            <>
+                <Field label='关键词'><TextInput /></Field>
+                <Field label='每页数量' description='最多五十张'><NumberInput /></Field>
+                <Field label='媒体来源'>
+                    <Select
+                        name='source'
+                        value='bird-paper'
+                        options={[{ value: 'bird-paper', label: '小鸟壁纸' }]}
+                    />
+                </Field>
+            </>,
+        );
+        const labels = [...host.querySelectorAll('label')];
+
+        expect(labels).toHaveLength(3);
+        for (const label of labels) {
+            const controlId = label.htmlFor;
+            expect(controlId).not.toBe('');
+            expect([...host.querySelectorAll('[id]')].some((element) => element.id === controlId)).toBe(true);
+        }
+        const numberInput = host.querySelector('[role="spinbutton"]');
+        const describedBy = numberInput?.getAttribute('aria-describedby');
+        expect(describedBy).toBeTruthy();
+        expect([...host.querySelectorAll('[id]')].some((element) => element.id === describedBy)).toBe(true);
+        expect((host.querySelector('input[name="source"]') as HTMLInputElement).value).toBe('bird-paper');
+    });
+
+    it('puts an explicit switch label on the real input', () => {
+        const host = render(<Switch aria-label='自动切换' />);
+        expect(host.querySelector('input')?.getAttribute('aria-label')).toBe('自动切换');
+    });
+
+    it('mounts select options in the shared overlay layer when opened', async () => {
+        const host = render(
+            <Select
+                aria-label='媒体来源'
+                options={[
+                    { value: 'bird-paper', label: '小鸟壁纸' },
+                    { value: 'konachan', label: 'Konachan' },
+                ]}
+            />,
+        );
+        const trigger = host.querySelector<HTMLButtonElement>('.wt-select__trigger');
+        expect(document.body.querySelector('.wt-select__content')).toBeNull();
+
+        await act(async () => {
+            trigger?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        const content = document.body.querySelector<HTMLElement>('.wt-select__content[data-state="open"]');
+        expect(content).not.toBeNull();
+        expect(content?.hidden).toBe(false);
+        expect(content?.closest('.wt-select__positioner')?.parentElement).toBe(document.body);
+        expect([...document.body.querySelectorAll('.wt-select__item')].map((item) => item.textContent)).toEqual([
+            '小鸟壁纸✓',
+            'Konachan✓',
+        ]);
+    });
+
+    it('gives select content the popover layer used by Zag positioning', () => {
+        const styles = readUiStyles();
+        const rootRule = styles.match(/:root\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        const contentRule = styles.match(
+            /\.wt-select__content,\s*\.wt-color-picker__content\s*\{(?<body>[^}]+)\}/,
+        )?.groups?.['body'];
+
+        expect(rootRule).toContain('--wt-z-popover: 1200');
+        expect(contentRule).toContain('z-index: var(--wt-z-popover)');
+    });
+
+    it('opens a context menu at the app surface', async () => {
+        const host = render(
+            <ContextMenu items={[{ value: 'settings', label: '壁纸设置' }]}>
+                <main data-testid='surface'>画布</main>
+            </ContextMenu>,
+        );
+        const surface = host.querySelector('[data-testid="surface"]');
+        expect(surface?.getAttribute('data-part')).toBe('context-trigger');
+        await act(async () => {
+            surface?.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 20,
+                clientY: 30,
+            }));
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        const item = document.body.querySelector<HTMLElement>('.wt-menu__item');
+        const positioner = document.body.querySelector<HTMLElement>('.wt-menu__positioner');
+        expect(item?.textContent).toContain('壁纸设置');
+        expect(positioner?.style.pointerEvents).not.toBe('none');
+        expect(positioner?.style.transform).not.toContain('-100vh');
+    });
+
+    it('selects a context menu item through the Ark menu root', async () => {
+        const onSelect = vi.fn();
+        const host = render(
+            <ContextMenu items={[{ value: 'settings', label: '壁纸设置', onSelect }]}>
+                <main data-testid='surface'>画布</main>
+            </ContextMenu>,
+        );
+        const surface = host.querySelector('[data-testid="surface"]');
+
+        await act(async () => {
+            surface?.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 20,
+                clientY: 30,
+            }));
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+        const item = document.body.querySelector<HTMLElement>('.wt-menu__item');
+        await act(async () => {
+            dispatchPointer(item, 'pointerdown', { pointerType: 'mouse' });
+            dispatchPointer(item, 'pointermove', { pointerType: 'mouse' });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+        await act(async () => {
+            item?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        expect(onSelect).toHaveBeenCalledOnce();
+    });
+
+    it('opens and selects a true nested context submenu without selecting its parent', async () => {
+        const onParentSelect = vi.fn();
+        const onClockSelect = vi.fn();
+        const host = render(
+            <ContextMenu
+                items={[{
+                    value: 'add-widget',
+                    label: '添加组件',
+                    onSelect: onParentSelect,
+                    items: [{ value: 'add-clock', label: '时钟', onSelect: onClockSelect }],
+                }]}
+            >
+                <main data-testid='surface'>画布</main>
+            </ContextMenu>,
+        );
+        const surface = host.querySelector('[data-testid="surface"]');
+
+        await act(async () => {
+            surface?.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 20,
+                clientY: 30,
+            }));
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+        const submenuTrigger = document.body.querySelector<HTMLElement>('.wt-menu__item--submenu');
+        await act(async () => {
+            submenuTrigger?.click();
+            await new Promise((resolve) => setTimeout(resolve, 250));
+        });
+        const openMenus = document.body.querySelectorAll('.wt-menu[data-state="open"]');
+        expect(openMenus).toHaveLength(2);
+
+        const submenuItem = openMenus[1]?.querySelector<HTMLElement>('.wt-menu__item');
+        await act(async () => {
+            dispatchPointer(submenuItem, 'pointerdown', { pointerType: 'mouse' });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+        await act(async () => {
+            submenuItem?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        expect(onClockSelect).toHaveBeenCalledOnce();
+        expect(onParentSelect).not.toHaveBeenCalled();
+    });
+
+    it('opens on the long-press threshold before pointerup and suppresses the following click', async () => {
+        const onSurfaceClick = vi.fn();
+        const onOpenChange = vi.fn();
+        const host = render(
+            <ContextMenu
+                items={[{ value: 'settings', label: '壁纸设置' }]}
+                longPressDelay={20}
+                onOpenChange={onOpenChange}
+            >
+                <main data-testid='surface' onClick={onSurfaceClick}>画布</main>
+            </ContextMenu>,
+        );
+        const surface = host.querySelector('[data-testid="surface"]');
+
+        await act(async () => {
+            dispatchPointer(surface, 'pointerdown', { pointerType: 'touch', clientX: 44, clientY: 56 });
+            await new Promise((resolve) => setTimeout(resolve, 35));
+        });
+
+        expect(document.body.querySelector('.wt-menu[data-state="open"]')).not.toBeNull();
+        expect(onOpenChange).toHaveBeenCalledWith(true);
+
+        await act(async () => {
+            dispatchPointer(surface, 'pointerup', { pointerType: 'touch', clientX: 44, clientY: 56 });
+            surface?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        });
+        expect(onSurfaceClick).not.toHaveBeenCalled();
+        expect(document.body.querySelectorAll('.wt-menu[data-state="open"]')).toHaveLength(1);
+    });
+
+    it('keeps context menus on the popover layer with a pointer hover fallback', () => {
+        const styles = readUiStyles();
+        const menuRule = styles.match(/\.wt-menu\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+
+        expect(menuRule).toContain('z-index: var(--wt-z-popover)');
+        expect(styles).toContain('.wt-menu__item:is(:hover, [data-highlighted]):not([data-disabled])');
+    });
+
+    it('clips number steppers inside the flat rounded input edge', () => {
+        const styles = readUiStyles();
+        const controlsRule = styles.match(/\.wt-number-input__controls\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        const rootRule = styles.match(/\.wt-number-input\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+
+        expect(rootRule).toContain('border-radius: var(--wt-radius-md)');
+        expect(rootRule).toContain('overflow: hidden');
+        expect(controlsRule).toContain('inset-block: 2px');
+        expect(controlsRule).toContain('inset-inline-end: 2px');
+        expect(controlsRule).toContain('overflow: hidden');
+        expect(controlsRule).toContain('border-radius: 0');
+        expect(styles).not.toContain('calc(var(--wt-radius-md) - 4px)');
+    });
+
+    it('keeps Ark number steppers inside the root clipping boundary at custom sizes', () => {
+        const host = render(
+            <NumberInput aria-label='每页数量' defaultValue={12} style={{ width: 112, height: 34 }} />,
+        );
+        const numberRoot = host.querySelector<HTMLElement>('.wt-number-input');
+        const input = numberRoot?.querySelector<HTMLInputElement>('.wt-number-input__input');
+        const controls = numberRoot?.querySelector<HTMLElement>('.wt-number-input__controls');
+
+        expect(numberRoot?.style.width).toBe('112px');
+        expect(numberRoot?.style.height).toBe('34px');
+        expect(input?.parentElement).toBe(numberRoot);
+        expect(controls?.parentElement).toBe(numberRoot);
+        expect(controls?.querySelectorAll('.wt-number-input__stepper')).toHaveLength(2);
+    });
+
+    it('renders a filled ColorPicker area and centers both kinds of thumbs', async () => {
+        const host = render(<ColorPicker aria-label='背景颜色' defaultValue='#ff6699' />);
+        await act(async () => {
+            host.querySelector<HTMLButtonElement>('.wt-color-picker__trigger')?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        const content = document.body.querySelector<HTMLElement>('.wt-color-picker__content[data-state="open"]');
+        const areaBackground = content?.querySelector<HTMLElement>('.wt-color-picker__area-background');
+        const areaThumb = content?.querySelector<HTMLElement>('.wt-color-picker__area-thumb');
+        const channelThumbs = content?.querySelectorAll<HTMLElement>('.wt-color-picker__channel-thumb');
+        const alphaTrack = content?.querySelector<HTMLElement>('.wt-color-picker__channel-track--alpha');
+
+        expect(areaBackground?.style.position).toBe('absolute');
+        expect(areaBackground?.getAttribute('data-part')).toBe('area-background');
+        expect(areaThumb?.style.transform).toBe('translate(-50%, -50%)');
+        expect(channelThumbs).toHaveLength(2);
+        expect([...channelThumbs ?? []].every((thumb) => thumb.style.top === '50%')).toBe(true);
+        expect(alphaTrack?.querySelector('.wt-color-picker__alpha-grid')).not.toBeNull();
+        expect(alphaTrack?.querySelector('.wt-color-picker__channel-gradient[data-part="channel-slider-track"]')).not.toBeNull();
+
+        const styles = readUiStyles();
+        const areaBackgroundRule = styles.match(
+            /\.wt-color-picker__area-background\s*\{(?<body>[^}]+)\}/,
+        )?.groups?.['body'];
+        const thumbRule = styles.match(/\.wt-color-picker__channel-thumb\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        expect(areaBackgroundRule).toContain('inset: 0');
+        expect(thumbRule).toContain('transform: translate(-50%, -50%)');
+    });
+
+    it('isolates ColorPicker drag starts from React ancestors behind its portal', async () => {
+        const onPointerDown = vi.fn();
+        const host = render(
+            <div onPointerDown={onPointerDown}>
+                <ColorPicker aria-label='背景颜色' />
+            </div>,
+        );
+        await act(async () => {
+            host.querySelector<HTMLButtonElement>('.wt-color-picker__trigger')?.click();
+            await new Promise((resolve) => setTimeout(resolve, 30));
+        });
+
+        await act(async () => {
+            const hue = document.body.querySelector('.wt-color-picker__channel[data-channel="hue"]');
+            dispatchPointer(hue, 'pointerdown', { pointerType: 'mouse', clientX: 20, clientY: 5 });
+        });
+
+        expect(onPointerDown).not.toHaveBeenCalled();
+    });
+
+    it('updates Slider values on every pointer move without animating Ark position transforms', async () => {
+        const onValueChange = vi.fn();
+        const host = render(
+            <Slider aria-label='透明度' defaultValue={0} min={0} max={100} onValueChange={onValueChange} />,
+        );
+        const sliderRoot = host.querySelector<HTMLElement>('.wt-slider');
+        const control = host.querySelector<HTMLElement>('.wt-slider__control');
+        const valueText = host.querySelector<HTMLElement>('.wt-slider__value');
+        expect(valueText?.textContent).toBe('0');
+        vi.spyOn(control as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+            x: 0,
+            y: 0,
+            left: 0,
+            top: 0,
+            right: 100,
+            bottom: 24,
+            width: 100,
+            height: 24,
+            toJSON: () => ({}),
+        });
+
+        await act(async () => {
+            dispatchPointer(control, 'pointerdown', { pointerType: 'mouse', clientX: 10, clientY: 12 });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+        await act(async () => {
+            dispatchPointer(document, 'pointermove', { pointerType: 'mouse', clientX: 80, clientY: 12 });
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        });
+
+        expect(onValueChange).toHaveBeenLastCalledWith(80);
+        expect(valueText?.textContent).toBe('80');
+        expect(sliderRoot?.style.getPropertyValue('--slider-thumb-offset-0')).toContain('80%');
+
+        const styles = readUiStyles();
+        const thumbRule = styles.match(/\.wt-slider__thumb\s*\{(?<body>[^}]+)\}/)?.groups?.['body'];
+        const activeRule = styles.match(
+            /\.wt-slider__thumb:hover,\s*\.wt-slider__thumb\[data-dragging\]\s*\{(?<body>[^}]+)\}/,
+        )?.groups?.['body'];
+        expect(thumbRule).not.toContain('transition: transform');
+        expect(activeRule).not.toContain('transform:');
+        expect(activeRule).toContain('scale: 1.15');
+    });
+});

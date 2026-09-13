@@ -8,6 +8,7 @@ dist/
 devconfig/*
 .devcontainer/
 .next/
+.turbo/
 temp/
 cache/
 .temp/
@@ -21,3 +22,5 @@ cache/
 
 *.prompt.md
 coverage
+
+.claude/

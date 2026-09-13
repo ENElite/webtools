@@ -1,120 +1,74 @@
 # WebTools
 
-基于 React + Next.js 的可扩展桌面小组件系统，支持拖拽、缩放、动画、撤销/重做与 AI 编辑。
+WebTools 是一个以 WebPaper 为主应用的 pnpm monorepo。当前架构把可部署应用与可复用库分开，并把原来的单体 `webwidget` 拆成纯领域内核、React 运行时和编辑器三层。
 
-## 特性
+## 环境
 
-- **小组件引擎**：可复用的 Overlay 系统，支持 8 种小组件类型、拖拽/缩放/旋转、百分比布局与吸附辅助线
-- **命令模式**：完整的撤销/重做支持，所有小组件操作均通过 Command 接口封装，支持批量操作
-- **信号系统**：类型安全的发布/订阅总线，解耦小组件状态变化与动画/运行时响应
-- **声明式动画**：11 种动画预设（淡入淡出、滑动、缩放、故障等），基于 Framer Motion 的运行时编译
-- **Schema 驱动的设置 UI**：通过 InspectorSchema 声明式定义属性编辑器，动态渲染 14 种编辑器组件
-- **AI 集成**：集成 DeepSeek AI，支持通过自然语言编辑小组件属性，内置 Agent 对话系统
+- Node.js 24
+- pnpm 11.24.0（当前稳定版）
 
-## 技术栈
-
-| 技术 | 版本 | 说明 |
-|------|------|------|
-| TypeScript | 5.9 | 类型安全 |
-| React | 19 | UI 框架 |
-| Next.js | 16 | 应用框架 |
-| Zustand | 5 | 状态管理 |
-| Framer Motion | 12 | 动画 |
-| Tailwind CSS | 4.2 | 样式 |
-| pnpm | 10.8 | 包管理 |
-
-## 项目结构
-
-```
-webtools/
-├── packages/
-│   ├── webwidget/          # 可复用的桌面小组件引擎库
-│   ├── webpaper/           # 基于 Next.js 的图片浏览器应用
-│   ├── webtest/            # 集中式测试套件
-│   └── webdocs/            # 文档站点（VitePress）
-├── scripts/                # 构建脚本
-├── package.json            # monorepo 根配置
-└── pnpm-workspace.yaml     # pnpm 工作区
-```
-
-## 快速开始
-
-### 环境要求
-
-- Node.js >= 18
-- pnpm >= 10.8
-
-### 安装依赖
+仓库允许 pnpm 12，但在 12.0.0 正式稳定发布前不会把 `packageManager` 指向预发布版本。
 
 ```bash
-# 在项目根目录执行
-pnpm install
-```
-
-### 开发
-
-```bash
-# 启动 webpaper 开发服务器（端口 5173）
+corepack enable
+pnpm install --frozen-lockfile
 pnpm dev:webpaper
-
-# 启动文档站点
-pnpm dev:docs
 ```
 
-### 构建
+## 目录
 
-```bash
-# 构建 webpaper
-pnpm build:webpaper
-
-# 构建文档站点
-pnpm build:docs
+```text
+apps/
+├── webpaper/       # 壁纸播放器与 Widget 组合应用（Next.js）
+├── webtools/       # 独立的静态 Web 工具应用（Next.js）
+└── docs/           # 架构文档（VitePress）
+packages/
+├── widget-core/    # 纯 TypeScript 文档模型、事务和撤销/重做
+├── widget-react/   # React Canvas、布局交互和组件目录
+└── widget-studio/  # Schema 表单、Inspector、Devtools、Monaco/AI 编辑
+tooling/
+└── eslint/         # 全仓扁平 ESLint 配置与依赖边界
 ```
 
-### 测试
+依赖方向固定为：
+
+```text
+apps/webpaper ──▶ widget-studio ──▶ widget-react ──▶ widget-core
+       └──────────────────────────────────────────▶ widget-core
+```
+
+`widget-core` 不依赖 React、浏览器 API 或应用代码。应用只能通过包的公开导出引用库，不能深层导入其他包的 `src`。
+
+## 关键设计
+
+- 小鸟壁纸（BirdPaper）保留为默认媒体源，通过固定上游、参数校验和响应标准化的 BFF 路由访问。
+- Konachan、BirdPaper、JSON 都实现应用定义的 `MediaSource` 端口；播放器只消费标准化 `MediaItem`。
+- 播放请求可中止，并使用会话令牌阻止旧响应覆盖新选择。
+- Widget 操作通过不可变事务进入统一历史记录，React 运行时不持有第二份业务状态。
+- HTML Widget 使用 sandboxed `srcDoc`，iframe 只接受 HTTP(S) 且使用固定 sandbox 权限。
+- 应用设置和 Widget 文档使用 Zod 校验及 v2 存储键；不兼容的旧数据显式回退到默认值。
+
+仓库没有通用 `shared` 包。代码只有在职责稳定且至少存在真实跨应用复用时才会提取为命名明确的包。仓库也没有独立 `webtest` 包；测试与被测模块同目录，根 Vitest/Turbo 仅负责编排。
+
+## 命令
 
 ```bash
-# 运行所有测试
-pnpm test
+pnpm dev:webpaper       # WebPaper，端口 5173
+pnpm dev:webtools       # WebTools
+pnpm dev:docs           # 文档，端口 5174
 
-# 类型检查
-pnpm typecheck
-
-# 代码规范检查
 pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm check              # 完整质量门禁
 ```
 
 ## 文档
 
-完整的项目文档请访问 [WebTools 文档站点](https://enelite.github.io/webtools/)，包含：
+详细设计见 [架构文档](./apps/docs/docs/guide/architecture.md)。在线文档请访问 [WebTools 文档站点](https://enelite.github.io/webtools/)。
 
 - [项目概览](https://enelite.github.io/webtools/guide/)
 - [快速开始](https://enelite.github.io/webtools/guide/getting-started)
 - [架构设计](https://enelite.github.io/webtools/guide/architecture)
 - [技术栈详解](https://enelite.github.io/webtools/guide/tech-stack)
-
-## 核心设计模式
-
-### 适配器模式（Provider Pattern）
-
-统一不同图片来源的 API 差异，支持 Konachan、BirdPaper、JSON 等数据源。
-
-### 命令模式（Command Pattern）
-
-所有小组件操作通过 Command 接口封装，支持完整的撤销/重做历史管理。
-
-### 信号/事件总线（Signal Bus）
-
-类型安全的发布/订阅系统，解耦小组件状态变化与运行时响应。
-
-### Schema 驱动的设置 UI
-
-通过 InspectorSchema 声明式定义属性编辑器，动态渲染设置面板。
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 许可证
-
-MIT License

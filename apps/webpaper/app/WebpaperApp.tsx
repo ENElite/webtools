@@ -1,0 +1,681 @@
+'use client';
+
+import { createWidgetEngine } from '@webtools/widget-core';
+import type { WidgetEngine, WidgetKind } from '@webtools/widget-core';
+import { WidgetCanvas, WidgetRuntimeProvider } from '@webtools/widget-react';
+import {
+    Alert,
+    Button,
+    ContextMenu,
+    Drawer,
+    Field,
+    NumberInput,
+    Select,
+    Switch,
+    Textarea,
+    TextInput,
+} from '@webtools/ui';
+import type { ContextMenuItem } from '@webtools/ui';
+import {
+    createDefaultInspectorControls,
+    WidgetDevtools,
+    WidgetStudioPanel,
+} from '@webtools/widget-studio';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+
+import {
+    DEFAULT_APP_SETTINGS,
+    createWebpaperRuntimeSignals,
+    loadAppSettings,
+    loadWidgetDocument,
+    saveAppSettings,
+    saveWidgetDocument,
+    signalRuntimeTime,
+    type AppSettings,
+} from '../src/application';
+import { sanitizeKonachanUserTags, type MediaItem } from '../src/domain';
+import { HistoryDrawer } from '../src/features/history';
+import { createWebPaperMediaCatalog, type MediaSourceSelection } from '../src/features/media';
+import {
+    MediaPlayerSettingsForm,
+    MediaStage,
+    MediaStageStandbyOverlay,
+    PlaybackControls,
+    StartupStandby,
+    useMediaPlayer,
+    type MediaPlayerInitialPage,
+} from '../src/features/player';
+import { createBuiltInWidgetCatalogs } from '../src/features/widgets';
+import { toSelection } from './source-selection';
+
+export function WebpaperApp({
+    initialMediaPage,
+}: {
+    readonly initialMediaPage?: MediaPlayerInitialPage;
+}) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted) {
+        return (
+            <main className='wp-boot'>
+                <MediaStageStandbyOverlay
+                    phase='waiting'
+                    status='idle'
+                    message='正在加载页面…'
+                />
+            </main>
+        );
+    }
+    return <WebpaperSession {...(initialMediaPage ? { initialMediaPage } : {})} />;
+}
+
+function WebpaperSession({ initialMediaPage }: { readonly initialMediaPage?: MediaPlayerInitialPage }) {
+    const mediaCatalog = useMemo(() => createWebPaperMediaCatalog(), []);
+    const widgetCatalogs = useMemo(() => createBuiltInWidgetCatalogs(), []);
+    const inspectorControls = useMemo(() => createDefaultInspectorControls(), []);
+    const [settings, setSettings] = useState<AppSettings>(() => loadAppSettings(localStorage));
+    const [activeSelection, setActiveSelection] = useState<MediaSourceSelection>(() => toSelection(settings));
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [infoOpen, setInfoOpen] = useState(false);
+    const [historySearch, setHistorySearch] = useState('');
+    const [fullscreen, setFullscreen] = useState(false);
+    const [{ engine, persistenceWarning }] = useState(() => createEngine(widgetCatalogs.definitions));
+    const [runtimeSignals] = useState(() => createWebpaperRuntimeSignals(
+        engine.getSnapshot().document.widgets.map((widget) => widget.id),
+    ));
+    const player = useMediaPlayer({
+        catalog: mediaCatalog,
+        prefetchThreshold: 2,
+        ...(initialMediaPage ? { initialPage: initialMediaPage } : {}),
+    });
+
+    useEffect(() => {
+        void player.controller.switchSource(activeSelection);
+    }, [activeSelection, player.controller]);
+
+    useLayoutEffect(
+        () => runtimeSignals.startupBarrier.start(),
+        [runtimeSignals.startupBarrier],
+    );
+
+    useEffect(() => {
+        const publishTime = () => signalRuntimeTime(runtimeSignals.hub);
+        publishTime();
+        const interval = globalThis.setInterval(publishTime, 1_000);
+        return () => globalThis.clearInterval(interval);
+    }, [runtimeSignals.hub]);
+
+    useEffect(() => saveAppSettings(localStorage, settings), [settings]);
+
+    useEffect(() => {
+        const syncFullscreen = () => setFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+    }, []);
+
+    useEffect(() => {
+        const persist = () => saveWidgetDocument(localStorage, engine.getSnapshot().document);
+        persist();
+        return engine.subscribe(persist);
+    }, [engine]);
+
+    useEffect(() => {
+        const interval = settings.player.autoplayIntervalMs;
+        if (interval === null) player.controller.stopAutoplay();
+        else player.controller.startAutoplay(interval);
+    }, [player.controller, player.selection, settings.player.autoplayIntervalMs]);
+
+    const patchSettings = useCallback((patch: Partial<AppSettings>) => {
+        setSettings((current) => ({ ...current, ...patch }));
+    }, []);
+
+    const addWidget = useCallback((kind: WidgetKind) => {
+        const offset = (engine.getSnapshot().document.widgets.length % 10) * 2;
+        const ownsDefaultLayout = widgetCatalogs.definitions.get(kind).defaultLayout !== undefined;
+        engine.dispatch({
+            type: 'widget.add',
+            widget: ownsDefaultLayout
+                ? { kind }
+                : { kind, layout: { x: 5 + offset, y: 5 + offset } },
+        });
+    }, [engine, widgetCatalogs.definitions]);
+
+    const historyMode = player.session.mode.kind === 'history';
+    const current = historyMode
+        ? player.session.mode.cursor
+        : (player.session.cursor ?? 0);
+    const total = historyMode ? player.session.history.length : player.session.items.length;
+    const dock = useAutoHideDock(settingsOpen || historyOpen || infoOpen);
+    const contextMenuItems: readonly ContextMenuItem[] = [
+        {
+            value: 'toggle-play',
+            label: player.session.autoplay.kind === 'running' ? '暂停自动切换' : '开始自动切换',
+            icon: player.session.autoplay.kind === 'running' ? 'Ⅱ' : '▶',
+            onSelect: player.session.autoplay.kind === 'running'
+                ? () => player.controller.stopAutoplay()
+                : () => player.controller.startAutoplay(settings.player.autoplayIntervalMs ?? 30_000),
+        },
+        {
+            value: 'current-info',
+            label: '当前信息',
+            icon: 'ⓘ',
+            disabled: !player.currentMedia,
+            onSelect: () => setInfoOpen(true),
+        },
+        {
+            value: 'previous',
+            label: '上一张',
+            icon: '←',
+            disabled: total === 0,
+            onSelect: () => void player.controller.previous(),
+        },
+        {
+            value: 'next',
+            label: '下一张',
+            icon: '→',
+            disabled: total === 0,
+            onSelect: () => void player.controller.next(),
+        },
+        {
+            value: 'history',
+            label: '播放历史',
+            icon: '◷',
+            onSelect: () => setHistoryOpen(true),
+        },
+        {
+            value: 'return-latest',
+            label: '回到最新',
+            icon: '↥',
+            disabled: !historyMode,
+            onSelect: () => player.controller.leaveHistory(),
+        },
+        {
+            value: 'fullscreen',
+            label: fullscreen ? '退出全屏' : '进入全屏',
+            icon: '⛶',
+            onSelect: () => {
+                if (document.fullscreenElement) void document.exitFullscreen();
+                else void document.documentElement.requestFullscreen();
+            },
+        },
+        {
+            value: 'settings',
+            label: '壁纸设置',
+            icon: '⚙',
+            separatorBefore: true,
+            onSelect: () => setSettingsOpen(true),
+        },
+        {
+            value: 'reset-settings',
+            label: '重置壁纸设置',
+            icon: '↺',
+            onSelect: () => {
+                setSettings(DEFAULT_APP_SETTINGS);
+                setActiveSelection(toSelection(DEFAULT_APP_SETTINGS));
+            },
+        },
+        {
+            value: 'editable',
+            label: settings.widgetsEditable ? '退出组件编辑' : '进入组件编辑',
+            icon: settings.widgetsEditable ? '✓' : '✎',
+            onSelect: () => patchSettings({ widgetsEditable: !settings.widgetsEditable }),
+        },
+        {
+            value: 'add-widget',
+            label: '添加组件',
+            icon: '＋',
+            separatorBefore: true,
+            items: widgetCatalogs.definitions.kinds.map((kind) => ({
+                value: `add-${kind}`,
+                label: widgetCatalogs.definitions.get(kind).label,
+                icon: kind === 'live2d' ? '♙' : '＋',
+                onSelect: () => addWidget(kind),
+            })),
+        },
+    ];
+
+    return (
+        <WidgetRuntimeProvider
+            engine={engine}
+            views={widgetCatalogs.views}
+            signals={runtimeSignals.hub}
+            editable={settings.widgetsEditable}
+        >
+            <ContextMenu items={contextMenuItems} aria-label='WebPaper 快捷菜单'>
+                <main className='wp-shell'>
+                    <MediaStage
+                        item={player.currentMedia}
+                        signals={runtimeSignals.hub}
+                        status={player.status}
+                        error={player.error}
+                        imagePreloaded={player.currentImagePreloaded}
+                        settings={settings.player}
+                        onMediaError={() => void player.controller.handleMediaError()}
+                        onVideoEnded={() => void player.controller.next()}
+                    />
+
+                    <WidgetCanvas className='wp-widget-layer' />
+                    <StartupStandby
+                        runtime={runtimeSignals}
+                        status={player.status}
+                        error={player.error}
+                    />
+
+                    <header
+                        className='wp-toolbar'
+                        data-hidden={dock.hidden || undefined}
+                        aria-label='WebPaper Dock'
+                        onPointerEnter={dock.hold}
+                        onPointerLeave={dock.release}
+                        onFocusCapture={dock.reveal}
+                    >
+                        <strong className='wp-brand'>WebPaper</strong>
+                        <span className='wp-source-badge'>{sourceLabel(activeSelection.sourceId)}</span>
+                        <PlaybackControls
+                            current={current}
+                            total={total}
+                            loading={player.status === 'loading' || player.status === 'loading-more'}
+                            historyMode={historyMode}
+                            autoplayRunning={player.session.autoplay.kind === 'running'}
+                            onPrevious={() => void player.controller.previous()}
+                            onNext={() => void player.controller.next()}
+                            onStartAutoplay={() => player.controller.startAutoplay(
+                                settings.player.autoplayIntervalMs ?? 30_000,
+                            )}
+                            onStopAutoplay={() => player.controller.stopAutoplay()}
+                            onOpenHistory={() => setHistoryOpen(true)}
+                            onLeaveHistory={() => player.controller.leaveHistory()}
+                        />
+                        <Button
+                            type='button'
+                            variant={settingsOpen ? 'secondary' : 'ghost'}
+                            size='sm'
+                            aria-expanded={settingsOpen}
+                            onClick={() => setSettingsOpen((open) => !open)}
+                        >
+                            <span aria-hidden='true'>⚙</span><span className='wp-control-label'>设置</span>
+                        </Button>
+                    </header>
+
+                    <SettingsPanel
+                        open={settingsOpen}
+                        settings={settings}
+                        kinds={widgetCatalogs.definitions.kinds}
+                        persistenceWarning={persistenceWarning}
+                        onChange={patchSettings}
+                        onApplySource={() => setActiveSelection(toSelection(settings))}
+                        onAddWidget={addWidget}
+                        onClose={() => setSettingsOpen(false)}
+                    />
+
+                    <HistoryDrawer
+                        open={historyOpen}
+                        items={player.session.history}
+                        search={historySearch}
+                        onSearchChange={setHistorySearch}
+                        onSelect={(_item, historyIndex) => {
+                            player.controller.selectHistory(historyIndex);
+                            setHistoryOpen(false);
+                        }}
+                        onClose={() => setHistoryOpen(false)}
+                    />
+
+                    <MediaInfoDrawer
+                        open={infoOpen}
+                        item={player.currentMedia}
+                        onClose={() => setInfoOpen(false)}
+                    />
+
+                    <WidgetStudioPanel schemas={widgetCatalogs.inspectors} controls={inspectorControls} />
+                    {process.env.NODE_ENV === 'development' ? <WidgetDevtools /> : null}
+                </main>
+            </ContextMenu>
+        </WidgetRuntimeProvider>
+    );
+}
+
+function MediaInfoDrawer({
+    open,
+    item,
+    onClose,
+}: {
+    readonly open: boolean;
+    readonly item: MediaItem | null;
+    readonly onClose: () => void;
+}) {
+    return (
+        <Drawer
+            open={open}
+            title='当前媒体信息'
+            description='当前正在播放的媒体及来源数据。'
+            placement='right'
+            size='lg'
+            className='wp-info-drawer'
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) onClose();
+            }}
+        >
+            {item ? (
+                <dl className='wp-media-info'>
+                    <div><dt>ID</dt><dd>{item.id}</dd></div>
+                    <div><dt>来源</dt><dd>{item.sourceId}</dd></div>
+                    <div><dt>类型</dt><dd>{item.kind}</dd></div>
+                    <div><dt>地址</dt><dd><code>{item.url}</code></dd></div>
+                    <div className='wp-media-info__raw'>
+                        <dt>原始数据</dt>
+                        <dd><pre>{formatRawMedia(item.raw)}</pre></dd>
+                    </div>
+                </dl>
+            ) : <p>当前没有可显示的媒体信息。</p>}
+        </Drawer>
+    );
+}
+
+function useAutoHideDock(blocked: boolean, timeoutMs = 4_500) {
+    const [hidden, setHidden] = useState(false);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const heldRef = useRef(false);
+
+    const clearTimer = useCallback(() => {
+        if (!timerRef.current) return;
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+    }, []);
+
+    const schedule = useCallback(() => {
+        clearTimer();
+        if (blocked || heldRef.current) {
+            setHidden(false);
+            return;
+        }
+        timerRef.current = setTimeout(() => setHidden(true), timeoutMs);
+    }, [blocked, clearTimer, timeoutMs]);
+
+    const reveal = useCallback(() => {
+        setHidden(false);
+        schedule();
+    }, [schedule]);
+
+    const hold = useCallback(() => {
+        heldRef.current = true;
+        setHidden(false);
+        clearTimer();
+    }, [clearTimer]);
+
+    const release = useCallback(() => {
+        heldRef.current = false;
+        schedule();
+    }, [schedule]);
+
+    useEffect(() => {
+        schedule();
+        return clearTimer;
+    }, [clearTimer, schedule]);
+
+    useEffect(() => {
+        const onPointerMove = (event: PointerEvent) => {
+            if (hidden) {
+                if (event.clientY >= window.innerHeight - 72) reveal();
+                return;
+            }
+            schedule();
+        };
+        const onActivity = () => reveal();
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerdown', onActivity, { passive: true });
+        window.addEventListener('keydown', onActivity);
+        window.addEventListener('touchstart', onActivity, { passive: true });
+        return () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerdown', onActivity);
+            window.removeEventListener('keydown', onActivity);
+            window.removeEventListener('touchstart', onActivity);
+        };
+    }, [hidden, reveal, schedule]);
+
+    return { hidden, reveal, hold, release };
+}
+
+function SettingsPanel({
+    open,
+    settings,
+    kinds,
+    persistenceWarning,
+    onChange,
+    onApplySource,
+    onAddWidget,
+    onClose,
+}: {
+    readonly open: boolean;
+    readonly settings: AppSettings;
+    readonly kinds: readonly WidgetKind[];
+    readonly persistenceWarning: string | null;
+    readonly onChange: (patch: Partial<AppSettings>) => void;
+    readonly onApplySource: () => void;
+    readonly onAddWidget: (kind: WidgetKind) => void;
+    readonly onClose: () => void;
+}) {
+    return (
+        <Drawer
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) onClose();
+            }}
+            title='壁纸设置'
+            description='媒体来源、播放方式和桌面组件都在这里。'
+            size='sm'
+            className='wp-settings-drawer'
+        >
+            <div className='wp-settings-content'>
+            {persistenceWarning ? <Alert tone='warning'>{persistenceWarning}</Alert> : null}
+
+            <section className='wp-settings-section'>
+                <h3>播放</h3>
+                <MediaPlayerSettingsForm
+                    value={settings.player}
+                    onChange={(player) => onChange({ player })}
+                />
+            </section>
+
+            <section className='wp-settings-section'>
+                <h3>媒体源</h3>
+                <Field label='来源'>
+                    <Select
+                        options={[
+                            { value: 'bird-paper', label: '小鸟壁纸' },
+                            { value: 'konachan', label: 'Konachan' },
+                            { value: 'json', label: 'JSON' },
+                        ]}
+                        value={settings.source}
+                        onValueChange={(source) => {
+                            if (source) onChange({ source: source as AppSettings['source'] });
+                        }}
+                    />
+                </Field>
+                <Field label='每页数量' description='保持适中的数量可以让切换更流畅'>
+                    <NumberInput
+                        min={1}
+                        max={50}
+                        value={settings.pageSize}
+                        onValueChange={(value) => onChange({
+                            pageSize: clampPageSize(value ?? DEFAULT_APP_SETTINGS.pageSize),
+                        })}
+                    />
+                </Field>
+                <SourceFields settings={settings} onChange={onChange} />
+                <Button type='button' fullWidth onClick={onApplySource}>应用媒体源</Button>
+            </section>
+
+            <section className='wp-settings-section'>
+                <h3>小组件</h3>
+                <div className='wp-inline'>
+                    <span>编辑模式</span>
+                    <Switch
+                        aria-label='小组件编辑模式'
+                        checked={settings.widgetsEditable}
+                        onCheckedChange={(checked) => onChange({ widgetsEditable: checked })}
+                    />
+                </div>
+                <div className='wp-widget-buttons'>
+                    {kinds.map((kind) => (
+                        <Button key={kind} type='button' variant='soft' size='sm' onClick={() => onAddWidget(kind)}>
+                            <span aria-hidden='true'>＋</span>{kind}
+                        </Button>
+                    ))}
+                </div>
+            </section>
+            </div>
+        </Drawer>
+    );
+}
+
+function SourceFields({
+    settings,
+    onChange,
+}: {
+    readonly settings: AppSettings;
+    readonly onChange: (patch: Partial<AppSettings>) => void;
+}) {
+    if (settings.source === 'bird-paper') {
+        return (
+            <>
+                <Field label='模式'>
+                    <Select
+                        options={[
+                            { value: 'latest', label: '最新' },
+                            { value: 'search', label: '搜索' },
+                            { value: 'category', label: '分类' },
+                        ]}
+                        value={settings.bird.mode}
+                        onValueChange={(mode) => {
+                            if (!mode) return;
+                            onChange({ bird: { ...settings.bird, mode: mode as AppSettings['bird']['mode'] } });
+                        }}
+                    />
+                </Field>
+                {settings.bird.mode === 'search' ? (
+                    <Field label='关键词'>
+                        <TextInput value={settings.bird.query} onChange={(event) => onChange({
+                            bird: { ...settings.bird, query: event.currentTarget.value },
+                        })} />
+                    </Field>
+                ) : null}
+                {settings.bird.mode === 'category' ? (
+                    <Field label='分类 ID'>
+                        <TextInput value={settings.bird.categoryId} onChange={(event) => onChange({
+                            bird: { ...settings.bird, categoryId: event.currentTarget.value },
+                        })} />
+                    </Field>
+                ) : null}
+            </>
+        );
+    }
+    if (settings.source === 'konachan') {
+        return (
+            <>
+                <Field label='年龄分级'>
+                    <Select
+                        options={[
+                            { value: 'safe', label: '全年龄（Safe）' },
+                            { value: 'questionableless', label: '全年龄及敏感（Safe & Questionable）' },
+                            { value: 'questionable', label: '敏感内容（Questionable）' },
+                            { value: 'questionableplus', label: '敏感及成人（Questionable & Explicit）' },
+                            { value: 'explicit', label: '成人内容（Explicit）' },
+                        ]}
+                        value={settings.konachan.rating}
+                        onValueChange={(rating) => {
+                            if (!rating) return;
+                            onChange({
+                                konachan: {
+                                    ...settings.konachan,
+                                    rating: rating as AppSettings['konachan']['rating'],
+                                },
+                            });
+                        }}
+                    />
+                </Field>
+                <Field label='标签' description='多个标签使用空格分隔；rating:* 将由年龄分级自动管理'>
+                    <TextInput
+                        value={settings.konachan.tags}
+                        onChange={(event) => onChange({
+                            konachan: { ...settings.konachan, tags: event.currentTarget.value },
+                        })}
+                        onBlur={(event) => onChange({
+                            konachan: {
+                                ...settings.konachan,
+                                tags: sanitizeKonachanUserTags(event.currentTarget.value),
+                            },
+                        })}
+                    />
+                </Field>
+            </>
+        );
+    }
+    return (
+        <Field label='JSON 媒体列表'>
+            <Textarea rows={10} value={settings.jsonContent} onChange={(event) => onChange({
+                jsonContent: event.currentTarget.value,
+            })} />
+        </Field>
+    );
+}
+
+function createEngine(catalog: ReturnType<typeof createBuiltInWidgetCatalogs>['definitions']): {
+    readonly engine: WidgetEngine;
+    readonly persistenceWarning: string | null;
+} {
+    const persisted = loadWidgetDocument(localStorage, catalog);
+    const engine = createWidgetEngine({
+        catalog,
+        ...(persisted.kind === 'loaded' ? { document: persisted.document } : {}),
+    });
+
+    if (persisted.kind !== 'loaded') {
+        engine.dispatch({
+            type: 'widget.add',
+            widget: {
+                kind: 'clock',
+                label: '桌面时钟',
+                layout: {
+                    anchorX: 'center',
+                    anchorY: 'top',
+                    x: 0,
+                    y: 5,
+                    w: 48,
+                    h: 18,
+                },
+                style: { shadowRadius: 12, shadowColor: 'rgba(0,0,0,.35)' },
+            },
+        });
+    }
+
+    return {
+        engine,
+        persistenceWarning: persisted.kind === 'invalid'
+            ? '旧版小组件数据与 v2 架构不兼容，已使用默认布局。'
+            : null,
+    };
+}
+
+function sourceLabel(sourceId: MediaSourceSelection['sourceId']): string {
+    if (sourceId === 'bird-paper') return '小鸟壁纸';
+    if (sourceId === 'konachan') return 'Konachan';
+    return 'JSON';
+}
+
+function formatRawMedia(raw: unknown): string {
+    if (raw === null || raw === undefined) return '无';
+    if (typeof raw === 'string') return raw;
+    try {
+        return JSON.stringify(raw, null, 2);
+    } catch {
+        return String(raw);
+    }
+}
+
+function clampPageSize(value: number): number {
+    if (!Number.isFinite(value)) return DEFAULT_APP_SETTINGS.pageSize;
+    return Math.max(1, Math.min(50, Math.round(value)));
+}

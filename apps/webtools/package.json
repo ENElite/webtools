@@ -1,0 +1,36 @@
+{
+  "name": "@webtools/webtools",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/generate-tools.mjs && node scripts/prepare-stamp-qr.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/generate-tools.mjs && node scripts/prepare-stamp-qr.mjs",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next out node_modules"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "@reactuses/core": "^6.3.1",
+    "@webtools/ui": "workspace:*",
+    "highs": "1.15.3",
+    "next": "catalog:",
+    "qrcode": "1.5.4",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "postcss": "^8.4.38",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:"
+  }
+}

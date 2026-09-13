@@ -2,7 +2,7 @@ services:
   webpaper:
     build:
       context: .
-      dockerfile: packages/webpaper/Dockerfile
+      dockerfile: apps/webpaper/Dockerfile
     ports:
       - "5173:5173"
     environment:
@@ -12,7 +12,7 @@ services:
   webtools:
     build:
       context: .
-      dockerfile: packages/webtools/Dockerfile
+      dockerfile: apps/webtools/Dockerfile
     ports:
       - "3000:3000"
     environment:
